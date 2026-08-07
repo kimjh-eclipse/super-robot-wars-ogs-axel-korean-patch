@@ -1,0 +1,32 @@
+# ROM / 디스크 이미지는 절대 커밋하지 않습니다.
+*.gba
+*.gb
+*.gbc
+*.nds
+*.iso
+*.bin
+*.img
+*.sav
+*.srm
+*.ss*
+*.st*
+
+# 에뮬레이터 세이브스테이트 / 메모리 덤프
+*.p2s
+*.state
+*.dump
+
+# 빌드 산출물
+/build/
+/out/
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

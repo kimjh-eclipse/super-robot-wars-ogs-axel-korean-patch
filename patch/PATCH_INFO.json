@@ -1,0 +1,37 @@
+{
+ "kind": "ogs-lamia-axel-role-swap",
+ "built": "2026-08-07",
+ "base_iso": {
+  "name": "srwogs-v1.4.3s1.iso",
+  "size": 4518150144,
+  "sha256": "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C",
+  "md5": "ef740dd41f5abcc05c6f6ba96ada9f5b"
+ },
+ "result_iso": {
+  "size": 4518150144,
+  "sha256": "5db450114cb820ae491324ff36cec61b748653e761a5857b40759c306341944d",
+  "md5": "c44412acc77fd3536ab4cde072b2aaf6"
+ },
+ "patch": {
+  "file": "SRWOGS_AxelRoleSwap_kr_v20260807.xdelta",
+  "size": 5425753,
+  "md5": "515e4acd466987714e7edf603a9dfbe2",
+  "sha256": "909b5327ede5f061eba1d2ab3bad2f30d95772bc92089d89ceae47bc13fe2931",
+  "verified": "xdelta -d 복호 해시가 결과 ISO와 일치"
+ },
+ "contents": [
+  "라미아↔액셀 양방향 역할 교환 (PTbl 6엔트리 × SHARED·IM)",
+  "기체: 양방향 교환 — 아군 슬롯(0x48/0x49/0x1A1)=소울게인, 적 슬롯(0xCE/0x136)=안쥬르그",
+  "전투 대사·음성: A Portable 액셀 한국어 대사·음성 이식 (클립 185) + 기체 선택 전용 슬롯 75개 복원",
+  "이벤트 대사 텍스트 2,722 오프셋 교체 (초기 대상 3,245건 전수 대조 완료)"
+ ],
+ "known_limits": [
+  "적 보스 안쥬르그는 소울게인 자리의 HP 18928을 그대로 쓴다(밸런스 유지 목적)",
+  "라즈앙그리프 무기 대사는 A Portable 에 액셀 음성이 없어 무기명 없는 기합으로 대체",
+  "길이 물리 불가 5줄(본문이 ！/？ 뿐)은 원문 유지",
+  "6화 대형 제목·0x65AD60C 괄호 불균형(원본 결함) 미수정",
+  "인게임 최종 확인 미완 — 기체별 전투대사·적 안쥬르그·7화 이후 시나리오"
+ ],
+ "version": "v20260807",
+ "release_file": "SRWOGS_AxelRoleSwap_kr_v20260807.xdelta"
+}

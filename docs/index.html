@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>슈퍼로봇대전 OGs 액셀 역할 교체 패치</title>
+  <meta name="description" content="PS2 슈퍼로봇대전 OG ORIGINAL GENERATIONS 라미아↔액셀 역할 교체 개조 패치 문서" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css" />
+  <style>
+    /* 소울게인 배색: 다크 인디고 본체 · 금색 트림 · 붉은 포인트 */
+    :root {
+      --sg-indigo: #1e2a5a;
+      --sg-indigo-deep: #121a3c;
+      --sg-gold: #c9a227;
+      --sg-gold-deep: #a8871c;
+      --sg-red: #a52834;
+      --ink: #16181d;
+      --theme-color: #1e2a5a;
+    }
+    * { -webkit-font-smoothing: antialiased; }
+    body { font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif; }
+
+    /* ---- 본문 ---- */
+    .markdown-section { max-width: 860px; }
+    .markdown-section h1, .markdown-section h2 {
+      font-family: 'Noto Serif KR', 'Noto Sans KR', serif;
+      letter-spacing: -0.01em;
+    }
+    .markdown-section h1 { font-weight: 900; color: var(--sg-indigo-deep); }
+    .markdown-section h2 {
+      font-weight: 700; border-bottom: 2px solid #e6e2d3;
+      padding-bottom: .3em; margin-top: 2.4rem; color: var(--sg-indigo);
+    }
+    /* 금색 트림 다이아 마커 */
+    .markdown-section h2::before {
+      content: ""; display: inline-block; width: .5em; height: .5em;
+      margin-right: .5em; background: var(--sg-gold);
+      transform: rotate(45deg); vertical-align: middle;
+    }
+    .markdown-section a { color: var(--sg-indigo); font-weight: 500; }
+    .markdown-section a:hover { color: var(--sg-red); text-decoration: underline; }
+    .markdown-section tr:nth-child(2n) { background: #f2f4fa; }
+    .markdown-section th { background: var(--sg-indigo); color: #fff; font-weight: 700; }
+    .markdown-section table { border-collapse: collapse; }
+    .markdown-section td, .markdown-section th { border: 1px solid #d6dae8; }
+    .markdown-section blockquote {
+      border-left: 4px solid var(--sg-gold); background: #fdf8e8;
+      color: #574714; border-radius: 0 6px 6px 0;
+    }
+    .markdown-section code { color: var(--sg-indigo-deep); background: #eef0f8; }
+    .markdown-section pre { background: #121a3c; }
+    .markdown-section pre > code { color: #e8ecf7; background: transparent; }
+    .markdown-section strong { color: var(--sg-indigo-deep); }
+
+    /* ---- 사이드바 ---- */
+    .sidebar { border-right: 1px solid #e0e3ee; }
+    .sidebar .app-name-link { color: var(--sg-indigo) !important; font-weight: 900; }
+    .sidebar ul li a { color: #3c434f; }
+    .sidebar ul li a:hover { color: var(--sg-indigo); }
+    .sidebar ul li.active > a {
+      color: var(--sg-indigo); font-weight: 700; border-right: 3px solid var(--sg-gold);
+    }
+    .app-name-link img, .sidebar-nav > p:first-child { font-weight: 900; }
+
+    /* 배지 줄 */
+    .badges img { margin: 2px 4px 2px 0; }
+  </style>
+</head>
+<body>
+  <div id="app">불러오는 중…</div>
+  <script>
+    window.$docsify = {
+      name: '⚙️ 슈퍼로봇대전 OGs<br><small style="font-weight:400;opacity:.7">액셀 역할 교체 패치</small>',
+      repo: 'https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch',
+      homepage: 'home.md',
+      loadSidebar: true,
+      loadNavbar: false,
+      coverpage: false,
+      auto2top: true,
+      maxLevel: 3,
+      subMaxLevel: 3,
+      relativePath: true,
+      notFoundPage: true,
+      search: {
+        placeholder: '문서 검색…',
+        noData: '검색 결과가 없습니다.',
+        depth: 4
+      },
+      pagination: {
+        previousText: '이전',
+        nextText: '다음',
+        crossChapter: true
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+</body>
+</html>
