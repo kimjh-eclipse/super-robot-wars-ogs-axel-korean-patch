@@ -6,8 +6,8 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 
 📖 **문서 사이트**: https://kimjh-eclipse.github.io/super-robot-wars-ogs-axel-korean-patch/
 
-- 현재 버전: **v20260807**
-- 패치 파일: [`patch/SRWOGS_AxelRoleSwap_kr_v20260807.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20260807.xdelta)
+- 현재 버전: **v20260808**
+- 패치 파일: [`patch/SRWOGS_AxelRoleSwap_kr_v20260808.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20260808.xdelta)
 
 > **이 저장소에는 게임 ISO가 포함되어 있지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
 
@@ -16,12 +16,12 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 ## 적용 방법
 
 1. OGs 한글패치 **v1.4.3s1**이 적용된 ISO를 준비합니다.
-2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20260807.xdelta`를 적용합니다.
+2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20260808.xdelta`를 적용합니다.
 
 명령줄로 적용하는 경우:
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260807.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260808.xdelta srwogs-axel.iso
 ```
 
 > 일본판 원본 ISO에는 적용되지 않습니다. 한글패치를 먼저 적용해 주세요.
@@ -33,8 +33,8 @@ xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260807.xdelta srwogs-
 | 적용 전 크기 | 4,518,150,144 바이트 |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 적용 후 크기 | 4,518,150,144 바이트 |
-| 적용 후 MD5 | `c44412acc77fd3536ab4cde072b2aaf6` |
-| 패치 파일 MD5 | `515e4acd466987714e7edf603a9dfbe2` |
+| 적용 후 MD5 | `387479c268a9be8ca4ce6d9676d8c96f` |
+| 패치 파일 MD5 | `7a43be41be21970536040f2c017ba192` |
 
 적용 전 해시가 다르면 정상 적용되지 않습니다.
 
@@ -63,7 +63,7 @@ ATRAC3+ → PS2 ADPCM 재인코딩 후 OGs 음성 뱅크에 재패킹했습니�
 
 무기명이 나오는 대사는 실제로 그 무기를 쏠 때만 나오도록 맞췄고,
 게임 중반의 기체 선택(소울게인改 · 바이사가 · 아슈세이버 · 라즈앙그리프)에 대응하는
-전용 대사 슬롯 **75개**를 복원했습니다.
+전용 대사 슬롯 **98개**를 복원했습니다.
 
 ---
 

@@ -22,7 +22,7 @@ AP = Path("C:/Emul/PSP/Super Robot Wars A Portable [K].iso")
 # 기체 선택 전용 슬롯(extend_machine_lines)이 무기명 대사용으로 신규 클립을
 # 몇 개 더 쓴다. 그 자리를 미리 떼어 두지 않으면 재패킹에서 넘친다
 # (실측 8,996,864 > 8,955,904).
-RESERVE = 0x60000
+RESERVE = 0xC0000
 BUDGET = 0x800000 - RESERVE
 CAP = 194
 

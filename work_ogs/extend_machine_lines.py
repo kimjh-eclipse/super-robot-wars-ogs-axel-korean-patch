@@ -45,6 +45,44 @@ AP_EXTRA = {"풍인섬": "fujinsen", "광인섬": "koujinsen"}
 
 PAIRS = (("3F4", "416"), ("4A4", "416"), ("4A5", "417"), ("521", "417"))
 
+# 바이사가 무장은 열화인 → (손톱) → 수류조 → 지참·질공도 → 풍인섬 → 오의・광인섬 순이다.
+# A Portable 액셀에는 앞쪽 셋도 있는데, OGs 라미아 대사는 그 자리에서 무기 이름을
+# 부르지 않는다(「받아라…！」「간다！」). 그래서 무기명 검색으로는 안 잡힌다.
+#
+# 라미아 청크를 ctx 순으로 보면 기체별로 뭉쳐 있다(실측 0x3F4):
+#   0x00B1~0x00B6 안쥬르그(일루젼·팬텀) → 0x00BA~0x00C0 이름 없음 → 0x00C1 풍인섬
+# 즉 **풍인섬 직전의 무기명 없는 슬롯들이 바이사가의 앞쪽 무장**이다.
+VAISAGA_ANCHOR = re.compile("풍인섬|광인섬|바이사가")
+VAISAGA_AP = re.compile("열화인|수류조|질공도|손톱|지참")
+# 다른 기체의 무장 이름 — 역방향 탐색을 여기서 멈춘다
+OTHER_MACHINE = re.compile(
+    "미라쥬|섀도우|일루젼|팬텀|정령|안쥬르그|아슈세이버|라즈앙그리프|스테이크|"
+    "벙커|클레이모어|트윈|빔캐논|빔　캐논|블라스터|임팩트|솔리드|런처|캐논|"
+    "소드브레이커|할버드|매트릭스")
+
+
+def vaisaga_slots(lam):
+    """풍인섬 직전의 무기명 없는 슬롯을 **배열 인덱스 순**으로 돌려준다.
+
+    0x3F4 은 ctx 가 기체별로 오름차순이라 ctx 순서로도 됐지만, 0x4A4·0x4A5 는
+    ctx 를 0 으로 두는 슬롯이 섞여 있어 ctx 정렬이 무너진다. 네 청크 모두
+    **배열 순서**는 같은 문장 차례(간다！ → 받아라！ → 가랏！ → 이　공격을…
+    → 풍인섬！)를 유지하므로 인덱스를 기준으로 삼는다.
+    """
+    rows = sorted(lam, key=lambda r: r["i"])
+    # 앵커는 **풍인섬**이어야 한다. 「바람처럼　춤춘다…　그것이　바이사가다」 같은
+    # 기체 소개 대사는 무장 블록에서 멀리 떨어져 있어(실측 0x4A5) 앵커로 쓰면
+    # 역방향 탐색이 엉뚱한 데서 시작해 곧바로 다른 기체에 막힌다.
+    first = next((i for i, r in enumerate(rows) if "풍인섬" in r["text"]), None)
+    if first is None:
+        return []
+    out = []
+    for r in reversed(rows[:first]):
+        if OTHER_MACHINE.search(r["text"]) or VAISAGA_ANCHOR.search(r["text"]):
+            break
+        out.append(r)
+    return list(reversed(out))
+
 
 def ap_weapon_key(text: str):
     for w, k in AP_EXTRA.items():
@@ -73,7 +111,10 @@ def main() -> None:
         lam = json.loads(Path(f"runtime/orig{pk}.json").read_text(encoding="utf-8"))
         axel = json.loads(Path(f"runtime/orig{ak}.json").read_text(encoding="utf-8"))
         aprows = apd["D4" if ak == "416" else "D5"]
-        axctx = {r["ctx"] for r in axel}
+        # 슬롯 구분자는 ctx 단독이 아니라 **(ctx, 플래그) 쌍**이다.
+        # ctx 만으로 걸렀더니 라미아 풍인섬(0x00C1/0x7000)이 액셀의
+        # 0x00C1/0x0000 과 같은 ctx 라는 이유로 통째로 버려졌다(실측 0x3F4).
+        axctx = {(r["ctx"], r["flag"]) for r in axel}
 
         # 기체 무기 문맥 = 무기명을 부르는 라미아 레코드의 ctx.
         # 단, `0x0100`·`0x0208`·`0x0441` 처럼 **여러 레코드가 공유하는 ctx 는
@@ -83,8 +124,33 @@ def main() -> None:
         cnt = Counter(r["ctx"] for r in lam)
         wctx = {r["ctx"] for r in lam
                 if WEAPON_WORD.search(r["text"]) and r["ctx"]
-                and r["ctx"] not in axctx and cnt[r["ctx"]] <= 4}
-        extra = [r for r in lam if r["ctx"] in wctx and r["text"] != "<범위밖>"]
+                and (r["ctx"], r["flag"]) not in axctx and cnt[r["ctx"]] <= 4}
+        extra = [r for r in lam if r["ctx"] in wctx and r["text"] != "<범위밖>"
+                 and (r["ctx"], r["flag"]) not in axctx]
+
+        # 바이사가 앞쪽 무장 자리 — 라미아 대사가 무기명을 안 부르는 구간
+        # 인덱스 탐색은 범용 조건 코드(0x0100 등, 레코드 16~39개)까지 지나간다.
+        # 거기에 무기명을 넣으면 온갖 상황에서 「지참！　질공도！」가 튀어나온다.
+        # 무기 슬롯 판정은 여기서도 **희소 ctx**로 제한한다.
+        vs = [r for r in vaisaga_slots(lam)
+              if (r["ctx"], r["flag"]) not in axctx
+              and r["ctx"] not in wctx and r["text"] != "<범위밖>"
+              and r["ctx"] and cnt[r["ctx"]] <= 4]
+        vap, seen_v = [], set()
+        for r in aprows:
+            if r["voice"] and VAISAGA_AP.search(r["text"]) and r["voice"] not in seen_v:
+                seen_v.add(r["voice"]); vap.append(r)
+        # 역방향 탐색은 앞 기체의 꼬리까지 딸려온다. 실측 0x3F4 의 0x00B8
+        # 「조준은　안빗나가！」는 안쥬르그 블록의 0x00AF 와 같은 문장이다.
+        # 그래서 **풍인섬에 가장 가까운 쪽부터** 무장 수만큼만 쓴다.
+        # 슬롯이 모자라면 **풍인섬에 가까운 무장부터** 남긴다.
+        n = min(len(vs), len(vap))
+        vs, vap = vs[-n:], vap[-n:]
+        vmap = {}
+        for r, pick in zip(vs, vap):
+            vmap[(r["ctx"], r["flag"])] = pick
+        extra = sorted(extra + [r for r in vs if (r["ctx"], r["flag"]) in vmap],
+                       key=lambda r: (r["ctx"], r["flag"]))
 
         # A Portable 쪽 무기별 대사 (짝 포함)
         idx = {r["i"]: r for r in aprows}
@@ -145,6 +211,12 @@ def main() -> None:
 
         rows, order = [], {}
         for r in extra:
+            fixed = vmap.get((r["ctx"], r["flag"]))
+            if fixed:
+                used.add(fixed["voice"])
+                rows.append({"ctx": r["ctx"], "flag": r["flag"], "orig": r["text"],
+                             "voice": fixed["voice"], "text": fixed["text"]})
+                continue
             k = lamia_weapon_key(r["text"])
             pool = by_w.get(k) if k else None
             if pool:
