@@ -1,11 +1,11 @@
 <p class="badges">
-  <img src="https://img.shields.io/badge/버전-v20260808b-1e2a5a" alt="버전">
+  <img src="https://img.shields.io/badge/버전-v20260810-1e2a5a" alt="버전">
   <img src="https://img.shields.io/badge/플랫폼-PS2-a8871c" alt="플랫폼">
   <img src="https://img.shields.io/badge/형식-xdelta-informational" alt="형식">
   <img src="https://img.shields.io/badge/종류-역할교체 개조-success" alt="개조">
 </p>
 
-> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta) (약 5.10MB)
+> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20260810.xdelta](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta) (약 5.12MB)
 
 # 슈퍼로봇대전 OGs 액셀 역할 교체 패치
 
@@ -25,7 +25,7 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 패치 형식 | xdelta (`.xdelta`) |
-| 최신 버전 | **v20260808b** (2026-08-08) |
+| 최신 버전 | **v20260810** (2026-08-10) |
 
 > **이 저장소는 게임 ISO를 포함하지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
 
@@ -34,14 +34,14 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 1. OGs 한글패치 v1.4.3s1이 적용된 ISO를 준비합니다. **(이 저장소는 ISO를 포함하지 않습니다.)**
    - 크기: 4,518,150,144 bytes
    - MD5: `ef740dd41f5abcc05c6f6ba96ada9f5b`
-2. [패치 파일 `SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta`](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta)을 내려받아 xdelta(또는 xdeltaUI, Delta Patcher 등)로 적용합니다.
+2. [패치 파일 `SRWOGS_AxelRoleSwap_kr_v20260810.xdelta`](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta)을 내려받아 xdelta(또는 xdeltaUI, Delta Patcher 등)로 적용합니다.
 
    ```bash
-   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta srwogs-axel.iso
+   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260810.xdelta srwogs-axel.iso
    ```
 3. 적용 결과를 확인합니다 (선택).
    - 결과 크기: 4,518,150,144 bytes
-   - 결과 MD5: `3e3775e7fb40a2d889ca0a891034b3a0`
+   - 결과 MD5: `009aa8e3f354a6415e943bb5ed65c90c`
 
 > 💡 GUI 툴만 쓰신다면 **xdeltaUI**에서 원본 ISO를 Source, 패치를 Patch로 지정하고 Apply Patch를 누르면 됩니다.
 > 적용 전 해시가 위와 다르면 정상 적용되지 않습니다.
@@ -86,6 +86,8 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 - 본문이 `！`·`？` 뿐이라 물리적으로 늘릴 수 없는 5줄은 원문을 유지했습니다.
 - 바이사가 앞쪽 무장(열화인 · 손톱 · 수류조 · 지참질공도) 배정은 A PORTABLE 무장 순서를
   OGs 배열 순서에 맞춘 **위치 추론**입니다. 블록 안이라는 건 확실하나 개별 무기 대응은 실기 확인이 필요합니다.
+- 무기명 전용 전투 대사가 실제로 선택되는지 확인되지 않았습니다 — 무기를 써도
+  범용 대사가 나오는 경우가 보고됐습니다.
 - 6화 대형 제목은 미대응입니다.
 - 인게임 최종 확인이 끝나지 않았습니다. 기체별 전투 대사, 적 안쥬르그 등장 장면,
   7화 이후 시나리오에서 이상한 부분을 발견하시면 알려 주세요.

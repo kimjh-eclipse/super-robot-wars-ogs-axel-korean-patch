@@ -12,13 +12,13 @@
 | 적용 대상 | OGs 한글패치 **v1.4.3s1**이 적용된 ISO |
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
-| 패치 파일 | `SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta` (약 5.10MB) |
-| 패치 파일 MD5 | `dda0ecf8d8a1668cec46a6ccb6ac155c` |
+| 패치 파일 | `SRWOGS_AxelRoleSwap_kr_v20260810.xdelta` (약 5.12MB) |
+| 패치 파일 MD5 | `a0470f723ca556b223fcb06489e167df` |
 
 ### 적용
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260810.xdelta srwogs-axel.iso
 ```
 
 GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패치를 Patch로 지정하고 적용하면 됩니다.
@@ -30,8 +30,8 @@ GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패�
 | 항목 | 값 |
 |---|---|
 | 결과 크기 | 4,518,150,144 bytes |
-| 결과 MD5 | `3e3775e7fb40a2d889ca0a891034b3a0` |
-| 결과 SHA-256 | `90b0b979cb3fa57306c2c29c7c72f932945c2ec4977f8703c3ca7c1c9f4f3a9d` |
+| 결과 MD5 | `009aa8e3f354a6415e943bb5ed65c90c` |
+| 결과 SHA-256 | `67472de3bff62645734365a67193194f21e0f11548ebb242aefc5b2bc2f09a8c` |
 
 적용 전 해시가 다르면 패치가 정상 적용되지 않습니다.
 
@@ -139,6 +139,9 @@ A PORTABLE 액셀이 가진 것과 없는 것:
   맞춘 **위치 추론**으로 배정했습니다. 바이사가 블록 안이라는 건 확실하나, 개별 무기 대응이
   맞는지는 실기로 확인해야 합니다.
 - 본문이 `！`·`？`뿐이라 물리적으로 늘릴 수 없는 **5줄**은 원문을 유지했습니다.
+- **무기명 전용 전투 대사가 실제로 선택되는지 확인되지 않았습니다.** 무기를 쓰면
+  범용·상대별 대사가 함께 후보가 되어, 무기 이름이 들어간 대사가 나오지 않는 경우가
+  보고됐습니다(현무강탄 · 무주작). 슬롯 선택 조건을 런타임으로 추적해야 합니다.
 - **6화 대형 제목**은 미대응입니다.
 - MAP.BIN `0x65AD60C`의 괄호 불균형은 **원본 결함**이라 손대지 않았습니다.
 - **인게임 최종 확인이 끝나지 않았습니다.** 기체별 전투 대사, 적 안쥬르그 등장 장면,
