@@ -12,13 +12,13 @@
 | 적용 대상 | OGs 한글패치 **v1.4.3s1**이 적용된 ISO |
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
-| 패치 파일 | `SRWOGS_AxelRoleSwap_kr_v20260808.xdelta` (약 5.10MB) |
-| 패치 파일 MD5 | `7a43be41be21970536040f2c017ba192` |
+| 패치 파일 | `SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta` (약 5.10MB) |
+| 패치 파일 MD5 | `dda0ecf8d8a1668cec46a6ccb6ac155c` |
 
 ### 적용
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260808.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta srwogs-axel.iso
 ```
 
 GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패치를 Patch로 지정하고 적용하면 됩니다.
@@ -30,8 +30,8 @@ GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패�
 | 항목 | 값 |
 |---|---|
 | 결과 크기 | 4,518,150,144 bytes |
-| 결과 MD5 | `387479c268a9be8ca4ce6d9676d8c96f` |
-| 결과 SHA-256 | `62ead37ad86796d59ff135585d060f08a33762774d83b93bbd0f3b75576b64f0` |
+| 결과 MD5 | `3e3775e7fb40a2d889ca0a891034b3a0` |
+| 결과 SHA-256 | `90b0b979cb3fa57306c2c29c7c72f932945c2ec4977f8703c3ca7c1c9f4f3a9d` |
 
 적용 전 해시가 다르면 패치가 정상 적용되지 않습니다.
 

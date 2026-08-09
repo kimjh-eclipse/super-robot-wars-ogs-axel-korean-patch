@@ -11,7 +11,7 @@
   - [🔧 개발 기록](dev-log.md)
 
 - **다운로드**
-  - [⬇️ SRWOGS_AxelRoleSwap_kr_v20260808.xdelta (최신)](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260808.xdelta)
+  - [⬇️ SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta (최신)](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta)
 
 - **관련 패치**
   - [🦾 OG2 ExcelVir2 한국어 패치](https://kimjh-eclipse.github.io/super-robot-wars-og2-axel-korean-patch/)

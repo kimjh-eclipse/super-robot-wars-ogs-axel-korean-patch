@@ -1,6 +1,6 @@
 {
  "kind": "ogs-lamia-axel-role-swap",
- "built": "2026-08-08",
+ "built": "2026-08-09",
  "base_iso": {
   "name": "srwogs-v1.4.3s1.iso",
   "size": 4518150144,
@@ -9,14 +9,14 @@
  },
  "result_iso": {
   "size": 4518150144,
-  "md5": "387479c268a9be8ca4ce6d9676d8c96f",
-  "sha256": "62ead37ad86796d59ff135585d060f08a33762774d83b93bbd0f3b75576b64f0"
+  "md5": "3e3775e7fb40a2d889ca0a891034b3a0",
+  "sha256": "90b0b979cb3fa57306c2c29c7c72f932945c2ec4977f8703c3ca7c1c9f4f3a9d"
  },
  "patch": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20260808.xdelta",
-  "size": 5348588,
-  "md5": "7a43be41be21970536040f2c017ba192",
-  "sha256": "291ec32796f22eb5268b515982a4f13f09cdc41c9b60a474074297518b30d999",
+  "file": "SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta",
+  "size": 5348610,
+  "md5": "dda0ecf8d8a1668cec46a6ccb6ac155c",
+  "sha256": "d66205d193be1e286039043ea26192b437f30123a4ef2b5e3b6d787e5469e61b",
   "verified": "xdelta -d 복호 해시가 결과 ISO와 일치"
  },
  "contents": [
@@ -33,6 +33,6 @@
   "6화 대형 제목·0x65AD60C 괄호 불균형(원본 결함) 미수정",
   "인게임 최종 확인 미완 — 기체별 전투대사·적 안쥬르그·7화 이후 시나리오"
  ],
- "version": "v20260808",
- "release_file": "SRWOGS_AxelRoleSwap_kr_v20260808.xdelta"
+ "version": "v20260808b",
+ "release_file": "SRWOGS_AxelRoleSwap_kr_v20260808b.xdelta"
 }
