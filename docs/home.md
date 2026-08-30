@@ -1,11 +1,11 @@
 <p class="badges">
-  <img src="https://img.shields.io/badge/버전-v20260810-1e2a5a" alt="버전">
+  <img src="https://img.shields.io/badge/버전-v20260830-1e2a5a" alt="버전">
   <img src="https://img.shields.io/badge/플랫폼-PS2-a8871c" alt="플랫폼">
   <img src="https://img.shields.io/badge/형식-xdelta-informational" alt="형식">
   <img src="https://img.shields.io/badge/종류-역할교체 개조-success" alt="개조">
 </p>
 
-> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20260810.xdelta](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta) (약 5.12MB)
+> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20260830.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (약 10.7MB, 빠른패처 + xdelta 동봉)
 
 # 슈퍼로봇대전 OGs 액셀 역할 교체 패치
 
@@ -24,8 +24,8 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 | 적용 대상 | OGs 한글패치 **v1.4.3s1**이 적용된 ISO |
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
-| 패치 형식 | xdelta (`.xdelta`) |
-| 최신 버전 | **v20260810** (2026-08-10) |
+| 패치 형식 | 빠른패처 (exe) + xdelta (`.xdelta`) |
+| 최신 버전 | **v20260830** (2026-08-30) |
 
 > **이 저장소는 게임 ISO를 포함하지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
 
@@ -34,14 +34,18 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 1. OGs 한글패치 v1.4.3s1이 적용된 ISO를 준비합니다. **(이 저장소는 ISO를 포함하지 않습니다.)**
    - 크기: 4,518,150,144 bytes
    - MD5: `ef740dd41f5abcc05c6f6ba96ada9f5b`
-2. [패치 파일 `SRWOGS_AxelRoleSwap_kr_v20260810.xdelta`](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/raw/main/patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta)을 내려받아 xdelta(또는 xdeltaUI, Delta Patcher 등)로 적용합니다.
+2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20260830.zip`을 내려받습니다.
+3. **빠른패처(권장)**: ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해
+   기준 ISO를 선택하고 [패치 적용]을 누릅니다. 제자리 수정이며 적용 전 `.ogsbak`
+   백업을 남기고 적용 전후 해시를 검증합니다.
+4. **xdelta 방식**: `xdelta` 폴더의 패치를 xdelta(또는 xdeltaUI, Delta Patcher 등)로 적용합니다.
 
    ```bash
-   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260810.xdelta srwogs-axel.iso
+   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260830.xdelta srwogs-axel.iso
    ```
-3. 적용 결과를 확인합니다 (선택).
+5. 적용 결과를 확인합니다 (선택).
    - 결과 크기: 4,518,150,144 bytes
-   - 결과 MD5: `009aa8e3f354a6415e943bb5ed65c90c`
+   - 결과 MD5: `8a44bffdd8d687090d6fe9768ff456ec`
 
 > 💡 GUI 툴만 쓰신다면 **xdeltaUI**에서 원본 ISO를 Source, 패치를 Patch로 지정하고 Apply Patch를 누르면 됩니다.
 > 적용 전 해시가 위와 다르면 정상 적용되지 않습니다.
@@ -68,8 +72,14 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
   - `엑세 누님` 같은 기존 개그와 액셀의 W 넘버 정체성은 보존
 - 역할이 걸린 장면 **79개 전량 정독** 확인
 
+### 시나리오 · 인물 관계 (v20260830)
+- 액셀의 성격을 **A PORTABLE의 기억상실 액셀**과 **OG2 액셀 패치 ver.1.20** 기준으로 재구성
+- 레몬과의 연인 관계, 쿄스케와의 상호 견제 전우형 라이벌, 라미아의 「액셀 대장」 호칭 복원
+- 33차에 걸친 교정으로 고유 대사 슬롯 **1,036개** 재작업, 라미아 화자 786건 말투 전수 교정
+
 ### 전투 대사 · 음성
-- **슈퍼로봇대전 A PORTABLE 한국어판**에서 액셀 대사·음성 이식 (클립 **185종**)
+- **슈퍼로봇대전 A PORTABLE 한국어판**에서 액셀 대사·음성 이식 (클립 **181종**)
+- 레몬·빈델 전용 대사가 관계없는 적에게 나오던 문제(45건)와 「운이 없군, 당신…!」 중복 재생 교정
 - ATRAC3+ → PCM → PS2 ADPCM 재인코딩 후 OGs 음성 뱅크(1046)에 재패킹
 - 무기명이 나오는 대사는 **실제로 그 무기를 쏠 때만** 나오도록 배치
   - 현무강탄 → 「날아랏！ 현무강탄！！」 / 「로케트・소울 펀치！ 막 이래！」
@@ -89,12 +99,16 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 - 무기명 전용 전투 대사가 실제로 선택되는지 확인되지 않았습니다 — 무기를 써도
   범용 대사가 나오는 경우가 보고됐습니다.
 - 6화 대형 제목은 미대응입니다.
-- 인게임 최종 확인이 끝나지 않았습니다. 기체별 전투 대사, 적 안쥬르그 등장 장면,
-  7화 이후 시나리오에서 이상한 부분을 발견하시면 알려 주세요.
+- 정적 전수 검증은 완료했으며, 모든 분기 · 기체 · 무기를 포함한 전 루트 실플레이
+  검증은 진행 중입니다. 이상한 부분을 발견하시면 알려 주세요.
 
 ## 세이브 호환
 
 세이브 파일 포맷은 변경하지 않았습니다. 다만 로스터에 기체가 기록되므로 **새로 시작**하시는 편이 안전합니다.
+
+이전 ISO에서 만든 에뮬레이터 **세이브 스테이트는 사용하지 마세요**. 세이브 스테이트에는
+이전 ISO의 실행 코드와 전투 데이터가 RAM째로 남아 있습니다. 에뮬레이터를 완전히
+재시작한 뒤 게임 내 저장 데이터를 불러와 플레이해 주세요.
 
 ## 감사
 

@@ -6,22 +6,32 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 
 📖 **문서 사이트**: https://kimjh-eclipse.github.io/super-robot-wars-ogs-axel-korean-patch/
 
-- 현재 버전: **v20260810**
-- 패치 파일: [`patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta)
+- 현재 버전: **v20260830**
+- 배포 패키지: [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20260830.zip`을 내려받으세요 (빠른패처 + xdelta 동봉)
+- 패치 파일만 필요하면: [`patch/SRWOGS_AxelRoleSwap_kr_v20260830.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20260830.xdelta)
 
-> **이 저장소에는 게임 ISO가 포함되어 있지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
+> **이 저장소에는 게임 ISO가 포함되어 있지 않습니다.** 패치와 작업 스크립트만 배포합니다.
 
 ---
 
 ## 적용 방법
 
+### 방법 1 — 빠른패처 (권장)
+
+릴리즈 ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해 기준 ISO를
+선택한 뒤 [패치 적용]을 누르면 됩니다. 기준 ISO를 제자리에서 수정하며,
+적용 전 원본 구간을 `.ogsbak` 백업(약 9MB)으로 남기고 적용 전후 해시를 검증합니다.
+[백업으로 되돌리기]로 기준본 상태로 복원할 수 있습니다.
+
+### 방법 2 — xdelta
+
 1. OGs 한글패치 **v1.4.3s1**이 적용된 ISO를 준비합니다.
-2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20260810.xdelta`를 적용합니다.
+2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20260830.xdelta`를 적용합니다.
 
 명령줄로 적용하는 경우:
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260810.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260830.xdelta srwogs-axel.iso
 ```
 
 > 일본판 원본 ISO에는 적용되지 않습니다. 한글패치를 먼저 적용해 주세요.
@@ -33,8 +43,8 @@ xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260810.xdelta srwogs-
 | 적용 전 크기 | 4,518,150,144 바이트 |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 적용 후 크기 | 4,518,150,144 바이트 |
-| 적용 후 MD5 | `009aa8e3f354a6415e943bb5ed65c90c` |
-| 패치 파일 MD5 | `a0470f723ca556b223fcb06489e167df` |
+| 적용 후 MD5 | `8a44bffdd8d687090d6fe9768ff456ec` |
+| 패치 파일 MD5 | `5856a10a689b4ab3473867bb15b86632` |
 
 적용 전 해시가 다르면 정상 적용되지 않습니다.
 
@@ -53,12 +63,27 @@ xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260810.xdelta srwogs-
 적 보스의 HP는 원래 값(18,928)을 유지합니다. 기체만 바꾸고 난이도는 건드리지 않았습니다.
 
 ### 이벤트 대사
-대상 3,245건을 전수 대조해 **2,722 오프셋**을 교체했습니다.
+대상 3,245건을 전수 대조해 **2,722 오프셋**을 교체하고, 이후 33차에 걸친
+추가 교정으로 **고유 대사 슬롯 1,036개**를 다시 손봤습니다.
 이름과 조사뿐 아니라 **상대가 부르는 호칭과 말투**(라미아의 존댓말 → 액셀의 반말)까지 맞췄습니다.
-`엑세 누님` 같은 기존 개그와 액셀의 W 넘버 정체성은 보존했습니다.
+
+### 시나리오 · 인물 관계
+액셀의 성격은 **A PORTABLE의 기억상실 액셀**과 **OG2 액셀 패치 ver.1.20**을
+기준으로 재구성했습니다.
+
+- 초반의 유연한 농담과 기억 회복 후의 군인적 말투
+- 레몬과의 연인 관계 (설득 · 석방 · 재회 · 최종전 흐름 반영)
+- 쿄스케와는 단순한 숙적이 아닌, 서로가 폭주하거나 변절할 때 막아주기로 한
+  상호 견제의 전우형 라이벌
+- 라미아의 「액셀 대장」 호칭과 대장 · 부하 관계 복원
+- 액셀을 W시리즈 · 인형 · 피조물로 취급하던 역할 교체 잔재를 제거하고,
+  자신의 선택으로 싸우는 인간 장교로 정리
+- 라미아 화자 대사 786건의 말투 · 호칭을 전수 교정
 
 ### 전투 대사 · 음성
-**슈퍼로봇대전 A PORTABLE 한국어판**에서 액셀의 대사와 음성을 이식했습니다(클립 185종).
+**슈퍼로봇대전 A PORTABLE 한국어판**에서 액셀의 대사와 음성을 이식했습니다(클립 181종).
+레몬 · 빈델 전용 대사가 관계없는 적에게 재생되던 문제(45건)와
+「운이 없군, 당신…!」의 비정상적인 중복 재생을 교정했습니다.
 ATRAC3+ → PS2 ADPCM 재인코딩 후 OGs 음성 뱅크에 재패킹했습니다.
 
 무기명이 나오는 대사는 실제로 그 무기를 쏠 때만 나오도록 맞췄고,
@@ -72,7 +97,10 @@ ATRAC3+ → PS2 ADPCM 재인코딩 후 OGs 음성 뱅크에 재패킹했습니�
 - **라즈앙그리프** 전용 무기 대사는 A PORTABLE에 액셀 음성이 없어 무기명 없는 기합으로 대체했습니다.
 - 본문이 `！`·`？` 뿐이라 길이를 늘릴 수 없는 5줄은 원문을 유지했습니다.
 - 6화 대형 제목은 미대응입니다.
-- 인게임 최종 확인이 끝나지 않았습니다. 이상한 부분을 발견하시면 이슈로 알려 주세요.
+- 정적 전수 검증은 완료했으며, 모든 분기 · 기체 · 무기를 포함한 전 루트 실플레이
+  검증은 진행 중입니다. 이상한 부분을 발견하시면 이슈로 알려 주세요.
+- 이전 ISO에서 만든 에뮬레이터 **세이브 스테이트는 사용하지 마세요**. 에뮬레이터를
+  완전히 재시작한 뒤 게임 내 저장 데이터를 불러와 플레이해 주세요.
 
 ---
 
