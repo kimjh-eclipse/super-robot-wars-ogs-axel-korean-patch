@@ -24,8 +24,11 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20260830";
+    private const string VersionText = "v20260831";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
+    // 선택적 사이드카: 직전 릴리즈 적용본을 핫픽스본으로 올리는 소구간 팩.
+    // 없으면 기준본→최신본 팩만으로 동작한다.
+    private const string UpgradeResourceName = "OGS_ISO_ranges_upgrade.bin";
     private const string PackMagic = "OGSAXLRNG";
     private const string BackupMagic = "OGSAXLBAK";
     private const string BackupExt = ".ogsbak";
@@ -56,15 +59,14 @@ internal static class OgsAxelQuickPatch
 
     // ---------- 리소스 ----------
 
-    private static Stream OpenPatchData()
+    private static Stream OpenPatchData(string name, bool required)
     {
         string exeDir = Path.GetDirectoryName(
             Assembly.GetExecutingAssembly().Location);
         string[] candidates = new string[]
         {
-            string.IsNullOrEmpty(exeDir) ? PatchResourceName
-                                         : Path.Combine(exeDir, PatchResourceName),
-            Path.Combine(Directory.GetCurrentDirectory(), PatchResourceName),
+            string.IsNullOrEmpty(exeDir) ? name : Path.Combine(exeDir, name),
+            Path.Combine(Directory.GetCurrentDirectory(), name),
         };
         foreach (string path in candidates)
         {
@@ -72,16 +74,35 @@ internal static class OgsAxelQuickPatch
                 return new FileStream(path, FileMode.Open, FileAccess.Read,
                                       FileShare.Read, 1 << 20);
         }
+        if (!required) return null;
         throw new FileNotFoundException(
-            "패치 데이터 파일을 찾을 수 없습니다: " + PatchResourceName + "\n\n" +
-            "이 프로그램은 같은 폴더에 있는 " + PatchResourceName + " 을 읽습니다.\n" +
-            "ZIP 을 풀 때 patcher 폴더의 두 파일(exe 와 .bin)을 함께 두세요.\n" +
+            "패치 데이터 파일을 찾을 수 없습니다: " + name + "\n\n" +
+            "이 프로그램은 같은 폴더에 있는 " + name + " 을 읽습니다.\n" +
+            "ZIP 을 풀 때 patcher 폴더의 파일들을 함께 두세요.\n" +
             "exe 만 따로 옮기면 동작하지 않습니다.");
     }
 
-    private static Pack LoadPack()
+    // 기본 팩(기준본→최신본)은 필수, 업그레이드 팩(직전 릴리즈→최신본)은 선택.
+    // 두 팩의 TargetHash 는 같아야 하며 LoadPacks 가 이를 검증한다.
+    private static List<Pack> LoadPacks()
     {
-        Stream resource = OpenPatchData();
+        List<Pack> packs = new List<Pack>();
+        packs.Add(LoadPack(OpenPatchData(PatchResourceName, true)));
+        Stream upgrade = OpenPatchData(UpgradeResourceName, false);
+        if (upgrade != null)
+        {
+            Pack up = LoadPack(upgrade);
+            if (!string.Equals(Hex(up.TargetHash), Hex(packs[0].TargetHash),
+                               StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    "업그레이드 팩의 결과 해시가 기본 팩과 다릅니다. 파일 조합이 잘못됐습니다.");
+            packs.Add(up);
+        }
+        return packs;
+    }
+
+    private static Pack LoadPack(Stream resource)
+    {
 
         using (resource)
         using (BinaryReader r = new BinaryReader(resource, Encoding.UTF8))
@@ -156,11 +177,14 @@ internal static class OgsAxelQuickPatch
     private static void Run(string isoPath, Mode mode, Action<string> log,
                             Action<int> progress)
     {
-        Pack pack = LoadPack();
-        log(pack.Title);
+        List<Pack> packs = LoadPacks();
+        Pack full = packs[0];
+        log(full.Title);
         log("패처 " + VersionText);
         log(string.Format(CultureInfo.InvariantCulture,
-            "구간 {0:N0}개 / 페이로드 {1:N0}B", pack.Ranges.Count, pack.PayloadBytes));
+            "구간 {0:N0}개 / 페이로드 {1:N0}B", full.Ranges.Count, full.PayloadBytes));
+        if (packs.Count > 1)
+            log("업그레이드 팩 감지: 직전 릴리즈 적용본도 처리할 수 있습니다.");
         log(string.Empty);
 
         if (!File.Exists(isoPath))
@@ -169,33 +193,40 @@ internal static class OgsAxelQuickPatch
         FileInfo info = new FileInfo(isoPath);
         if (info.IsReadOnly)
             throw new IOException("ISO 가 읽기 전용입니다. 속성에서 읽기 전용을 해제하세요.");
-        if (info.Length != pack.IsoSize)
+        if (info.Length != full.IsoSize)
             throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture,
                 "ISO 크기가 다릅니다.\n필요: {0:N0}B\n현재: {1:N0}B\n" +
                 "한국어화 v1.4.3s1 기준 ISO(srwogs-v1.4.3s1.iso)인지 확인하세요.",
-                pack.IsoSize, info.Length));
+                full.IsoSize, info.Length));
 
         log("현재 ISO 해시 확인 중…");
         string current = Sha256(isoPath, delegate(long d, long t)
         {
             if (progress != null) progress((int)(d * 50 / Math.Max(1, t)));
         });
-        string src = Hex(pack.SourceHash);
-        string dst = Hex(pack.TargetHash);
+        string dst = Hex(full.TargetHash);
 
-        bool isOriginal = string.Equals(current, src, StringComparison.OrdinalIgnoreCase);
+        Pack pack = null;
+        foreach (Pack p in packs)
+        {
+            if (string.Equals(current, Hex(p.SourceHash), StringComparison.OrdinalIgnoreCase))
+            { pack = p; break; }
+        }
         bool isPatched = string.Equals(current, dst, StringComparison.OrdinalIgnoreCase);
+        bool isFull = pack == packs[0];
 
         log("  " + current);
-        if (isOriginal) log("  -> 기준본(미적용) 상태입니다.");
-        else if (isPatched) log("  -> 이미 액셀 역할 교체 패치가 적용된 상태입니다.");
+        if (isPatched) log("  -> 이미 최신 패치가 적용된 상태입니다.");
+        else if (pack != null && isFull) log("  -> 기준본(미적용) 상태입니다.");
+        else if (pack != null) log("  -> 직전 릴리즈 적용본입니다. 핫픽스로 업그레이드합니다.");
         else log("  -> 기준본도 패치본도 아닙니다.");
         log(string.Empty);
 
         if (mode == Mode.Verify)
         {
-            if (isPatched) log("검증 결과: 패치 적용됨 (정상).");
-            else if (isOriginal) log("검증 결과: 기준본. 아직 적용되지 않았습니다.");
+            if (isPatched) log("검증 결과: 최신 패치 적용됨 (정상).");
+            else if (pack != null && isFull) log("검증 결과: 기준본. 아직 적용되지 않았습니다.");
+            else if (pack != null) log("검증 결과: 직전 릴리즈 적용본. [패치 적용]으로 업그레이드하세요.");
             else
             {
                 log("검증 결과: 알 수 없는 ISO 입니다.");
@@ -211,11 +242,12 @@ internal static class OgsAxelQuickPatch
             if (progress != null) progress(100);
             return;
         }
-        if (!isOriginal)
+        if (pack == null)
             throw new InvalidDataException(
-                "기준 ISO 가 아닙니다.\n\n" +
-                "이 패처는 한국어화 v1.4.3s1 기준 ISO 에만 적용됩니다.\n" +
-                "기준 ISO SHA-256:\n" + src + "\n" +
+                "적용할 수 있는 ISO 가 아닙니다.\n\n" +
+                "이 패처는 한국어화 v1.4.3s1 기준 ISO" +
+                (packs.Count > 1 ? " 또는 직전 릴리즈 적용본" : "") + "에만 적용됩니다.\n" +
+                "기준 ISO SHA-256:\n" + Hex(full.SourceHash) + "\n" +
                 "이미 다른 패치를 적용했다면 기준본을 다시 준비하세요.");
 
         string backupPath = isoPath + BackupExt;
@@ -285,8 +317,8 @@ internal static class OgsAxelQuickPatch
     private static void RestoreFromBackup(string isoPath, string backupPath,
                                           Action<string> log, Action<int> progress)
     {
-        Pack pack = LoadPack();
         log("백업으로 되돌리기");
+        string storedHash;
         using (FileStream bak = new FileStream(backupPath, FileMode.Open, FileAccess.Read,
                                               FileShare.Read, 1 << 20))
         using (BinaryReader r = new BinaryReader(bak))
@@ -296,7 +328,7 @@ internal static class OgsAxelQuickPatch
                 throw new InvalidDataException("백업 파일 형식이 올바르지 않습니다.");
             r.ReadInt32();
             long isoSize = r.ReadInt64();
-            r.ReadBytes(HashSize);
+            storedHash = Hex(r.ReadBytes(HashSize));
             int count = r.ReadInt32();
 
             FileInfo info = new FileInfo(isoPath);
@@ -321,10 +353,10 @@ internal static class OgsAxelQuickPatch
         log("해시 확인 중…");
         string after = Sha256(isoPath, null);
         log("  " + after);
-        if (string.Equals(after, Hex(pack.SourceHash), StringComparison.OrdinalIgnoreCase))
-            log("완료. 기준본 상태로 되돌렸습니다.");
+        if (string.Equals(after, storedHash, StringComparison.OrdinalIgnoreCase))
+            log("완료. 백업 시점 상태로 되돌렸습니다.");
         else
-            log("경고: 기준본 해시와 다릅니다. ISO 를 다시 준비하는 것이 안전합니다.");
+            log("경고: 백업 시점 해시와 다릅니다. ISO 를 다시 준비하는 것이 안전합니다.");
         if (progress != null) progress(100);
     }
 

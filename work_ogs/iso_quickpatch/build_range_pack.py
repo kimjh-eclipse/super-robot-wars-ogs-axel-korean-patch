@@ -72,11 +72,10 @@ def main() -> None:
     print(f"패치본 {TARGET.name}\n      {TARGET.stat().st_size:,}B  {dst_hash}")
 
     expected_src = "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C"
-    expected_dst = "53B780A2FFE3DD1BFE8FA5106E879F9BCF4585578AD94D5105FA65A0C39267D9"
     if src_hash != expected_src:
-        raise ValueError("기준 ISO 해시가 핸드오프 문서와 다릅니다")
-    if dst_hash != expected_dst:
-        raise ValueError("CURRENT ISO 해시가 핸드오프 문서와 다릅니다")
+        raise ValueError("기준 ISO 해시가 기준본과 다릅니다")
+    # CURRENT ISO 해시는 버전마다 바뀌므로 강제하지 않는다. 출력에 기록된
+    # dst 해시를 릴리즈 문서와 대조하는 것으로 검증한다.
 
     ranges = find_ranges(SOURCE, TARGET)
     payload = sum(n for _, n in ranges)

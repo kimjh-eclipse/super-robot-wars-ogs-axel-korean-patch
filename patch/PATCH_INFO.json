@@ -1,6 +1,6 @@
 {
  "kind": "ogs-lamia-axel-role-swap",
- "built": "2026-08-30",
+ "built": "2026-08-31",
  "base_iso": {
   "name": "srwogs-v1.4.3s1.iso",
   "size": 4518150144,
@@ -9,48 +9,35 @@
  },
  "result_iso": {
   "size": 4518150144,
-  "md5": "8A44BFFDD8D687090D6FE9768FF456EC",
-  "sha256": "53B780A2FFE3DD1BFE8FA5106E879F9BCF4585578AD94D5105FA65A0C39267D9"
+  "sha256": "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930"
  },
  "patch": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20260830.xdelta",
-  "size": 5251559,
-  "md5": "5856A10A689B4AB3473867BB15B86632",
-  "sha256": "FCC20BFD322718C15817783E2E72D45BBACFFF8406CD43C0F8B892CF4BAF3C1E",
+  "file": "SRWOGS_AxelRoleSwap_kr_v20260831.xdelta",
+  "size": 5251573,
+  "md5": "81910B6A66074F737AF61B89881D43E2",
+  "sha256": "BA7B371BC9E2B7216C3788BDAF7310A616B97C90422DBFD691483BD63035D9E1",
   "verified": "xdelta -d 복호 SHA-256이 CURRENT ISO와 일치"
  },
  "quickpatch": {
   "exe": "OGS_AxelSwap_QuickPatch.exe",
-  "exe_sha256": "01AC15D368F96640B34DAEABA8E09FAAE4426F7BAC6BD05515402B0D30745A9A",
-  "ranges_bin": "OGS_ISO_ranges.bin",
-  "ranges_bin_sha256": "65870578B1746F4F3FCE2598A60A037ADA2010A7BEFEB7AA4467DEFA076612C6",
-  "ranges": 1344,
-  "payload_bytes": 8881236,
-  "verified": "기준본 사본에 patch→verify→restore 전 과정 해시 일치"
+  "exe_sha256": "75F6D932AEAFF835445946582431A847CCF6C5B8C013EC187FEB383FA8B799FA",
+  "ranges_bin_sha256": "A8C239BA62EF7C54AE44A6E100A6192E4EF50841E95805A956D64EF8B941065C",
+  "upgrade_bin_sha256": "62A0E636BA5DF77613FCBDEFA09D8ED3188DBACB4799A83585AF9967E6DD93D1",
+  "upgrade_source_sha256": "53B780A2FFE3DD1BFE8FA5106E879F9BCF4585578AD94D5105FA65A0C39267D9",
+  "verified": "기준본→핫픽스, v20260830 적용본→핫픽스, 각 복원까지 전 경로 해시 일치"
  },
  "release_zip": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20260830.zip",
-  "size": 10741580,
-  "sha256": "25A7187AF4E2DB164B56337E9446EB812646E1724B50F7E4C1E4F420FBC49A51"
+  "file": "SRWOGS_AxelRoleSwap_kr_v20260831.zip",
+  "size": 10743178,
+  "sha256": "46493BDF88469FDDC39F6C8285EADBA5523D1C341C1E096C05D7A623CA3617F6"
  },
- "contents": [
-  "라미아↔액셀 양방향 파일럿·기체·시나리오 역할 교체 (PASS01~33 누적)",
-  "A Portable 액셀 한국어 전투 대사·음성 이식 (클립 181/194)",
-  "OG2 액셀 패치 ver.1.20 장면·관계 반영, 액셀·레몬 연인 관계 복원",
-  "액셀·쿄스케 상호 견제·전우형 라이벌, 라미아 「액셀 대장」 호칭·보고체 복원",
-  "관계 전용 전투 대사 오발동 45건(PASS32)·범용 대사 중복 5건(PASS33) 교정",
-  "누적 시나리오 수정 슬롯 1,036개 / 전투 대사 전수 검증 1,092레코드"
+ "hotfix": [
+  "35화 바이사가 전환 액셀의 ??? 화자 표시·전투 대사 미출력 — PTbl 0x4A5/0x521을 검증된 액셀 A Plot(53)으로 (SHARED·IM 4엔트리)",
+  "VS 라미아 전투 전 회화의 중복 이식 슬롯 1건을 OG2 액셀 1.20 흐름으로 복원",
+  "빠른패처에 v20260830 적용본→핫픽스 업그레이드 팩(5구간/102B) 동봉 — 기준 ISO 재준비 불필요"
  ],
- "known_limits": [
-  "적 보스 안쥬르그는 소울게인 자리의 HP 18928을 그대로 유지(밸런스 목적)",
-  "라즈앙그리프 무기 대사는 AP에 액셀 음성이 없어 무기명 없는 기합으로 대체",
-  "바이사가 앞쪽 무장 개별 대응은 위치 추론 포함 — 실기 확인 필요",
-  "길이 물리 불가 5줄(본문 ！/？)은 원문 유지",
-  "6화 대형 제목·0x65AD60C 괄호 불균형(원본 결함) 미수정",
-  "정적 전수 검증 완료 — 전 루트 실플레이 검증은 진행 중"
- ],
- "version": "v20260830",
- "release_file": "SRWOGS_AxelRoleSwap_kr_v20260830.zip",
- "previous": "v20260810 (배포 중단 — PASS01~33 미반영 빌드)",
- "notes": "빠른패처는 제자리 구간 덮어쓰기 + .ogsbak 백업 + 적용 전후 해시 검증. 소스는 work_ogs/iso_quickpatch."
+ "version": "v20260831",
+ "release_file": "SRWOGS_AxelRoleSwap_kr_v20260831.zip",
+ "previous": "old_v20260830/ (v20260830 릴리즈 원본 보관), old_v20260810/ (배포 중단 빌드)",
+ "notes": "stage35 핫픽스 manifest=runtime/stage35_vysaga_hotfix_manifest.json. 미해결: 일반 공백 172건(재작성 필요 128건)은 차기 버전 — CURRENT_DIALOGUE_BREAKAGE_AUDIT_2026-08-31.md 참조."
 }

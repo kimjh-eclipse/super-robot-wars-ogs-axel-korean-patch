@@ -6,9 +6,14 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 
 📖 **문서 사이트**: https://kimjh-eclipse.github.io/super-robot-wars-ogs-axel-korean-patch/
 
-- 현재 버전: **v20260830**
-- 배포 패키지: [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20260830.zip`을 내려받으세요 (빠른패처 + xdelta 동봉)
-- 패치 파일만 필요하면: [`patch/SRWOGS_AxelRoleSwap_kr_v20260830.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20260830.xdelta)
+- 현재 버전: **v20260831** (핫픽스)
+- 배포 패키지: [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20260831.zip`을 내려받으세요 (빠른패처 + xdelta 동봉)
+- 패치 파일만 필요하면: [`patch/SRWOGS_AxelRoleSwap_kr_v20260831.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20260831.xdelta)
+
+> **v20260831 핫픽스**: 35화에서 바이사가로 전환한 액셀의 화자 이름·초상화가
+> `？？？`로 표시되고 전투 대사가 나오지 않던 문제와, VS 라미아 전투 전 회화의
+> 중복 이식 슬롯 1건을 고쳤습니다. **v20260830을 이미 적용했다면** 빠른패처가
+> 적용본을 자동 인식해 핫픽스만 덧씌웁니다 — 기준 ISO를 다시 준비할 필요가 없습니다.
 
 > **이 저장소에는 게임 ISO가 포함되어 있지 않습니다.** 패치와 작업 스크립트만 배포합니다.
 
@@ -18,20 +23,21 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 
 ### 방법 1 — 빠른패처 (권장)
 
-릴리즈 ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해 기준 ISO를
-선택한 뒤 [패치 적용]을 누르면 됩니다. 기준 ISO를 제자리에서 수정하며,
-적용 전 원본 구간을 `.ogsbak` 백업(약 9MB)으로 남기고 적용 전후 해시를 검증합니다.
-[백업으로 되돌리기]로 기준본 상태로 복원할 수 있습니다.
+릴리즈 ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해 ISO를
+선택한 뒤 [패치 적용]을 누르면 됩니다. 기준 ISO(v1.4.3s1)와 v20260830 적용본을
+모두 인식합니다. ISO를 제자리에서 수정하며, 적용 전 원본 구간을 `.ogsbak`
+백업으로 남기고 적용 전후 해시를 검증합니다. [백업으로 되돌리기]로 백업 시점
+상태로 복원할 수 있습니다.
 
 ### 방법 2 — xdelta
 
-1. OGs 한글패치 **v1.4.3s1**이 적용된 ISO를 준비합니다.
-2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20260830.xdelta`를 적용합니다.
+1. OGs 한글패치 **v1.4.3s1**이 적용된 ISO를 준비합니다. (xdelta는 기준 ISO 전용)
+2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20260831.xdelta`를 적용합니다.
 
 명령줄로 적용하는 경우:
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260830.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260831.xdelta srwogs-axel.iso
 ```
 
 > 일본판 원본 ISO에는 적용되지 않습니다. 한글패치를 먼저 적용해 주세요.
@@ -43,8 +49,8 @@ xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260830.xdelta srwogs-
 | 적용 전 크기 | 4,518,150,144 바이트 |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 적용 후 크기 | 4,518,150,144 바이트 |
-| 적용 후 MD5 | `8a44bffdd8d687090d6fe9768ff456ec` |
-| 패치 파일 MD5 | `5856a10a689b4ab3473867bb15b86632` |
+| 적용 후 MD5 | `a1d87e4c03629e238432e9599e5edc88` |
+| 패치 파일 MD5 | `81910b6a66074f737af61b89881d43e2` |
 
 적용 전 해시가 다르면 정상 적용되지 않습니다.
 

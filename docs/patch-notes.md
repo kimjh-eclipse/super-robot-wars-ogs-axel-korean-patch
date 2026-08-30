@@ -12,26 +12,32 @@
 | 적용 대상 | OGs 한글패치 **v1.4.3s1**이 적용된 ISO |
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
-| 배포 패키지 | `SRWOGS_AxelRoleSwap_kr_v20260830.zip` (약 10.7MB, [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)) |
-| 패치 파일 MD5 | `5856a10a689b4ab3473867bb15b86632` (`SRWOGS_AxelRoleSwap_kr_v20260830.xdelta`) |
+| 배포 패키지 | `SRWOGS_AxelRoleSwap_kr_v20260831.zip` (약 10.7MB, [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)) |
+| 패치 파일 MD5 | `81910b6a66074f737af61b89881d43e2` (`SRWOGS_AxelRoleSwap_kr_v20260831.xdelta`) |
 
 ### 적용 — 빠른패처 (권장)
 
 1. ZIP을 폴더째 풉니다.
 2. `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행합니다.
-3. [찾기]에서 기준 ISO를 선택하고 [패치 적용]을 누릅니다.
+3. [찾기]에서 ISO를 선택하고 [패치 적용]을 누릅니다.
 
-기준 ISO를 제자리에서 수정하며, 적용 전 원본 구간을 `<ISO 파일명>.ogsbak`
-백업(약 9MB)으로 남기고 적용 전후 SHA-256을 검증합니다. [백업으로 되돌리기]로
-기준본 상태로 복원할 수 있고, [상태 확인]으로 현재 ISO가 기준본인지 패치본인지
-검사할 수 있습니다. 기준본이 아닌 ISO는 수정하지 않습니다.
+기준 ISO(v1.4.3s1)와 **v20260830 적용본**을 모두 인식합니다. v20260830 적용본이면
+기준 ISO를 다시 준비할 필요 없이 핫픽스 구간만 덧씌웁니다.
 
-exe는 같은 폴더의 `OGS_ISO_ranges.bin`을 읽으므로 두 파일을 함께 두세요.
+ISO를 제자리에서 수정하며, 적용 전 원본 구간을 `<ISO 파일명>.ogsbak`
+백업으로 남기고 적용 전후 SHA-256을 검증합니다. [백업으로 되돌리기]로
+백업 시점 상태로 복원할 수 있고, [상태 확인]으로 현재 ISO 상태를
+검사할 수 있습니다. 인식되지 않는 ISO는 수정하지 않습니다.
+
+exe는 같은 폴더의 `OGS_ISO_ranges.bin`과 `OGS_ISO_ranges_upgrade.bin`을
+읽으므로 파일들을 함께 두세요.
 
 ### 적용 — xdelta
 
+xdelta는 기준 ISO(v1.4.3s1)에만 적용됩니다.
+
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260830.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260831.xdelta srwogs-axel.iso
 ```
 
 GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패치를 Patch로 지정하고 적용하면 됩니다.
@@ -43,8 +49,8 @@ GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패�
 | 항목 | 값 |
 |---|---|
 | 결과 크기 | 4,518,150,144 bytes |
-| 결과 MD5 | `8a44bffdd8d687090d6fe9768ff456ec` |
-| 결과 SHA-256 | `53b780a2ffe3dd1bfe8fa5106e879f9bcf4585578ad94d5105fa65a0c39267d9` |
+| 결과 MD5 | `a1d87e4c03629e238432e9599e5edc88` |
+| 결과 SHA-256 | `08615f303d301ac9935a7c71379d8ae4bd5b2f9e0c2b328397d103fd0352b930` |
 
 적용 전 해시가 다르면 패치가 정상 적용되지 않습니다.
 
