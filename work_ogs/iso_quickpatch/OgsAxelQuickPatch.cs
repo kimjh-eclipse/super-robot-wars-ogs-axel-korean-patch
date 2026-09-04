@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20260831";
+    private const string VersionText = "v20260904";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     // 선택적 사이드카: 직전 릴리즈 적용본을 핫픽스본으로 올리는 소구간 팩.
     // 없으면 기준본→최신본 팩만으로 동작한다.
@@ -88,15 +88,26 @@ internal static class OgsAxelQuickPatch
     {
         List<Pack> packs = new List<Pack>();
         packs.Add(LoadPack(OpenPatchData(PatchResourceName, true)));
-        Stream upgrade = OpenPatchData(UpgradeResourceName, false);
-        if (upgrade != null)
+        // 업그레이드 팩은 OGS_ISO_ranges_upgrade*.bin 전부 (직전 릴리즈들 → 최신본)
+        string exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        List<string> dirs = new List<string>();
+        if (!string.IsNullOrEmpty(exeDir)) dirs.Add(exeDir);
+        dirs.Add(Directory.GetCurrentDirectory());
+        HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string dir in dirs)
         {
-            Pack up = LoadPack(upgrade);
-            if (!string.Equals(Hex(up.TargetHash), Hex(packs[0].TargetHash),
-                               StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException(
-                    "업그레이드 팩의 결과 해시가 기본 팩과 다릅니다. 파일 조합이 잘못됐습니다.");
-            packs.Add(up);
+            if (!Directory.Exists(dir)) continue;
+            foreach (string path in Directory.GetFiles(dir, "OGS_ISO_ranges_upgrade*.bin"))
+            {
+                if (!seen.Add(Path.GetFileName(path))) continue;
+                Pack up = LoadPack(new FileStream(path, FileMode.Open, FileAccess.Read,
+                                                  FileShare.Read, 1 << 20));
+                if (!string.Equals(Hex(up.TargetHash), Hex(packs[0].TargetHash),
+                                   StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(
+                        "업그레이드 팩의 결과 해시가 기본 팩과 다릅니다: " + Path.GetFileName(path));
+                packs.Add(up);
+            }
         }
         return packs;
     }
@@ -184,7 +195,7 @@ internal static class OgsAxelQuickPatch
         log(string.Format(CultureInfo.InvariantCulture,
             "구간 {0:N0}개 / 페이로드 {1:N0}B", full.Ranges.Count, full.PayloadBytes));
         if (packs.Count > 1)
-            log("업그레이드 팩 감지: 직전 릴리즈 적용본도 처리할 수 있습니다.");
+            log(string.Format(CultureInfo.InvariantCulture, "업그레이드 팩 {0}개 감지: 이전 릴리즈 적용본도 처리할 수 있습니다.", packs.Count - 1));
         log(string.Empty);
 
         if (!File.Exists(isoPath))

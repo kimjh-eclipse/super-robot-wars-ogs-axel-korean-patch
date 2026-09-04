@@ -12,8 +12,8 @@
 | 적용 대상 | OGs 한글패치 **v1.4.3s1**이 적용된 ISO |
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
-| 배포 패키지 | `SRWOGS_AxelRoleSwap_kr_v20260831.zip` (약 10.7MB, [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)) |
-| 패치 파일 MD5 | `81910b6a66074f737af61b89881d43e2` (`SRWOGS_AxelRoleSwap_kr_v20260831.xdelta`) |
+| 배포 패키지 | `SRWOGS_AxelRoleSwap_kr_v20260904.zip` (약 10.7MB, [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)) |
+| 패치 파일 MD5 | `d45d15fe50b552eefc7d37353f9cb0c7` (`SRWOGS_AxelRoleSwap_kr_v20260904.xdelta`) |
 
 ### 적용 — 빠른패처 (권장)
 
@@ -21,7 +21,7 @@
 2. `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행합니다.
 3. [찾기]에서 ISO를 선택하고 [패치 적용]을 누릅니다.
 
-기준 ISO(v1.4.3s1)와 **v20260830 적용본**을 모두 인식합니다. v20260830 적용본이면
+기준 ISO(v1.4.3s1)와 **v20260831 적용본**을 모두 인식합니다. 이전 적용본이면
 기준 ISO를 다시 준비할 필요 없이 핫픽스 구간만 덧씌웁니다.
 
 ISO를 제자리에서 수정하며, 적용 전 원본 구간을 `<ISO 파일명>.ogsbak`
@@ -37,7 +37,7 @@ exe는 같은 폴더의 `OGS_ISO_ranges.bin`과 `OGS_ISO_ranges_upgrade.bin`을
 xdelta는 기준 ISO(v1.4.3s1)에만 적용됩니다.
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260831.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260904.xdelta srwogs-axel.iso
 ```
 
 GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패치를 Patch로 지정하고 적용하면 됩니다.
@@ -49,8 +49,8 @@ GUI 툴(xdeltaUI, Delta Patcher 등)을 쓰신다면 원본 ISO를 Source, 패�
 | 항목 | 값 |
 |---|---|
 | 결과 크기 | 4,518,150,144 bytes |
-| 결과 MD5 | `a1d87e4c03629e238432e9599e5edc88` |
-| 결과 SHA-256 | `08615f303d301ac9935a7c71379d8ae4bd5b2f9e0c2b328397d103fd0352b930` |
+| 결과 MD5 | `844d1024d5063d7eea21c78a7d2c135d` |
+| 결과 SHA-256 | `831a646bcde363b92a1e8cd2c5cace786102a61833a5757bb155b527cf35b9cc` |
 
 적용 전 해시가 다르면 패치가 정상 적용되지 않습니다.
 

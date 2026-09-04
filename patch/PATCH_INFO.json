@@ -1,6 +1,7 @@
 {
  "kind": "ogs-lamia-axel-role-swap",
- "built": "2026-08-31",
+ "built": "2026-09-04",
+ "version": "v20260904",
  "base_iso": {
   "name": "srwogs-v1.4.3s1.iso",
   "size": 4518150144,
@@ -9,35 +10,42 @@
  },
  "result_iso": {
   "size": 4518150144,
-  "sha256": "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930"
+  "md5": "844D1024D5063D7EEA21C78A7D2C135D",
+  "sha256": "831A646BCDE363B92A1E8CD2C5CACE786102A61833A5757BB155B527CF35B9CC"
  },
  "patch": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20260831.xdelta",
-  "size": 5251573,
-  "md5": "81910B6A66074F737AF61B89881D43E2",
-  "sha256": "BA7B371BC9E2B7216C3788BDAF7310A616B97C90422DBFD691483BD63035D9E1",
-  "verified": "xdelta -d 복호 SHA-256이 CURRENT ISO와 일치"
+  "file": "SRWOGS_AxelRoleSwap_kr_v20260904.xdelta",
+  "size": 5396777,
+  "md5": "D45D15FE50B552EEFC7D37353F9CB0C7",
+  "sha256": "3B647F1A2DC6624BCABE4AAA628A3A4AC821663B2B4BC7552C531AEBBFD094AF",
+  "verified": "xdelta -d 복호 SHA-256이 결과 ISO와 일치"
  },
  "quickpatch": {
   "exe": "OGS_AxelSwap_QuickPatch.exe",
-  "exe_sha256": "75F6D932AEAFF835445946582431A847CCF6C5B8C013EC187FEB383FA8B799FA",
-  "ranges_bin_sha256": "A8C239BA62EF7C54AE44A6E100A6192E4EF50841E95805A956D64EF8B941065C",
-  "upgrade_bin_sha256": "62A0E636BA5DF77613FCBDEFA09D8ED3188DBACB4799A83585AF9967E6DD93D1",
-  "upgrade_source_sha256": "53B780A2FFE3DD1BFE8FA5106E879F9BCF4585578AD94D5105FA65A0C39267D9",
-  "verified": "기준본→핫픽스, v20260830 적용본→핫픽스, 각 복원까지 전 경로 해시 일치"
+  "exe_sha256": "F68D16CD12AEADDFE3DD18BA79CDBB58D082E0E3F39DF33E85AE12712C369AAD",
+  "ranges_bin_sha256": "BA4FE3C7AC05EEB2EE579FA401A04995CCA59FDED3ADD61BBAE1B4A5CBDD5DE0",
+  "ranges": 1368,
+  "payload_bytes": 8848326,
+  "upgrade_bin": "OGS_ISO_ranges_upgrade.bin",
+  "upgrade_bin_sha256": "5B8E6627E7422A9C140B900CB4305610F454BDA7B8D0929AD4D2A0D828D264C3",
+  "upgrade_source": "v20260831 (08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930)",
+  "upgrade_ranges": 263,
+  "verified": "기준본→신판, v20260831 적용본→신판, xdelta 복호 — 최종 해시 일치(코덱스 실측)"
  },
  "release_zip": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20260831.zip",
-  "size": 10743178,
-  "sha256": "46493BDF88469FDDC39F6C8285EADBA5523D1C341C1E096C05D7A623CA3617F6"
+  "file": "SRWOGS_AxelRoleSwap_kr_v20260904.zip",
+  "size": 15847077,
+  "sha256": "A0719E0A87A3F090DF540EAC099870084F4ECE29CD2B020D2D0A2BC1DB49A3BF"
  },
- "hotfix": [
-  "35화 바이사가 전환 액셀의 ??? 화자 표시·전투 대사 미출력 — PTbl 0x4A5/0x521을 검증된 액셀 A Plot(53)으로 (SHARED·IM 4엔트리)",
-  "VS 라미아 전투 전 회화의 중복 이식 슬롯 1건을 OG2 액셀 1.20 흐름으로 복원",
-  "빠른패처에 v20260830 적용본→핫픽스 업그레이드 팩(5구간/102B) 동봉 — 기준 ISO 재준비 불필요"
+ "changes": [
+  "Unit[0x49] 강화형 소울게인 +0x22 탑승 마스크 0→0xFFFF (갈아타기 목록 등장)",
+  "Unit[0x4E] 바이사가 +0x22 0x0200→0xFFFF",
+  "Plot 53/54 액셀 파일럿 탑승 마스크 +0x12 0→0x0201 (액셀 갈아타기 가능)",
+  "PASS34/35 플레이어 키 4개 전투 발동 조건 1,801개 복원·AP 대사 재배치",
+  "반각 파손 8슬롯·감사 36슬롯 시나리오 교정"
  ],
- "version": "v20260831",
- "release_file": "SRWOGS_AxelRoleSwap_kr_v20260831.zip",
- "previous": "old_v20260830/ (v20260830 릴리즈 원본 보관), old_v20260810/ (배포 중단 빌드)",
- "notes": "stage35 핫픽스 manifest=runtime/stage35_vysaga_hotfix_manifest.json. 미해결: 일반 공백 172건(재작성 필요 128건)은 차기 버전 — CURRENT_DIALOGUE_BREAKAGE_AUDIT_2026-08-31.md 참조."
+ "excluded": [
+  "아슈세이버 획득 훅·탑승 개방 — 기존 세이브 검증 불가로 전부 원복(rollback_ashsaber_experiments.py)"
+ ],
+ "previous": "v20260831 (dist/old 보관)"
 }
