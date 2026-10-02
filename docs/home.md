@@ -1,14 +1,14 @@
 <p class="badges">
-  <img src="https://img.shields.io/badge/버전-v20260904-1e2a5a" alt="버전">
+  <img src="https://img.shields.io/badge/버전-v20261002-1e2a5a" alt="버전">
   <img src="https://img.shields.io/badge/플랫폼-PS2-a8871c" alt="플랫폼">
   <img src="https://img.shields.io/badge/형식-xdelta-informational" alt="형식">
   <img src="https://img.shields.io/badge/종류-역할교체 개조-success" alt="개조">
 </p>
 
-> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20260904.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (약 10.7MB, 빠른패처 + xdelta 동봉)
+> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20261002.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (약 10.7MB, 빠른패처 + xdelta 동봉)
 >
-> **v20260904** — 35화 이후 강화형 소울게인 갈아타기, 액셀 탑승 카테고리, 바이사가 탑승 액셀의
-> 전투 대사 발동 조건 1,801개 복원. v20260831 적용본은 빠른패처가 자동 인식합니다.
+> **v20261002** — 35화 아슈세이버 지급(기존 세이브는 「갈아타기」 메뉴 진입 시), 적 안쥬르그 무장 목록,
+> 초반 라미아 대사, 대사 속 반각 공백 정리. v20260904·v20260831 적용본은 빠른패처가 자동 인식합니다.
 
 # 슈퍼로봇대전 OGs 액셀 역할 교체 패치
 
@@ -28,7 +28,7 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 패치 형식 | 빠른패처 (exe) + xdelta (`.xdelta`) |
-| 최신 버전 | **v20260904** (2026-09-04) |
+| 최신 버전 | **v20261002** (2026-10-02) |
 
 > **이 저장소는 게임 ISO를 포함하지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
 
@@ -37,19 +37,19 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 1. OGs 한글패치 v1.4.3s1이 적용된 ISO를 준비합니다. **(이 저장소는 ISO를 포함하지 않습니다.)**
    - 크기: 4,518,150,144 bytes
    - MD5: `ef740dd41f5abcc05c6f6ba96ada9f5b`
-2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20260904.zip`을 내려받습니다.
+2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261002.zip`을 내려받습니다.
 3. **빠른패처(권장)**: ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해
-   ISO를 선택하고 [패치 적용]을 누릅니다. 기준 ISO와 v20260831 적용본을 모두
+   ISO를 선택하고 [패치 적용]을 누릅니다. 기준 ISO와 v20260904·v20260831 적용본을 모두
    인식합니다. 제자리 수정이며 적용 전 `.ogsbak` 백업을 남기고 적용 전후 해시를 검증합니다.
 4. **xdelta 방식**: `xdelta` 폴더의 패치를 xdelta(또는 xdeltaUI, Delta Patcher 등)로
    기준 ISO에 적용합니다.
 
    ```bash
-   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20260904.xdelta srwogs-axel.iso
+   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261002.xdelta srwogs-axel.iso
    ```
 5. 적용 결과를 확인합니다 (선택).
    - 결과 크기: 4,518,150,144 bytes
-   - 결과 MD5: `844d1024d5063d7eea21c78a7d2c135d`
+   - 결과 MD5: `af56a5977d01b46c287f9bd9c9750717`
 
 > 💡 GUI 툴만 쓰신다면 **xdeltaUI**에서 원본 ISO를 Source, 패치를 Patch로 지정하고 Apply Patch를 누르면 됩니다.
 > 적용 전 해시가 위와 다르면 정상 적용되지 않습니다.

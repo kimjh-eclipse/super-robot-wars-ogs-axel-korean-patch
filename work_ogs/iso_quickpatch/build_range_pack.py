@@ -25,7 +25,7 @@ ROOT = HERE.parent
 OUTPUT = HERE / "OGS_ISO_ranges.bin"
 
 SOURCE = ROOT / "baseline" / "srwogs-v1.4.3s1.iso"
-TARGET = ROOT / "build" / "SRWOGS_AxelRoleSwap_kr_CURRENT.iso"
+TARGET = ROOT / "build" / "SRWOGS_K.iso"
 TITLE = "슈퍼로봇대전 OGs 액셀 역할 교체 패치"
 
 

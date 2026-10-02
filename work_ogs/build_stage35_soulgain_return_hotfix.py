@@ -65,6 +65,9 @@ VISIBLE_UNIT_UIDS = {
 EARLY_DESTINATION_RAW_KEYS = (0x048, 0x0CE)
 NORMAL_WEAPONS = tuple(range(0xD86, 0xD8B))
 ENHANCED_WEAPONS = tuple(range(0xD97, 0xD9C))
+# Unit[0x136] must not share these overwritten weapons with enhanced Soulgain.
+# The former return-Angelg keys are unused after Unit[0x49] changes to Soulgain.
+REVERSE_ANGELG_WEAPONS = tuple(range(0x8B3, 0x8B8))
 AUXILIARY_WEAPONS = (0xD8B, 0xD8C)
 ENHANCED_POWERS = (3500, 4200, 4300, 5400, 6200)
 ENHANCED_NAME = "강화형소울게인"
@@ -140,8 +143,49 @@ def make_enhanced_unit(soulgain: bytes, name_id: int) -> bytes:
 
 
 def make_reverse_unit(angelg: bytes, soulgain: bytes) -> bytes:
-    """0x136에는 외형·아이콘까지 온전한 안쥬르그 레코드를 둔다."""
-    return bytes(angelg)
+    """Preserve Angelg and isolate its weapons from the enhanced Soulgain set."""
+    result = bytearray(angelg)
+    struct.pack_into('<5H', result, 0x24, *REVERSE_ANGELG_WEAPONS)
+    return bytes(result)
+
+
+def isolated_angelg_weapon_plan(current, baseline, base):
+    """Read-only guarded plan; preserve baseline allied Angelg stats exactly.
+
+    Check every Unit and every WTbl alias, not just the five raw keys. No table
+    expansion, animation resource, pilot/boarding mask, or Soulgain edit.
+    """
+    current.seek(base + UNIT_DATA - 12)
+    tag, size, count = struct.unpack('<4sII', current.read(12))
+    if tag != b'Unit' or count != 0x1AB:
+        raise ValueError('Unexpected Unit table')
+    current.seek(base + UNIT_DATA)
+    units = current.read(count * UNIT_STRIDE)
+    current.seek(base + WTBL_DATA)
+    lookup = struct.unpack('<4096H', current.read(8192))
+    targets = {lookup[k] for k in REVERSE_ANGELG_WEAPONS}
+    if len(targets) != 5:
+        raise ValueError('Angelg weapon targets are not independent')
+    for slot in range(count):
+        keys = struct.unpack_from('<16H', units, slot * UNIT_STRIDE + 0x24)
+        if slot in (RETURN_SLOT, SOULGAIN_SLOT):
+            # These two units are explicitly assigned disjoint sets by builder.
+            continue
+        if any(k < len(lookup) and lookup[k] in targets for k in keys):
+            raise ValueError(f'Weapon storage still used by Unit[{slot:X}]')
+    plan = []
+    for src, dst in zip(ENHANCED_WEAPONS, REVERSE_ANGELG_WEAPONS):
+        baseline.seek(weapon_off(base, weapon_index(baseline, base, src)))
+        desired = baseline.read(WEAP_STRIDE)
+        at = weapon_off(base, lookup[dst])
+        current.seek(at)
+        old = current.read(WEAP_STRIDE)
+        baseline.seek(weapon_off(base, weapon_index(baseline, base, dst)))
+        original = baseline.read(WEAP_STRIDE)
+        if old not in (original, desired):
+            raise ValueError(f'Unexpected Angelg target weapon {dst:X}')
+        plan.append((at, old, desired))
+    return plan
 
 
 def make_extended_strg(current: bytes, name_id: int) -> bytes:
@@ -246,6 +290,8 @@ def main() -> None:
             return_unit = make_enhanced_unit(soulgain, enhanced_name_id)
             normal_role_swap_unit = bytes(soulgain)
             reverse_unit = make_reverse_unit(angelg, soulgain)
+            for offset, old, desired in isolated_angelg_weapon_plan(current, baseline, base):
+                add_change(plan, f'{archive} isolated Angelg weapon', offset, old, desired)
             for slot, desired, name in (
                 (RETURN_SLOT, return_unit, "35화 잔존 강화형 소울게인"),
                 (ANGELG_SLOT, normal_role_swap_unit, "일반 소울게인 원복"),
