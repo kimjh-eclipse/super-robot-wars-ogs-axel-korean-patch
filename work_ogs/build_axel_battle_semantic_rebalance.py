@@ -17,6 +17,13 @@ physical spans, never from negation-sensitive keyword guesses.
 
 The target ISO is edited transactionally.  Every write is journalled and a
 failed post-write check restores the exact preimage.
+
+--restore-soulgain is an incremental mode for the final 2026-10-02 ISO. It
+adds native Soulgain selector graphs to both player personalities, preserves
+the existing payloads, and expands the SSTM descriptor table within verified
+archive padding. It does not rerun the original PASS35 semantic mapper.
+--restore-vaisaga incrementally restores AP's D4/D5 Vaisaga graph on top of
+that result and the audited 80-line scenario follow-up, without undoing either.
 """
 from __future__ import annotations
 
@@ -70,7 +77,7 @@ EXPECTED_RUNTIME_SHA256 = {
 
 # PASS33 uses 181 clips.  Four one-word fillers are deliberately retired and
 # contextual/long alternatives are admitted.  The candidate pool may exceed
-# the 194-entry hardware descriptor capacity; only the distinct clips actually
+# the original 194-entry descriptor allocation; only the distinct clips actually
 # selected by the mapping are packed and that final count is capped below.
 DROP_CLIPS = {137, 149, 151, 152}  # 가랏 / 하앗 / 으럇 / 이야압 (D5 fillers)
 ADD_CLIPS = {
@@ -821,6 +828,577 @@ def validate_written(iso: Path, native: bytes, chunks: dict[int, dict],
             raise ValueError(f"0x{key:X} final f2 sentinel is not zero")
 
 
+SOULGAIN_KEYS = (106000, 106010, 106021, 106030, 106031, 106040, 106041)
+SOULGAIN_SOURCE_SHA = "747832E0310F6CD4B23A702FC1FC928C19F6D44B8B51879184FCC2459BEF6915"
+# AP D4 266xxx selectors were inspected directly.  Keep ordinary Kirin,
+# excluding its separate Shin-Kyoku branch.  Duplicate the ordinary 8-line
+# finish for OGs' two native alternatives, just as D5's donor does.
+SOULGAIN_D4_ROWS = tuple(range(107, 124)) + tuple(range(126, 134))*2
+
+
+def _weapon_tables(raw: bytes):
+    h = list(struct.unpack_from("<16H", raw))
+    a = 0x288
+    b = a + h[0] * 8
+    c = b + h[1] * 8
+    return h, [struct.unpack_from("<IHH", raw, a+i*8) for i in range(h[0])], [
+        struct.unpack_from("<HHBBH", raw, b+i*8) for i in range(h[1])], [
+        struct.unpack_from("<BBH", raw, c+i*4) for i in range(h[2])], c+h[2]*4
+
+
+def _add_soulgain_chunk(raw: bytes, donor: bytes, key: int, ap_rows, slots):
+    """Append donor selector graph; preserve every existing payload/index."""
+    h, first, second, third, end = _weapon_tables(raw)
+    dh, df, ds, dt, _ = _weapon_tables(donor)
+    p = (h[15]-h[14]) // 4
+    if h[13]-h[12] != 2*(p+1) or h[14]-h[13] != 2*(p+1):
+        raise ValueError("unexpected native payload sentinel layout")
+    if set(SOULGAIN_KEYS) & {r[0] for r in first}:
+        raise ValueError("Soulgain selectors already present")
+    added = ap_rows
+    if len(added) != 33:
+        raise ValueError("Soulgain source span changed")
+    for selector in SOULGAIN_KEYS:
+        matches = [r for r in df if r[0] == selector]
+        if len(matches) != 1:
+            raise ValueError("donor selector is missing or ambiguous")
+        _, count, start = matches[0]
+        first.append((selector, count, len(second)))
+        for cond_a, cond_b, variants, flags, ti in ds[start:start+count]:
+            second.append((cond_a, cond_b, variants, flags, len(third)))
+            for flag, length, row in dt[ti:ti+variants]:
+                if row < 191 or row+(length & 15) > 224:
+                    raise ValueError("donor sequence leaves verified 191..223 span")
+                third.append((flag, length, p+row-191))
+    first.sort(key=lambda r: r[0])
+    tables = b"".join(struct.pack("<IHH", *r) for r in first)
+    tables += b"".join(struct.pack("<HHBBH", *r) for r in second)
+    tables += b"".join(struct.pack("<BBH", *r) for r in third)
+    delta = 0x288+len(tables)-end
+    # Keep all old strings, including the unused first sentinel string.
+    pool = bytearray(raw[h[15]:].rstrip(b"\0") + b"\0")
+    tags = bytearray(raw[h[12]:h[13]-2])
+    offsets = bytearray(raw[h[13]:h[14]-2])
+    voices = bytearray(raw[h[14]:h[15]])
+    for pos, row in enumerate(added):
+        tag = struct.unpack_from("<H", donor, dh[12]+(191+pos)*2)[0]
+        tags += struct.pack("<H", (tag & 0xF800) | key)
+        offsets += struct.pack("<H", len(pool))
+        pool += row.text + b"\0"
+        voices += struct.pack("<I", 1046000+slots[row.clip])
+    tags += raw[h[13]-2:h[13]]
+    offsets += raw[h[14]-2:h[14]]
+    nh = h[:]
+    nh[:3] = [len(first), len(second), len(third)]
+    for i in range(3, 12):
+        if h[i] != 0xFFFF:
+            if not end <= h[i] < h[12]:
+                raise ValueError("auxiliary offset outside relocatable region")
+            nh[i] += delta
+    nh[12] = h[12]+delta
+    nh[13] = nh[12]+len(tags)
+    nh[14] = nh[13]+len(offsets)
+    nh[15] = nh[14]+len(voices)
+    out = bytearray(raw[:0x288])
+    out += tables + raw[end:h[12]] + tags + offsets + voices + pool
+    if max(nh) > 0xFFFF or len(out) > len(raw):
+        raise ValueError(f"0x{key:X}: rebuilt chunk exceeds native allocation")
+    struct.pack_into("<16H", out, 0, *nh)
+    out += b"\0"*(len(raw)-len(out))
+    return bytes(out), {"old_rows": p, "added_rows": 33,
+                        "table_growth": delta, "new_pool": nh[15],
+                        "used_bytes": nh[15]+len(pool), "capacity": len(raw)}
+
+
+def restore_soulgain(args) -> None:
+    """Incremental D4/D5 restoration; never re-run the PASS35 mapper."""
+    import os
+    import subprocess
+    import validate_axel_battle_semantic_rebalance as audit
+
+    if args.rollback:
+        raise ValueError("use the restoration preimage journal, not PASS35 rollback")
+    before = sha256_file(args.iso)
+    if before != SOULGAIN_SOURCE_SHA:
+        raise ValueError(f"Soulgain source guard mismatch: {before}")
+    if args.apply and args.expected_current_sha != before:
+        raise ValueError("--apply requires the exact --expected-current-sha")
+    for path, expected in [(args.baseline, EXPECTED_BASELINE_SHA256),
+                           (args.aportable, EXPECTED_AP_SHA256)]:
+        if sha256_file(path) != expected:
+            raise ValueError(f"source hash mismatch: {path}")
+    journal = json.loads(args.manifest.read_text(encoding="utf-8"))
+    if "soulgain_restore" in journal:
+        raise ValueError("existing restoration journal must be reviewed first")
+    if args.backup.exists():
+        raise ValueError("refusing to overwrite an existing rollback backup")
+    slots = {int(k): v for k, v in journal["clip_slots"].items()}
+    if set(slots.values()) != set(range(171)):
+        raise ValueError("expected original 171-slot bank")
+    d4 = {r.index: r for r in PORT.find_a_rows(args.aportable, 0xD4)}
+    d5 = {r.index: r for r in PORT.find_a_rows(args.aportable, 0xD5)}
+    selected = {0xD4: [d4[i] for i in SOULGAIN_D4_ROWS],
+                0xD5: [d5[i] for i in range(140, 173)]}
+    needed = {r.clip for rows in selected.values() for r in rows}
+    missing = sorted(needed-set(slots))
+    for clip in missing:
+        slots[clip] = len(slots)
+    # 194 is the old allocation, not an engine-wide maximum.  Grow the
+    # descriptor table inside its own verified LICE-entry sector padding.
+    if len(slots) >= 1000:
+        raise ValueError("voice ID clip component exceeds three digits")
+    chunks = PORT.load_chunks(args.runtime / "entry5_chunks.json")
+    current = BB.read_entry5(args.iso)
+    native = BB.read_entry5(args.baseline)
+    dc = chunks[0x417]
+    donor = native[dc["off"]:dc["pool"]+dc["pool_cap"]]
+    ranges, chunk_stats = [], {}
+    for key in (0x3F4, 0x4A4, 0x4A5, 0x521):
+        c = chunks[key]
+        old = current[c["off"]:c["pool"]+c["pool_cap"]]
+        chosen = selected[AP_BY_SPEAKER[key][1]]
+        rebuilt, info = _add_soulgain_chunk(old, donor, key, chosen, slots)
+        audit.audit_soulgain_chunk(old, rebuilt, donor, key, chosen, slots)
+        ranges.append((BB.BATTLE_BASE+BB.ENTRY5_OFF+c["off"], rebuilt, f"chunk-{key:X}"))
+        chunk_stats[f"0x{key:X}"] = info
+    ptr, stream_lo, stream_hi = PORT.og_bank_region(args.baseline)
+    descriptor_base = PORT.OG_SHARED+PORT.OG_BANK_TABLE+ptr
+    with args.iso.open("rb") as fh:
+        fh.seek(PORT.OG_SHARED)
+        shared = fh.read(PORT.OG_SHARED_SIZE)
+        old_desc = shared[PORT.OG_BANK_TABLE+ptr:PORT.OG_BANK_TABLE+ptr+194*12]
+        sector, size, magic = struct.unpack_from("<III", old_desc, 170*12)
+        cursor = sector*2048+size
+        if cursor-stream_lo != 8343552 or magic != 0x13FFF:
+            raise ValueError("unexpected last occupied audio descriptor")
+        fh.seek(PORT.OG_STRM+cursor)
+        if any(fh.read(stream_hi-cursor)):
+            raise ValueError("audio tail is not empty")
+        # Repack existing ILDs without re-encoding their non-silent ADPCM.
+        containers = []
+        old_audio_audit = []
+        for slot in range(171):
+            sec, length, magic = struct.unpack_from("<III", old_desc, slot*12)
+            if magic != 0x13FFF:
+                raise ValueError("unexpected existing audio format")
+            fh.seek(PORT.OG_STRM+sec*2048)
+            original = fh.read(length)
+            data_length = struct.unpack_from("<I", original, 0x1C)[0]-16
+            vag = original[0x810:0x810+data_length]
+            if original[:4] != b"ILD\0" or len(vag) != data_length or data_length % 16:
+                raise ValueError("invalid original ILD")
+            silent = 0
+            for pos in range(len(vag)-16, -1, -16):
+                frame = vag[pos:pos+16]
+                if frame[0] >> 4 or frame[2:] != b"\0"*14 or frame[1] != 2:
+                    break
+                silent += 1
+            cut = max(0, silent-37)*16  # preserve >=32 ms of exact silence
+            kept = vag[:len(vag)-cut] if cut else vag
+            container = PORT.make_ild(kept)
+            if container[0x810:0x810+len(kept)] != vag[:len(kept)]:
+                raise ValueError("existing voiced ADPCM changed")
+            containers.append(container)
+            old_audio_audit.append({"slot": slot, "removed_silent_frames": cut//16,
+                                    "kept_adpcm_sha256": hashlib.sha256(kept).hexdigest().upper()})
+    audio_stats = []
+    for clip in missing:
+        pcm = PORT.decode_atrac(args.ffmpeg, PORT.a_riff(args.aportable, clip))
+        original_samples = len(pcm)//2
+        samples = struct.unpack(f"<{original_samples}h", pcm)
+        last = next((i for i in range(len(samples)-1, -1, -1) if samples[i]), None)
+        if last is None:
+            raise ValueError("unexpected silent source clip")
+        # Remove only exact digital-zero tail; retain 32 ms for encoder decay.
+        keep = min(original_samples, last+1+1024)
+        pcm = pcm[:keep*2]
+        container = PORT.make_ild(PORT.encode_psx_adpcm(pcm))
+        containers.append(container)
+        audio_stats.append({"clip": clip, "slot": slots[clip],
+                            "source_samples": original_samples, "kept_samples": keep,
+                            "trimmed_zero_samples": original_samples-keep,
+                            "length": len(container),
+                            "sha256": hashlib.sha256(container).hexdigest().upper()})
+        print(f"Soulgain audio {clip}: {len(container)} bytes", flush=True)
+    cursor = stream_lo
+    descriptors = bytearray()
+    for container in containers:
+        descriptors += struct.pack("<III", cursor//2048, len(container), 0x13FFF)
+        cursor += len(container)
+    if cursor > stream_hi:
+        raise ValueError(f"new audio exceeds allocation by {cursor-stream_hi}")
+    bank_table = PORT.OG_BANK_TABLE
+    count = struct.unpack_from("<I", shared, 0xD0804)[0]
+    if count != 1300 or shared[0xD0000:0xD0004] != b"Wpbb":
+        raise ValueError("unexpected SSTM directory")
+    records = [struct.unpack_from("<II", shared, bank_table+i*8) for i in range(count)]
+    old_end = max(bank_table+q+n*12 for q,n in records if n and q != 0xFFFFFFFF)
+    entry_size = struct.unpack_from("<I", shared, 0xD000C)[0]
+    if old_end != 0xD0800+entry_size or old_end != 0x11D5BC:
+        raise ValueError("SSTM nested entry size does not match descriptor end")
+    tail = bank_table+ptr+194*12
+    growth = len(descriptors)-194*12
+    if growth < 0 or old_end+growth > 0x11D800 or any(shared[old_end:old_end+growth]):
+        raise ValueError("no verified SSTM padding for expanded descriptors")
+    rebuilt_shared = bytearray(shared)
+    rebuilt_shared[bank_table+ptr:old_end+growth] = descriptors+shared[tail:old_end]
+    for i,(q,n) in enumerate(records):
+        if i == 1046:
+            struct.pack_into("<II", rebuilt_shared, bank_table+i*8, q, len(slots))
+        elif n and bank_table+q >= tail:
+            struct.pack_into("<I", rebuilt_shared, bank_table+i*8, q+growth)
+    struct.pack_into("<I", rebuilt_shared, 0xD000C, entry_size+growth)
+    # Every other bank must resolve to the exact same descriptor bytes.
+    for i,(q,n) in enumerate(records):
+        nq,nn = struct.unpack_from("<II", rebuilt_shared, bank_table+i*8)
+        if i != 1046 and (nn != n or (n and shared[bank_table+q:bank_table+q+n*12] !=
+                                     rebuilt_shared[bank_table+nq:bank_table+nq+n*12])):
+            raise ValueError(f"other bank {i} changed")
+    ranges += [(PORT.OG_SHARED+0xD000C, bytes(rebuilt_shared[0xD000C:0xD0010]), "sstm-size"),
+               (PORT.OG_SHARED+bank_table, bytes(rebuilt_shared[bank_table:old_end+growth]), "sstm-descriptors"),
+               (PORT.OG_STRM+stream_lo, b"".join(containers)+b"\0"*(stream_hi-cursor), "audio-bank")]
+    ranges.sort(key=lambda r: r[0])
+    for a, b in zip(ranges, ranges[1:]):
+        if a[0]+len(a[1]) > b[0]:
+            raise ValueError("overlapping restoration writes")
+    result = {"kind": "D4/D5 Soulgain native weapon graph restoration", "state": "planned",
+              "before_sha256": before, "target": str(args.iso.resolve()),
+              "scope": ["0x3F4", "0x4A4", "0x4A5", "0x521"], "selectors": list(SOULGAIN_KEYS),
+              "chunks": chunk_stats, "clips_added": missing, "total_clips": len(slots),
+              "audio_used_bytes": cursor-stream_lo, "audio_free_bytes": stream_hi-cursor,
+              "descriptor_growth": growth, "existing_audio_preservation": old_audio_audit,
+              "d4_source_rows": list(SOULGAIN_D4_ROWS), "d5_source_rows": list(range(140,173)),
+              "audio": audio_stats, "clip_slots": {str(k): v for k, v in slots.items()},
+              "live_verified": False}
+    report = json.loads(args.report.read_text(encoding="utf-8"))
+    if not args.apply:
+        report["soulgain_restore"] = result
+        args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+    processes = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True)
+    if processes.returncode or b"pcsx2" in processes.stdout.lower():
+        raise ValueError("PCSX2 process check failed or emulator is still running")
+    if sha256_file(args.iso) != before:
+        raise ValueError("target changed while building")
+    backup, metadata = bytearray(), []
+    with args.iso.open("r+b") as fh:
+        for off, data, kind in ranges:
+            fh.seek(off)
+            old = fh.read(len(data))
+            if len(old) != len(data):
+                raise ValueError("short preimage")
+            metadata.append({"offset": off, "length": len(data), "kind": kind,
+                             "backup_pos": len(backup),
+                             "old_sha256": hashlib.sha256(old).hexdigest().upper(),
+                             "new_sha256": hashlib.sha256(data).hexdigest().upper()})
+            backup += old
+        args.backup.write_bytes(backup)
+        result.update(state="prepared", ranges=metadata, backup=str(args.backup.resolve()),
+                      backup_sha256=hashlib.sha256(backup).hexdigest().upper())
+        journal["soulgain_restore"] = result
+        args.manifest.write_text(json.dumps(journal, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            for off, data, _ in ranges:
+                fh.seek(off)
+                fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+            for off, data, _ in ranges:
+                fh.seek(off)
+                if fh.read(len(data)) != data:
+                    raise ValueError("write verification mismatch")
+            # Replacing exactly the allowed ranges by their preimages must
+            # reconstruct the previous full ISO hash (all other bytes unchanged).
+            restored_hash = audit.soulgain_preimage_hash(args.iso, metadata, backup)
+            if restored_hash != before:
+                raise ValueError("bytes outside the allowed patch ranges changed")
+            post = BB.read_entry5(args.iso)
+            for key in (0x3F4, 0x4A4, 0x4A5, 0x521):
+                c = chunks[key]; start, end = c["off"], c["pool"]+c["pool_cap"]
+                audit.audit_soulgain_chunk(current[start:end], post[start:end], donor,
+                                          key, selected[AP_BY_SPEAKER[key][1]], slots)
+        except BaseException:
+            for item in metadata:
+                fh.seek(item["offset"])
+                pos = item["backup_pos"]
+                fh.write(backup[pos:pos+item["length"]])
+            fh.flush()
+            os.fsync(fh.fileno())
+            result["state"] = "rolled_back_after_error"
+            args.manifest.write_text(json.dumps(journal, ensure_ascii=False, indent=2), encoding="utf-8")
+            if sha256_file(args.iso) != before:
+                raise RuntimeError("automatic rollback hash mismatch")
+            raise
+    result.update(state="applied", after_sha256=sha256_file(args.iso),
+                  outside_ranges_unchanged=True)
+    args.manifest.write_text(json.dumps(journal, ensure_ascii=False, indent=2), encoding="utf-8")
+    report["soulgain_restore"] = result
+    args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+VAISAGA_SOURCE_SHA = "738C6F9B9D365204F75B4CF0CC50BAB57F69EDDA92A54FCA152872925D207B8B"
+VAISAGA_KEYS = (50000, 50010, 50011, 50020, 50030, 50031, 50040, 50041)
+
+
+def _ap_weapon_donor(iso, personality):
+    # These are the complete original AP D4/D5 chunks, not a guessed f1 array.
+    relative = {0xD4: 0x7C2800, 0xD5: 0x7C4000}[personality]
+    with iso.open("rb") as fh:
+        fh.seek(PORT.AP_DUMMY+relative)
+        raw = fh.read(0x1800)
+    h = struct.unpack_from("<16H", raw)
+    if struct.unpack_from("<H", raw, h[12])[0] & 0x7FF != personality:
+        raise ValueError("AP donor identity mismatch")
+    return raw
+
+
+def _restore_vaisaga_chunk(raw, donor, speaker, rows, slots):
+    h, first, second, third, end = _weapon_tables(raw)
+    dh, df, ds, dt, _ = _weapon_tables(donor)
+    p = (h[15]-h[14])//4
+    if h[13]-h[12] != 2*(p+1) or h[14]-h[13] != 2*(p+1):
+        raise ValueError("unexpected OGs sentinel layout")
+    source_start = rows[0].index
+    source_end = rows[-1].index+1
+    changed = []
+    for i,(key,_,_) in enumerate(first):
+        if key not in VAISAGA_KEYS:
+            continue
+        matches = [r for r in df if r[0] == key+214000]
+        if len(matches) != 1:
+            raise ValueError("missing AP Vaisaga selector")
+        _, count, start = matches[0]
+        first[i] = (key, count, len(second))
+        for ca,cb,variants,flags,ti in ds[start:start+count]:
+            second.append((ca,cb,variants,flags,len(third)))
+            for flag,plen,row in dt[ti:ti+(variants & 127)]:
+                if not source_start <= row < row+(plen & 15) <= source_end:
+                    raise ValueError("AP sequence leaves audited Vaisaga span")
+                third.append((flag,plen,p+row-source_start))
+        changed.append(key)
+    if set(changed) != set(VAISAGA_KEYS):
+        raise ValueError("current player chunk lacks native Vaisaga keys")
+    tables = b"".join(struct.pack("<IHH", *r) for r in first)
+    tables += b"".join(struct.pack("<HHBBH", *r) for r in second)
+    tables += b"".join(struct.pack("<BBH", *r) for r in third)
+    delta = 0x288+len(tables)-end
+    pool = bytearray(raw[h[15]:].rstrip(b"\0")+b"\0")
+    tags = bytearray(raw[h[12]:h[13]-2])
+    strings = bytearray(raw[h[13]:h[14]-2])
+    voices = bytearray(raw[h[14]:h[15]])
+    for row in rows:
+        tag = struct.unpack_from("<H", donor, dh[12]+row.index*2)[0]
+        tags += struct.pack("<H", (tag & 0xF800)|speaker)
+        strings += struct.pack("<H", len(pool))
+        pool += row.text+b"\0"
+        voices += struct.pack("<I", 1046000+slots[row.clip])
+    tags += raw[h[13]-2:h[13]]
+    strings += raw[h[14]-2:h[14]]
+    nh = h[:]
+    nh[:3] = [len(first),len(second),len(third)]
+    for i in range(3,12):
+        if h[i] != 0xFFFF:
+            if not end <= h[i] < h[12]:
+                raise ValueError("auxiliary pointer out of range")
+            nh[i] += delta
+    nh[12] = h[12]+delta
+    nh[13] = nh[12]+len(tags)
+    nh[14] = nh[13]+len(strings)
+    nh[15] = nh[14]+len(voices)
+    out = bytearray(raw[:0x288])+tables+raw[end:h[12]]+tags+strings+voices+pool
+    used = len(out)
+    if used > len(raw) or max(nh) > 65535:
+        raise ValueError("Vaisaga chunk exceeds its original allocation")
+    struct.pack_into("<16H", out, 0, *nh)
+    out += b"\0"*(len(raw)-used)
+    return bytes(out), {"old_rows":p,"added_rows":len(rows),"used_bytes":used,
+                        "capacity":len(raw),"table_growth":delta}
+
+
+def restore_vaisaga(args):
+    import os
+    import subprocess
+    import validate_axel_battle_semantic_rebalance as audit
+    if args.rollback:
+        raise ValueError("use the Vaisaga preimage journal, not legacy rollback")
+    before = sha256_file(args.iso)
+    if before != VAISAGA_SOURCE_SHA or (args.apply and args.expected_current_sha != before):
+        raise ValueError(f"Vaisaga source guard mismatch: {before}")
+    if sha256_file(args.aportable) != EXPECTED_AP_SHA256:
+        raise ValueError("AP source hash mismatch")
+    journal = json.loads(args.manifest.read_text(encoding="utf-8"))
+    prior=journal.get("soulgain_restore",{})
+    followup=json.loads((args.runtime/"mustache_axel_lamia_20261024.json").read_text(encoding="utf-8"))
+    if prior.get("after_sha256")!=followup.get("before_sha256") or followup.get("after_sha256")!=before:
+        raise ValueError("required Soulgain + dialogue follow-up chain not found")
+    followup_preimage=bytearray();followup_ranges=[]
+    with args.iso.open("rb") as fh:
+        for r in prior["ranges"]:
+            fh.seek(r["offset"])
+            if hashlib.sha256(fh.read(r["length"])).hexdigest().upper()!=r["new_sha256"]:
+                raise ValueError("Soulgain patch region changed")
+        for e in sorted(followup["edits"],key=lambda x:int(x["iso_off"],16)):
+            off=int(e["iso_off"],16);old=bytes.fromhex(e["before_hex"]);new=bytes.fromhex(e["after_hex"])
+            fh.seek(off)
+            if len(old)!=len(new) or fh.read(len(new))!=new:raise ValueError("dialogue follow-up bytes mismatch")
+            followup_ranges.append({"offset":off,"length":len(old),"backup_pos":len(followup_preimage)})
+            followup_preimage+=old
+    if audit.soulgain_preimage_hash(args.iso,followup_ranges,followup_preimage)!=prior["after_sha256"]:
+        raise ValueError("unexpected changes beyond recorded dialogue follow-up")
+    if "vaisaga_restore" in journal or args.backup.exists():
+        raise ValueError("refusing to overwrite an existing restoration/backup")
+    slots = {int(k):v for k,v in journal["soulgain_restore"]["clip_slots"].items()}
+    if set(slots.values()) != set(range(203)):
+        raise ValueError("unexpected prior audio slots")
+    sources, donors = {}, {}
+    for personality,lo,hi in [(0xD4,92,107),(0xD5,130,140)]:
+        sources[personality] = [r for r in PORT.find_a_rows(args.aportable,personality) if lo <= r.index < hi]
+        donors[personality] = _ap_weapon_donor(args.aportable,personality)
+    needed = {r.clip for rows in sources.values() for r in rows}
+    missing = sorted(needed-set(slots))
+    if missing != [55,56,57,58,167,168,169,174]:
+        raise ValueError("unexpected new Vaisaga clips")
+    for clip in missing:
+        slots[clip] = len(slots)
+    chunks = PORT.load_chunks(args.runtime/"entry5_chunks.json")
+    current = BB.read_entry5(args.iso)
+    ranges, chunk_stats = [], {}
+    for key in (0x3F4,0x4A4,0x4A5,0x521):
+        c = chunks[key]; personality = AP_BY_SPEAKER[key][1]
+        raw = current[c["off"]:c["pool"]+c["pool_cap"]]
+        out, info = _restore_vaisaga_chunk(raw,donors[personality],key,sources[personality],slots)
+        audit.audit_vaisaga_chunk(raw,out,donors[personality],key,sources[personality],slots)
+        ranges.append((BB.BATTLE_BASE+BB.ENTRY5_OFF+c["off"],out,f"chunk-{key:X}"))
+        chunk_stats[f"0x{key:X}"] = info
+    with args.iso.open("rb") as fh:
+        fh.seek(PORT.OG_SHARED);shared=fh.read(PORT.OG_SHARED_SIZE)
+        b=PORT.OG_BANK_TABLE
+        ptr,n=struct.unpack_from("<II",shared,b+1046*8)
+        if n!=203:
+            raise ValueError("expected 203-clip Soulgain bank")
+        first_sector=struct.unpack_from("<I",shared,b+ptr)[0]
+        stream_lo=first_sector*2048
+        stream_hi=stream_lo+8955904
+        containers=[];preserved=[]
+        for slot in range(n):
+            sec,length,magic=struct.unpack_from("<III",shared,b+ptr+12*slot)
+            if magic!=0x13FFF:
+                raise ValueError("unknown voice container")
+            fh.seek(PORT.OG_STRM+sec*2048);old=fh.read(length)
+            ln=struct.unpack_from("<I",old,0x1C)[0]-16
+            vag=old[0x810:0x810+ln]
+            if old[:4]!=b"ILD\0" or len(vag)!=ln or ln%16:
+                raise ValueError("bad original voice length")
+            def zero(frame):
+                return frame[0]>>4==0 and frame[1]==2 and frame[2:]==b"\0"*14
+            head=tail=0
+            for pos in range(0,ln,16):
+                if not zero(vag[pos:pos+16]):break
+                head+=1
+            for pos in range(ln-16,-1,-16):
+                if not zero(vag[pos:pos+16]):break
+                tail+=1
+            left=max(0,head-19)*16;right=ln-max(0,tail-19)*16
+            if left>=right:
+                raise ValueError("unexpected silent voice")
+            kept=vag[left:right]
+            containers.append(PORT.make_ild(kept))
+            preserved.append({"slot":slot,"removed_head_frames":left//16,
+                              "removed_tail_frames":(ln-right)//16,
+                              "voiced_adpcm_sha256":hashlib.sha256(kept).hexdigest().upper()})
+    new_audio=[]
+    for clip in missing:
+        pcm=PORT.decode_atrac(args.ffmpeg,PORT.a_riff(args.aportable,clip))
+        samples=struct.unpack(f"<{len(pcm)//2}h",pcm)
+        positions=[i for i,v in enumerate(samples) if v]
+        start=max(0,positions[0]-512);stop=min(len(samples),positions[-1]+1+512)
+        container=PORT.make_ild(PORT.encode_psx_adpcm(pcm[start*2:stop*2]))
+        containers.append(container)
+        new_audio.append({"clip":clip,"slot":slots[clip],"source_samples":len(samples),
+                          "removed_zero_head_samples":start,"removed_zero_tail_samples":len(samples)-stop,
+                          "length":len(container),"sha256":hashlib.sha256(container).hexdigest().upper()})
+        print(f"Vaisaga audio {clip}: {len(container)} bytes",flush=True)
+    cursor=stream_lo;desc=bytearray()
+    for container in containers:
+        desc+=struct.pack("<III",cursor//2048,len(container),0x13FFF)
+        cursor+=len(container)
+    if cursor>stream_hi:
+        raise ValueError("Vaisaga audio does not fit original bank")
+    recs=[struct.unpack_from("<II",shared,b+i*8) for i in range(1300)]
+    end=max(b+q+c*12 for q,c in recs if c and q!=0xFFFFFFFF)
+    old_size=struct.unpack_from("<I",shared,0xD000C)[0]
+    if end!=0x11D628 or 0xD0800+old_size!=end:
+        raise ValueError("SSTM extent guard mismatch")
+    tail=b+ptr+n*12;growth=len(desc)-n*12
+    if end+growth>0x11D800 or any(shared[end:end+growth]):
+        raise ValueError("insufficient SSTM padding")
+    ns=bytearray(shared);ns[b+ptr:end+growth]=desc+shared[tail:end]
+    for bank,(q,c) in enumerate(recs):
+        if bank==1046:struct.pack_into("<II",ns,b+bank*8,q,len(slots))
+        elif c and b+q>=tail:struct.pack_into("<I",ns,b+bank*8,q+growth)
+    struct.pack_into("<I",ns,0xD000C,old_size+growth)
+    for bank,(q,c) in enumerate(recs):
+        nq,nc=struct.unpack_from("<II",ns,b+bank*8)
+        if bank!=1046 and (nc!=c or (c and shared[b+q:b+q+c*12]!=ns[b+nq:b+nq+nc*12])):
+            raise ValueError("unrelated voice bank modified")
+    ranges += [(PORT.OG_SHARED+0xD000C,bytes(ns[0xD000C:0xD0010]),"sstm-size"),
+               (PORT.OG_SHARED+b,bytes(ns[b:end+growth]),"sstm-descriptors"),
+               (PORT.OG_STRM+stream_lo,b"".join(containers)+b"\0"*(stream_hi-cursor),"audio-bank")]
+    ranges.sort(key=lambda r:r[0])
+    for a,z in zip(ranges,ranges[1:]):
+        if a[0]+len(a[1])>z[0]:raise ValueError("overlapping writes")
+    result={"kind":"AP D4/D5 Vaisaga weapon graph restoration","state":"planned",
+            "target":str(args.iso.resolve()),"before_sha256":before,"chunks":chunk_stats,
+            "clips_added":missing,"total_clips":len(slots),"clip_slots":{str(k):v for k,v in slots.items()},
+            "audio":new_audio,"existing_audio_preservation":preserved,"audio_free_bytes":stream_hi-cursor,
+            "descriptor_growth":growth,"live_verified":False}
+    report=json.loads(args.report.read_text(encoding="utf-8"))
+    if not args.apply:
+        report["vaisaga_restore"]=result
+        args.report.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+        print(json.dumps({k:v for k,v in result.items() if k not in ("existing_audio_preservation","clip_slots")},ensure_ascii=False,indent=2))
+        return
+    check=subprocess.run(["tasklist","/FO","CSV","/NH"],capture_output=True)
+    if check.returncode or b"pcsx2" in check.stdout.lower():raise ValueError("PCSX2 still running or check failed")
+    if sha256_file(args.iso)!=before:raise ValueError("target changed while building")
+    backup=bytearray();metadata=[]
+    with args.iso.open("r+b") as fh:
+        for off,data,kind in ranges:
+            fh.seek(off);old=fh.read(len(data))
+            if len(old)!=len(data):raise ValueError("short preimage")
+            metadata.append({"offset":off,"length":len(data),"kind":kind,"backup_pos":len(backup),
+                             "old_sha256":hashlib.sha256(old).hexdigest().upper(),"new_sha256":hashlib.sha256(data).hexdigest().upper()})
+            backup+=old
+        args.backup.write_bytes(backup)
+        result.update(state="prepared",ranges=metadata,backup=str(args.backup.resolve()),backup_sha256=hashlib.sha256(backup).hexdigest().upper())
+        journal["vaisaga_restore"]=result
+        args.manifest.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding="utf-8")
+        try:
+            for off,data,_ in ranges:fh.seek(off);fh.write(data)
+            fh.flush();os.fsync(fh.fileno())
+            for off,data,_ in ranges:
+                fh.seek(off)
+                if fh.read(len(data))!=data:raise ValueError("readback mismatch")
+            if audit.soulgain_preimage_hash(args.iso,metadata,backup)!=before:raise ValueError("out-of-scope change")
+            post=BB.read_entry5(args.iso)
+            for key in (0x3F4,0x4A4,0x4A5,0x521):
+                c=chunks[key];lo,hi=c["off"],c["pool"]+c["pool_cap"];personality=AP_BY_SPEAKER[key][1]
+                audit.audit_vaisaga_chunk(current[lo:hi],post[lo:hi],donors[personality],key,sources[personality],slots)
+        except BaseException:
+            for r in metadata:fh.seek(r["offset"]);fh.write(backup[r["backup_pos"]:r["backup_pos"]+r["length"]])
+            fh.flush();os.fsync(fh.fileno());result["state"]="rolled_back_after_error"
+            args.manifest.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding="utf-8")
+            if sha256_file(args.iso)!=before:raise RuntimeError("rollback failed")
+            raise
+    result.update(state="applied",after_sha256=sha256_file(args.iso),outside_ranges_unchanged=True)
+    journal["vaisaga_restore"]=result;report["vaisaga_restore"]=result
+    args.manifest.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding="utf-8")
+    args.report.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(json.dumps({k:v for k,v in result.items() if k not in ("existing_audio_preservation","clip_slots")},ensure_ascii=False,indent=2))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--iso", type=Path, required=True)
@@ -833,10 +1411,28 @@ def main() -> None:
     parser.add_argument("--backup", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--restore-soulgain", action="store_true",
+                        help="Incrementally add D4/D5 Soulgain selectors/audio to current release")
+    parser.add_argument("--restore-vaisaga", action="store_true")
     parser.add_argument("--rollback", action="store_true")
     parser.add_argument("--expected-current-sha")
     parser.add_argument("--expected-rollback-sha")
     args = parser.parse_args()
+
+    if args.restore_vaisaga:
+        if args.restore_soulgain:
+            raise ValueError("choose one incremental restoration mode")
+        restore_vaisaga(args)
+        return
+
+    if args.restore_soulgain:
+        restore_soulgain(args)
+        return
+    if args.manifest.exists():
+        existing = json.loads(args.manifest.read_text(encoding="utf-8"))
+        if existing.get("soulgain_restore", {}).get("state") == "applied":
+            raise ValueError("Soulgain restoration is active: the legacy PASS35 builder/rollback "
+                             "must not overwrite the expanded layout. Use its restoration journal.")
 
     if args.rollback:
         if not args.expected_current_sha or not args.expected_rollback_sha:

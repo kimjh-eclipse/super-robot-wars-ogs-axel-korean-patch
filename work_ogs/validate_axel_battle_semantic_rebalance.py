@@ -1393,10 +1393,13 @@ def main() -> None:
     parser.add_argument("--build-report", type=Path)
     parser.add_argument("--followup-manifest", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--audit-soulgain", action="store_true")
+    parser.add_argument("--audit-vaisaga", action="store_true")
+    parser.add_argument("--aportable", type=Path)
     args = parser.parse_args()
 
     try:
-        result = run(args)
+        result = run_soulgain_audit(args) if args.audit_soulgain or args.audit_vaisaga else run(args)
     except Exception as exc:
         result = {
             "kind": "PASS35 standalone independent Axel battle rebuild audit",
@@ -1404,11 +1407,307 @@ def main() -> None:
             "errors": [f"validator exception: {type(exc).__name__}: {exc}"],
         }
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    saved = result
+    if args.audit_soulgain or args.audit_vaisaga:
+        saved = json.loads(args.output.read_text(encoding="utf-8")) if args.output.exists() else {}
+        saved["vaisaga_independent_validation" if args.audit_vaisaga else "soulgain_independent_validation"] = result
     args.output.write_text(
-        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if result.get("status") != "PASS":
         raise SystemExit(1)
+
+
+def soulgain_preimage_hash(path, ranges, backup):
+    """Hash the entire ISO with only declared edits replaced by old bytes."""
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for item in sorted(ranges, key=lambda x: x["offset"]):
+            remaining = item["offset"]-fh.tell()
+            if remaining < 0:
+                raise ValueError("overlapping preimages")
+            while remaining:
+                data = fh.read(min(8 << 20, remaining))
+                if not data:
+                    raise ValueError("short ISO while checking unaffected bytes")
+                h.update(data)
+                remaining -= len(data)
+            start = item["backup_pos"]
+            h.update(backup[start:start+item["length"]])
+            fh.seek(item["length"], 1)
+        while data := fh.read(8 << 20):
+            h.update(data)
+    return h.hexdigest().upper()
+
+
+def audit_soulgain_chunk(old, new, donor, speaker, selected_rows, slots):
+    """Independent graph/payload audit, not a call back into the builder."""
+    def parse(raw):
+        header = struct.unpack_from("<16H", raw)
+        n = (header[13]-header[12])//2-1
+        if header[14]-header[13] != 2*(n+1) or header[15]-header[14] != 4*n:
+            raise ValueError("bad payload array boundaries")
+        if not 0x288 <= header[12] < header[13] < header[14] < header[15] < len(raw):
+            raise ValueError("out-of-range payload offset")
+        payload = []
+        for i in range(n):
+            tag = struct.unpack_from("<H", raw, header[12]+2*i)[0]
+            off = struct.unpack_from("<H", raw, header[13]+2*i)[0]
+            voice = struct.unpack_from("<I", raw, header[14]+4*i)[0]
+            start = header[15]+off
+            if start >= len(raw):
+                raise ValueError("string pointer out of range")
+            end = raw.index(0, start)
+            payload.append((tag, raw[start:end], voice))
+        level2 = 0x288+8*header[0]
+        level3 = level2+8*header[1]
+        graph = {}
+        for i in range(header[0]):
+            key, count, first = struct.unpack_from("<IHH", raw, 0x288+8*i)
+            if key in graph or first+count > header[1]:
+                raise ValueError("duplicate selector or invalid level-2 index")
+            branches = []
+            for j in range(first, first+count):
+                ca, cb, variants, flags, base = struct.unpack_from("<HHBBH", raw, level2+8*j)
+                # Bit 7 is a selector flag, not part of the variant count.
+                number = variants & 127
+                if base+number > header[2]:
+                    raise ValueError("invalid level-3 index")
+                seqs = []
+                for t in range(base, base+number):
+                    flag, packed_len, row = struct.unpack_from("<BBH", raw, level3+4*t)
+                    length = packed_len & 15
+                    if row+length > n:
+                        raise ValueError("sequence payload leaves chunk")
+                    seqs.append((flag, packed_len, row, payload[row:row+length]))
+                branches.append((ca, cb, variants, flags, seqs))
+            graph[key] = branches
+        return header, payload, graph, level3+4*header[2]
+    oh, op, og, oe = parse(old)
+    nh, np, ng, ne = parse(new)
+    dh, dp, dg, _ = parse(donor)
+    required = {106000, 106010, 106021, 106030, 106031, 106040, 106041}
+    if len(new) != len(old) or set(ng) != set(og) | required:
+        raise ValueError("changed allocation or unexpected selector set")
+    if len(np) != len(op)+33 or np[:len(op)] != op:
+        raise ValueError("pre-existing subtitle, speaker, or voice modified")
+    if old[0x20:0x288] != new[0x20:0x288] or old[oe:oh[12]] != new[ne:nh[12]]:
+        raise ValueError("generic or auxiliary selector data modified")
+    for i in range(3, 12):
+        if (oh[i] == 0xFFFF and nh[i] != 0xFFFF) or (oh[i] != 0xFFFF and nh[i]-ne != oh[i]-oe):
+            raise ValueError("auxiliary pointer relocation mismatch")
+    for key, value in og.items():
+        if ng[key] != value:
+            raise ValueError(f"existing selector {key} changed")
+    if new[nh[13]-2:nh[13]] != old[oh[13]-2:oh[13]] or new[nh[14]-2:nh[14]] != old[oh[14]-2:oh[14]]:
+        raise ValueError("sentinel changed")
+    for selector in required:
+        expected = []
+        for ca, cb, variants, flags, sequences in dg[selector]:
+            output = []
+            for flag, plen, row, donor_payload in sequences:
+                mapped = []
+                for n, (tag, _, _) in enumerate(donor_payload):
+                    src = selected_rows[row-191+n]
+                    mapped.append(((tag & 0xF800)|speaker, src.text, 1046000+slots[src.clip]))
+                output.append((flag, plen, len(op)+row-191, mapped))
+            expected.append((ca, cb, variants, flags, output))
+        if ng[selector] != expected:
+            raise ValueError(f"Soulgain {selector} sequence or voice mismatch")
+    return {"existing_payloads_preserved": len(op), "new_payloads": 33,
+            "existing_selectors_preserved": len(og), "added_selectors": 7}
+
+
+def audit_vaisaga_chunk(old, new, donor, speaker, source_rows, slots):
+    def layout(raw):
+        h=struct.unpack_from("<16H",raw)
+        b=0x288+h[0]*8;c=b+h[1]*8
+        graph={}
+        for i in range(h[0]):
+            key,count,st=struct.unpack_from("<IHH",raw,0x288+i*8)
+            if key in graph or st+count>h[1]:raise ValueError("invalid first-level selector")
+            branches=[]
+            for j in range(st,st+count):
+                ca,cb,v,flags,t=struct.unpack_from("<HHBBH",raw,b+j*8)
+                if t+(v&127)>h[2]:raise ValueError("invalid sequence index")
+                seq=[struct.unpack_from("<BBH",raw,c+x*4) for x in range(t,t+(v&127))]
+                branches.append((ca,cb,v,flags,seq))
+            graph[key]=branches
+        return h,graph,c+h[2]*4
+    def payload(raw,h):
+        n=(h[15]-h[14])//4
+        if h[13]-h[12]!=2*(n+1) or h[14]-h[13]!=2*(n+1):raise ValueError("invalid OGs payload arrays")
+        result=[]
+        for i in range(n):
+            tag=struct.unpack_from("<H",raw,h[12]+2*i)[0]
+            start=h[15]+struct.unpack_from("<H",raw,h[13]+2*i)[0]
+            voice=struct.unpack_from("<I",raw,h[14]+4*i)[0]
+            if start>=len(raw):raise ValueError("string out of bounds")
+            result.append((tag,raw[start:raw.index(0,start)],voice))
+        return result
+    oh,og,oe=layout(old);nh,ng,ne=layout(new);dh,dg,_=layout(donor)
+    op=payload(old,oh);np=payload(new,nh)
+    targets={50000,50010,50011,50020,50030,50031,50040,50041}
+    if len(old)!=len(new) or set(og)!=set(ng):raise ValueError("allocation or selector set changed")
+    if len(np)!=len(op)+len(source_rows) or np[:len(op)]!=op:raise ValueError("existing payload modified")
+    if old[0x20:0x288]!=new[0x20:0x288] or old[oe:oh[12]]!=new[ne:nh[12]]:raise ValueError("generic/auxiliary selector modified")
+    for i in range(3,12):
+        if (oh[i]==0xFFFF and nh[i]!=0xFFFF) or (oh[i]!=0xFFFF and oh[i]-oe!=nh[i]-ne):raise ValueError("bad auxiliary relocation")
+    for key in og:
+        if key not in targets and og[key]!=ng[key]:raise ValueError(f"unrelated selector {key} changed")
+    start=source_rows[0].index
+    for key in targets:
+        expected=[]
+        for ca,cb,v,flags,sequences in dg[key+214000]:
+            converted=[]
+            for flag,plen,row in sequences:
+                if not start<=row<row+(plen&15)<=start+len(source_rows):raise ValueError("wrong AP weapon span")
+                converted.append((flag,plen,len(op)+row-start))
+            expected.append((ca,cb,v,flags,converted))
+        if ng[key]!=expected:raise ValueError(f"wrong Vaisaga sequence for {key}")
+    for j,row in enumerate(source_rows):
+        tag=struct.unpack_from("<H",donor,dh[12]+row.index*2)[0]
+        expected=((tag&0xF800)|speaker,row.text,1046000+slots[row.clip])
+        if np[len(op)+j]!=expected:raise ValueError("wrong AP subtitle/voice pair")
+    for h,raw in [(oh,old),(nh,new)]:
+        if raw[h[13]-2:h[13]]!=b"\0\0" or raw[h[14]-2:h[14]]!=b"\0\0":raise ValueError("sentinel changed")
+    return {"existing_payloads_preserved":len(op),"added_payloads":len(source_rows),
+            "updated_weapon_selectors":8,"soulgain_selectors_preserved":7,
+            "other_selectors_preserved":len(og)-8}
+
+
+def run_soulgain_audit(args):
+    from types import SimpleNamespace
+    from ogs_korean_codec import encode
+    vaisaga = getattr(args,"audit_vaisaga",False)
+    m = json.loads(args.manifest.read_text(encoding="utf-8"))["vaisaga_restore" if vaisaga else "soulgain_restore"]
+    old_used, old_capacity, expected_count = (203,203,211) if vaisaga else (171,194,203)
+    backup = Path(m["backup"]).read_bytes()
+    if hashlib.sha256(backup).hexdigest().upper() != m["backup_sha256"]:
+        raise ValueError("rollback backup hash mismatch")
+    if soulgain_preimage_hash(args.iso, m["ranges"], backup) != m["before_sha256"]:
+        raise ValueError("out-of-scope ISO change")
+    def old_range(kind):
+        item = next(r for r in m["ranges"] if r["kind"] == kind)
+        pos = item["backup_pos"]
+        return backup[pos:pos+item["length"]]
+    def read_at(path, off, length):
+        with path.open("rb") as fh:
+            fh.seek(off)
+            data = fh.read(length)
+        if len(data) != length:
+            raise ValueError("short read")
+        return data
+    for r in m["ranges"]:
+        actual = read_at(args.iso, r["offset"], r["length"])
+        if hashlib.sha256(actual).hexdigest().upper() != r["new_sha256"]:
+            raise ValueError("applied patch range digest mismatch")
+    rows = {}
+    for personality in ("D4", "D5"):
+        data = (args.runtime / f"ap{personality}.json").read_bytes()
+        if hashlib.sha256(data).hexdigest().upper() != AP_SOURCE_SHA256[personality]:
+            raise ValueError("AP source ledger changed")
+        rows[personality] = {r["i"]: SimpleNamespace(
+            index=r["i"], text=encode(r["text"]), clip=r["voice"]%1000)
+            for r in json.loads(data)}
+    # Independently fixed, audited source sequence assignments.
+    indices = {"D4": list(range(107,124))+list(range(126,134))*2,
+               "D5": list(range(140,173))}
+    if vaisaga:
+        indices = {"D4":list(range(92,107)),"D5":list(range(130,140))}
+        if not args.aportable:
+            raise ValueError("--audit-vaisaga requires --aportable")
+        ap_digest=hashlib.sha256()
+        with args.aportable.open("rb") as fh:
+            while data:=fh.read(8<<20):ap_digest.update(data)
+        if ap_digest.hexdigest().upper()!="EFBE571B194E33625ACB7D094E81A2090FD290A1B058E1F762795659030491CE":
+            raise ValueError("AP voice/selector source hash mismatch")
+    native = read_at(args.baseline, ENTRY_BASE, ENTRY_SIZE)
+    specs = json.loads((args.runtime/"entry5_chunks.json").read_text(encoding="utf-8"))
+    donor_off = next(c["off"] for c in specs if c["key"] == 0x417)
+    donor_end = min(c["off"] for c in specs if c["off"] > donor_off)
+    donor = native[donor_off:donor_end]
+    slots = {int(k): v for k,v in m["clip_slots"].items()}
+    chunks = {}
+    for k, personality in [(0x3F4,"D4"),(0x4A4,"D4"),(0x4A5,"D5"),(0x521,"D5")]:
+        item = next(r for r in m["ranges"] if r["kind"] == f"chunk-{k:X}")
+        target = read_at(args.iso, item["offset"], item["length"])
+        if vaisaga:
+            donor=read_at(args.aportable,0x06D50000+{"D4":0x7C2800,"D5":0x7C4000}[personality],0x1800)
+        checker=audit_vaisaga_chunk if vaisaga else audit_soulgain_chunk
+        chunks[f"0x{k:X}"] = checker(old_range(f"chunk-{k:X}"), target, donor, k,
+                                     [rows[personality][i] for i in indices[personality]], slots)
+    old = old_range("sstm-descriptors")
+    item = next(r for r in m["ranges"] if r["kind"] == "sstm-descriptors")
+    new = read_at(args.iso, item["offset"], item["length"])
+    old_audio = old_range("audio-bank")
+    ar = next(r for r in m["ranges"] if r["kind"] == "audio-bank")
+    new_audio = read_at(args.iso, ar["offset"], ar["length"])
+    stream_relative = ar["offset"]-0x087D1F800
+    old_ptr, old_n = struct.unpack_from("<II", old, 1046*8)
+    ptr, n = struct.unpack_from("<II", new, 1046*8)
+    if old_n != old_capacity or n != len(slots) or n != expected_count:
+        raise ValueError("unexpected descriptor count")
+    for bank in range(1300):
+        q, count = struct.unpack_from("<II", old, bank*8)
+        nq, nc = struct.unpack_from("<II", new, bank*8)
+        if bank != 1046 and (count != nc or (count and old[q:q+count*12] != new[nq:nq+nc*12])):
+            raise ValueError(f"unrelated voice bank {bank} changed")
+    end = stream_relative
+    for slot in range(n):
+        sec, length, magic = struct.unpack_from("<III", new, ptr+12*slot)
+        if sec*2048 != end or magic != 0x13FFF:
+            raise ValueError("new audio containers are not valid/contiguous")
+        pos = sec*2048-stream_relative
+        ild = new_audio[pos:pos+length]
+        if ild[:4] != b"ILD\0" or len(ild) != length:
+            raise ValueError("invalid ILD range")
+        data_len = struct.unpack_from("<I", ild, 0x1C)[0]-16
+        rate = struct.unpack_from("<I", ild, 0x28)[0]
+        if data_len % 16 or rate != 32000 or 0x810+data_len > length:
+            raise ValueError("invalid ADPCM length or sample rate")
+        if slot < old_used:
+            os, ol, _ = struct.unpack_from("<III", old, old_ptr+12*slot)
+            op = os*2048-stream_relative
+            oi = old_audio[op:op+ol]
+            od = struct.unpack_from("<I", oi, 0x1C)[0]-16
+            left,right=0,od
+            if vaisaga:
+                def zero(frame):return frame[0]>>4==0 and frame[1]==2 and frame[2:]==b"\0"*14
+                head=tail=0
+                for f in range(0,od,16):
+                    if not zero(oi[0x810+f:0x820+f]):break
+                    head+=1
+                for f in range(od-16,-1,-16):
+                    if not zero(oi[0x810+f:0x820+f]):break
+                    tail+=1
+                left=max(0,head-19)*16;right=od-max(0,tail-19)*16
+                if data_len!=right-left:raise ValueError("unexpected audio trim")
+            else:right=data_len
+            if ild[0x810:0x810+data_len] != oi[0x810+left:0x810+right]:
+                raise ValueError(f"existing voice {slot} modified")
+            for f in list(range(0,left,16))+list(range(right,od,16)):
+                frame = oi[0x810+f:0x820+f]
+                if frame[0]>>4 or frame[1] != 2 or frame[2:] != b"\0"*14:
+                    raise ValueError("removed non-silent ADPCM")
+        end += length
+    if end > stream_relative+len(new_audio):
+        raise ValueError("audio bank exceeds old allocation")
+    h = hashlib.sha256()
+    with args.iso.open("rb") as fh:
+        while data := fh.read(8 << 20):
+            h.update(data)
+    actual_sha = h.hexdigest().upper()
+    if actual_sha != m["after_sha256"]:
+        raise ValueError("final ISO digest mismatch")
+    return {"kind": ("Vaisaga" if vaisaga else "Soulgain")+" independent graph and audio preservation audit",
+            "status": "PASS", "sha256": actual_sha, "chunks": chunks,
+            "updated_weapon_selectors" if vaisaga else "new_weapon_selectors":32 if vaisaga else 28,
+            "existing_audio_preserved":old_used,
+            "total_audio_clips": n, "new_audio_clips": n-old_used,
+            "other_banks_preserved": 1299, "outside_patch_unchanged": True,
+            "audio_free_bytes": stream_relative+len(new_audio)-end,
+            "live_verified": False}
 
 
 if __name__ == "__main__":

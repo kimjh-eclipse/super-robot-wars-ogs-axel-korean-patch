@@ -6,13 +6,13 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 
 📖 **문서 사이트**: https://kimjh-eclipse.github.io/super-robot-wars-ogs-axel-korean-patch/
 
-- 현재 버전: **v20261002**
-- 배포 패키지: [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261002.zip`을 내려받으세요 (빠른패처 + xdelta 동봉)
-- 패치 파일만 필요하면: [`patch/SRWOGS_AxelRoleSwap_kr_v20261002.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20261002.xdelta)
+- 현재 버전: **v20261024**
+- 배포 패키지: [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261024.zip`을 내려받으세요 (빠른패처 + xdelta 동봉)
+- 패치 파일만 필요하면: [`patch/SRWOGS_AxelRoleSwap_kr_v20261024.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20261024.xdelta)
 
-> **v20261002**: 35화 종료 시 아군 아슈세이버를 받습니다(이미 지난 세이브는 「갈아타기」 메뉴 진입 시 지급).
-> 적 라미아 안쥬르그 무장 목록 오류, 초반 라미아 대사, 대사 속 반각 공백을 정리했습니다.
-> **v20260904·v20260831 적용본**은 빠른패처가 자동 인식해 차이만 덧씌웁니다.
+> **v20261024**: 소울게인·바이사가 무장별 전투 대사·음성을 넣고, 적 라미아·안쥬르그 능력치를
+> 원래 적이던 액셀·소울게인 기준으로 올렸습니다. 「머스터쉬 맨」 호칭과 액셀·라미아·레몬·W16 관계 대사도 정리했습니다.
+> **v20261002·v20260904·v20260831 적용본**은 빠른패처가 자동 인식해 차이만 덧씌웁니다.
 
 > **이 저장소에는 게임 ISO가 포함되어 있지 않습니다.** 패치와 작업 스크립트만 배포합니다.
 
@@ -23,7 +23,7 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 ### 방법 1 — 빠른패처 (권장)
 
 릴리즈 ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해 ISO를
-선택한 뒤 [패치 적용]을 누르면 됩니다. 기준 ISO(v1.4.3s1)와 v20260904·v20260831 적용본을
+선택한 뒤 [패치 적용]을 누르면 됩니다. 기준 ISO(v1.4.3s1)와 v20261002·v20260904·v20260831 적용본을
 모두 인식합니다. ISO를 제자리에서 수정하며, 적용 전 원본 구간을 `.ogsbak`
 백업으로 남기고 적용 전후 해시를 검증합니다. [백업으로 되돌리기]로 백업 시점
 상태로 복원할 수 있습니다.
@@ -31,12 +31,12 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 ### 방법 2 — xdelta
 
 1. OGs 한글패치 **v1.4.3s1**이 적용된 ISO를 준비합니다. (xdelta는 기준 ISO 전용)
-2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20261002.xdelta`를 적용합니다.
+2. xdelta UI 등으로 `patch/SRWOGS_AxelRoleSwap_kr_v20261024.xdelta`를 적용합니다.
 
 명령줄로 적용하는 경우:
 
 ```bash
-xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261002.xdelta srwogs-axel.iso
+xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261024.xdelta srwogs-axel.iso
 ```
 
 > 일본판 원본 ISO에는 적용되지 않습니다. 한글패치를 먼저 적용해 주세요.
@@ -48,8 +48,8 @@ xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261002.xdelta srwogs-
 | 적용 전 크기 | 4,518,150,144 바이트 |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 적용 후 크기 | 4,518,150,144 바이트 |
-| 적용 후 MD5 | `af56a5977d01b46c287f9bd9c9750717` |
-| 패치 파일 MD5 | `41a342d1f8738a2a7898d109d059883a` |
+| 적용 후 MD5 | `ff94b73361c05cd984d16e072a160bae` |
+| 패치 파일 MD5 | `c27096f85d26c66a748dddf94e292b07` |
 
 적용 전 해시가 다르면 정상 적용되지 않습니다.
 
