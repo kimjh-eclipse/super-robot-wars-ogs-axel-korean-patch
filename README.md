@@ -7,6 +7,7 @@ PS2 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**의 라미아 로렐리스 루
 📖 **문서 사이트**: https://kimjh-eclipse.github.io/super-robot-wars-ogs-axel-korean-patch/
 
 - 현재 버전: **v20261024**
+- 빠른패처에서 **숨겨진 요소 자동 습득 (OG2)**을 선택할 수 있습니다(기본값 꺼짐). 기존 대사·밸런스·음성 변경은 항상 유지됩니다.
 - 배포 패키지: [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261024.zip`을 내려받으세요 (빠른패처 + xdelta 동봉)
 - 패치 파일만 필요하면: [`patch/SRWOGS_AxelRoleSwap_kr_v20261024.xdelta`](patch/SRWOGS_AxelRoleSwap_kr_v20261024.xdelta)
 

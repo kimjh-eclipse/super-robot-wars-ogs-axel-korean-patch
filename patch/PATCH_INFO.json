@@ -1,58 +1,67 @@
 {
- "kind": "ogs-lamia-axel-role-swap",
- "version": "v20261024",
- "built": "2026-10-24",
- "status": "RELEASED",
- "base_iso": {
-  "name": "srwogs-v1.4.3s1.iso",
-  "size": 4518150144,
-  "sha256": "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C",
-  "md5": "EF740DD41F5ABCC05C6F6BA96ADA9F5B"
- },
- "result_iso": {
-  "size": 4518150144,
-  "sha256": "5432A2F5066DB50E54511AB2C3A0744A56911FA4510A519AB65FB803CE7114A8",
-  "md5": "FF94B73361C05CD984D16E072A160BAE"
- },
- "patch": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20261024.xdelta",
-  "size": 6345010,
-  "sha256": "D31CBAE86B6EBC349411860D5599C7AB365AA5FEBCE3B5F2661CEE159A5D12C3",
-  "md5": "C27096F85D26C66A748DDDF94E292B07",
-  "verified": "xdelta 복호 SHA-256이 결과 ISO와 일치"
- },
- "quickpatch": {
-  "exe_sha256": "B5C795612428A1C0C9583909E4ACC4BF0A7274BC8BD2AE018523CF6DB486EE59",
-  "ranges_sha256": "0190C4306F4BE830131A4A834F0B8EEBFECAC769DEAD1F5BE67D22B770446E8F",
-  "upgrades": [
-   {
-    "file": "OGS_ISO_ranges_upgrade_v20260831.bin",
-    "source_sha256": "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930",
-    "sha256": "53361C26D8661D1571393C82786DF79F16DFDF35506A778D456B84965AA92BB1"
-   },
-   {
-    "file": "OGS_ISO_ranges_upgrade_v20260904.bin",
-    "source_sha256": "831A646BCDE363B92A1E8CD2C5CACE786102A61833A5757BB155B527CF35B9CC",
-    "sha256": "3B4FB1F625959DCE3E49A73C0A0817B0423BD5322E5D5A3617E1A537F9CA9E99"
-   },
-   {
-    "file": "OGS_ISO_ranges_upgrade_v20261002.bin",
-    "source_sha256": "747832E0310F6CD4B23A702FC1FC928C19F6D44B8B51879184FCC2459BEF6915",
-    "sha256": "FA586FDA7B5F5282ABA24D701659F1FC26B4A46F5986E66568FB7F6C1DAB525F"
-   }
+  "kind": "ogs-lamia-axel-role-swap",
+  "version": "v20261024",
+  "built": "2026-10-24",
+  "status": "RELEASED",
+  "base_iso": {
+    "name": "srwogs-v1.4.3s1.iso",
+    "size": 4518150144,
+    "sha256": "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C",
+    "md5": "EF740DD41F5ABCC05C6F6BA96ADA9F5B"
+  },
+  "result_iso": {
+    "size": 4518150144,
+    "sha256": "5432A2F5066DB50E54511AB2C3A0744A56911FA4510A519AB65FB803CE7114A8",
+    "md5": "FF94B73361C05CD984D16E072A160BAE"
+  },
+  "patch": {
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261024.xdelta",
+    "size": 6345010,
+    "sha256": "D31CBAE86B6EBC349411860D5599C7AB365AA5FEBCE3B5F2661CEE159A5D12C3",
+    "md5": "C27096F85D26C66A748DDDF94E292B07",
+    "verified": "xdelta 복호 SHA-256이 결과 ISO와 일치"
+  },
+  "quickpatch": {
+    "exe_sha256": "7DEE27E962D22DD75F6479FE9B327290AD89F66BC378FC1EC63BA5C2E592DC0E",
+    "ranges_sha256": "0190C4306F4BE830131A4A834F0B8EEBFECAC769DEAD1F5BE67D22B770446E8F",
+    "upgrades": [
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20260831.bin",
+        "source_sha256": "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930",
+        "sha256": "53361C26D8661D1571393C82786DF79F16DFDF35506A778D456B84965AA92BB1"
+      },
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20260904.bin",
+        "source_sha256": "831A646BCDE363B92A1E8CD2C5CACE786102A61833A5757BB155B527CF35B9CC",
+        "sha256": "3B4FB1F625959DCE3E49A73C0A0817B0423BD5322E5D5A3617E1A537F9CA9E99"
+      },
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20261002.bin",
+        "source_sha256": "747832E0310F6CD4B23A702FC1FC928C19F6D44B8B51879184FCC2459BEF6915",
+        "sha256": "FA586FDA7B5F5282ABA24D701659F1FC26B4A46F5986E66568FB7F6C1DAB525F"
+      }
+    ],
+    "verified": "기준본/구버전 3종/옵션 켜기·끄기/재적용/백업 복원 12경로 E2E 해시 일치",
+    "optional_hidden_rewards": {
+      "file": "OGS_hidden_rewards.bin",
+      "default": false,
+      "sha256": "9916333683A5AF96D51501F6C1DC4C6FB3817814FB80B912BE829F8D63128D3A",
+      "result_iso_sha256": "687397FA1E1B57CB6FD547B3D6A23701B7AE529C500B491360B6B69566EB1735",
+      "retroactive": false,
+      "live_playthrough_verified": false
+    }
+  },
+  "release_zip": {
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261024.zip",
+    "size": 31740461,
+    "sha256": "339F1E1AB239A6DB9126ED2E9898BAA13C2DC1E59A33C2575DDC35FB096CB2CE"
+  },
+  "changes": [
+    "35화 아군 아슈세이버 지급(이벤트 + 갈아타기 메뉴 진입 백필, 실키 0x428/0x41C, 소속 +0x2A 등록)",
+    "역방향 안쥬르그 Unit[0x136] 무장키 0x8B3~0x8B7로 분리",
+    "초반 라미아 대사 117슬롯 교정",
+    "반각 공백 전수 제거(라미아·액셀·기타 화자)",
+    "OGMD 스타일 빠른패처 및 선택형 OG2 숨겨진 요소 자동 습득"
   ],
-  "verified": "기준본→신판, 복원, v20260831→신판, v20260904→신판 E2E 해시 일치"
- },
- "release_zip": {
-  "file": "SRWOGS_AxelRoleSwap_kr_v20261002.zip",
-  "size": 15917802,
-  "sha256": "9A0AB7AF0E855C2E686457E7CD575E70E0104256D10F6C83097F8623D8C1E9BB"
- },
- "changes": [
-  "35화 아군 아슈세이버 지급(이벤트 + 갈아타기 메뉴 진입 백필, 실키 0x428/0x41C, 소속 +0x2A 등록)",
-  "역방향 안쥬르그 Unit[0x136] 무장키 0x8B3~0x8B7로 분리",
-  "초반 라미아 대사 117슬롯 교정",
-  "반각 공백 전수 제거(라미아·액셀·기타 화자)"
- ],
- "previous": "v20260904"
+  "previous": "v20260904"
 }

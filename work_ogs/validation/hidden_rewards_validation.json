@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "iso_applied": true,
+  "checks": [
+    "Actual R5900 IF and IF/ELSE true/false paths",
+    "Reward conditions pass at low/high input; weapon confiscation skipped",
+    "Wildwurger L retained for all 8 prior-flag combinations",
+    "Gilliam boomerang exactly once, Easy stat changes remain Easy-only",
+    "Raven group 0x1E selected for all 8 route-flag combinations",
+    "Route-specific S/R unlocks and both G Impact/Neo Chakram grants with zero flags",
+    "UNTD Raven and Wildwurger spawn identities verified",
+    "Actual game weapon/part grant handlers completed on copied save RAM",
+    "Inspector grants moved once; all text/auxiliary tables byte-preserved",
+    "Entire ISO outside exact planned edits preserved (SHA-256 reconstruction)"
+  ],
+  "live_playthrough": false
+}

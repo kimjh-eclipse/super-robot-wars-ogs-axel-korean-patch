@@ -26,6 +26,7 @@ internal static class OgsAxelQuickPatch
 {
     private const string VersionText = "v20261024";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
+    private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     // 선택적 사이드카: 직전 릴리즈 적용본을 핫픽스본으로 올리는 소구간 팩.
     // 없으면 기준본→최신본 팩만으로 동작한다.
     private const string UpgradeResourceName = "OGS_ISO_ranges_upgrade.bin";
@@ -135,6 +136,7 @@ internal static class OgsAxelQuickPatch
             pack.TargetHash = r.ReadBytes(HashSize);
 
             int count = r.ReadInt32();
+            if (count < 0 || count > 1000000) throw new InvalidDataException("잘못된 구간 수");
             pack.Ranges = new List<PatchRange>(count);
             long payload = 0;
             for (int i = 0; i < count; i++)
@@ -142,6 +144,8 @@ internal static class OgsAxelQuickPatch
                 PatchRange range = new PatchRange();
                 range.Offset = r.ReadInt64();
                 int length = r.ReadInt32();
+                if (range.Offset < 0 || length <= 0 || range.Offset > pack.IsoSize - length)
+                    throw new InvalidDataException("ISO 범위를 벗어난 패치 구간");
                 range.Data = r.ReadBytes(length);
                 if (range.Data.Length != length)
                     throw new InvalidDataException("패치 리소스가 손상되었습니다.");
@@ -153,6 +157,51 @@ internal static class OgsAxelQuickPatch
                 throw new InvalidDataException("패치 리소스 뒤에 잉여 데이터가 있습니다.");
             return pack;
         }
+    }
+
+    private static Pack[] LoadHidden(Pack full)
+    {
+        using (Stream stream = OpenPatchData(HiddenResourceName, true))
+        using (BinaryReader r = new BinaryReader(stream, Encoding.UTF8))
+        {
+            if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSHID01")
+                throw new InvalidDataException("숨겨진 요소 데이터 형식 오류");
+            long size = r.ReadInt64();
+            byte[] source = r.ReadBytes(32), target = r.ReadBytes(32);
+            if (size != full.IsoSize || Hex(source) != Hex(full.TargetHash))
+                throw new InvalidDataException("숨겨진 요소 데이터와 기본 패치 버전이 다릅니다.");
+            Pack on = new Pack { Title = "숨겨진 요소 자동 습득 켜기", IsoSize = size,
+                SourceHash = source, TargetHash = target, Ranges = new List<PatchRange>() };
+            Pack off = new Pack { Title = "숨겨진 요소 자동 습득 끄기", IsoSize = size,
+                SourceHash = target, TargetHash = source, Ranges = new List<PatchRange>() };
+            int count = r.ReadInt32();
+            if (count < 1 || count > 1000000) throw new InvalidDataException("잘못된 옵션 구간 수");
+            long end = 0;
+            for (int i = 0; i < count; i++)
+            {
+                long offset = r.ReadInt64(); int length = r.ReadInt32();
+                if (offset < end || length < 1 || offset > size - length)
+                    throw new InvalidDataException("잘못된 옵션 구간");
+                byte[] before = r.ReadBytes(length), after = r.ReadBytes(length);
+                if (before.Length != length || after.Length != length) throw new EndOfStreamException();
+                off.Ranges.Add(new PatchRange { Offset = offset, Data = before });
+                on.Ranges.Add(new PatchRange { Offset = offset, Data = after });
+                off.PayloadBytes += length; on.PayloadBytes += length; end = offset + length;
+            }
+            if (stream.Position != stream.Length) throw new InvalidDataException("옵션 데이터 길이 오류");
+            return new Pack[] { on, off };
+        }
+    }
+
+    private static Pack Combine(Pack first, Pack second)
+    {
+        if (Hex(first.TargetHash) != Hex(second.SourceHash)) throw new InvalidDataException("패치 연결 오류");
+        Pack result = new Pack { Title = first.Title + " + " + second.Title,
+            IsoSize = first.IsoSize, SourceHash = first.SourceHash, TargetHash = second.TargetHash,
+            PayloadBytes = first.PayloadBytes + second.PayloadBytes, Ranges = new List<PatchRange>(first.Ranges) };
+        // Order is intentional: optional script bytes override base-patch ranges.
+        result.Ranges.AddRange(second.Ranges);
+        return result;
     }
 
     // ---------- 해시 ----------
@@ -185,11 +234,14 @@ internal static class OgsAxelQuickPatch
 
     // ---------- 동작 ----------
 
-    private static void Run(string isoPath, Mode mode, Action<string> log,
+    private static void Run(string isoPath, Mode mode, bool hidden, Action<string> log,
                             Action<int> progress)
     {
         List<Pack> packs = LoadPacks();
         Pack full = packs[0];
+        Pack[] option = LoadHidden(full);
+        string desiredHash = Hex(hidden ? option[0].TargetHash : full.TargetHash);
+        log("숨겨진 요소 자동 습득: " + (hidden ? "선택" : "선택 안 함"));
         log(full.Title);
         log("패처 " + VersionText);
         log(string.Format(CultureInfo.InvariantCulture,
@@ -215,7 +267,7 @@ internal static class OgsAxelQuickPatch
         {
             if (progress != null) progress((int)(d * 50 / Math.Max(1, t)));
         });
-        string dst = Hex(full.TargetHash);
+        string dst = desiredHash;
 
         Pack pack = null;
         foreach (Pack p in packs)
@@ -223,8 +275,11 @@ internal static class OgsAxelQuickPatch
             if (string.Equals(current, Hex(p.SourceHash), StringComparison.OrdinalIgnoreCase))
             { pack = p; break; }
         }
+        if (pack != null && hidden) pack = Combine(pack, option[0]);
+        else if (hidden && current == Hex(full.TargetHash)) pack = option[0];
+        else if (!hidden && current == Hex(option[0].TargetHash)) pack = option[1];
         bool isPatched = string.Equals(current, dst, StringComparison.OrdinalIgnoreCase);
-        bool isFull = pack == packs[0];
+        bool isFull = current == Hex(full.SourceHash);
 
         log("  " + current);
         if (isPatched) log("  -> 이미 최신 패치가 적용된 상태입니다.");
@@ -240,8 +295,7 @@ internal static class OgsAxelQuickPatch
             else if (pack != null) log("검증 결과: 직전 릴리즈 적용본. [패치 적용]으로 업그레이드하세요.");
             else
             {
-                log("검증 결과: 알 수 없는 ISO 입니다.");
-                log("다른 패치가 적용되었거나 기준본이 아닐 수 있습니다.");
+                throw new InvalidDataException("검증 결과: 지원하지 않는 ISO입니다.");
             }
             if (progress != null) progress(100);
             return;
@@ -381,38 +435,56 @@ internal static class OgsAxelQuickPatch
         private readonly Button patchBtn = new Button();
         private readonly Button verifyBtn = new Button();
         private readonly Button restoreBtn = new Button();
+        private readonly Button browse = new Button();
+        private readonly CheckBox hiddenCheck = new CheckBox();
+        private bool working;
 
         public MainForm(string initialIso)
         {
             Text = "슈퍼로봇대전 OGs 액셀 역할 교체 패처 " + VersionText;
-            Width = 760;
-            Height = 560;
+            ClientSize = new Size(900, 720);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            BackColor = Color.FromArgb(242, 246, 250);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("맑은 고딕", 9F);
             AllowDrop = true;
+            FormClosing += delegate(object sender, FormClosingEventArgs e) { if (working) e.Cancel = true; };
+            Panel header = new Panel();
+            header.SetBounds(0, 0, 900, 82);
+            header.BackColor = Color.FromArgb(17, 55, 86);
+            Controls.Add(header);
+            Label title = new Label();
+            title.Text = "OGs 액셀 역할 교체 패처";
+            title.Font = new Font("맑은 고딕", 18F, FontStyle.Bold);
+            title.ForeColor = Color.White;
+            title.SetBounds(24, 12, 850, 36); header.Controls.Add(title);
+            Label subtitle = new Label();
+            subtitle.Text = "ISO 확인 → 옵션 선택 → 패치 적용 · " + VersionText;
+            subtitle.ForeColor = Color.FromArgb(205, 226, 242);
+            subtitle.SetBounds(27, 51, 850, 24); header.Controls.Add(subtitle);
             DragEnter += delegate(object s, DragEventArgs e)
             {
-                e.Effect = e.Data.GetDataPresent(DataFormats.FileDrop)
+                e.Effect = !working && e.Data.GetDataPresent(DataFormats.FileDrop)
                     ? DragDropEffects.Copy : DragDropEffects.None;
             };
             DragDrop += delegate(object s, DragEventArgs e)
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                if (files.Length > 0 && File.Exists(files[0])) isoBox.Text = files[0];
+                if (!working && files.Length > 0 && File.Exists(files[0])) isoBox.Text = files[0];
             };
 
             Label lbl = new Label();
             lbl.Text = "ISO 경로 (드래그 앤 드롭 가능)";
-            lbl.SetBounds(12, 12, 300, 18);
+            lbl.SetBounds(22, 98, 650, 22);
             Controls.Add(lbl);
 
-            isoBox.SetBounds(12, 32, 620, 24);
+            isoBox.SetBounds(22, 126, 750, 28);
             isoBox.Text = initialIso ?? string.Empty;
             Controls.Add(isoBox);
 
-            Button browse = new Button();
             browse.Text = "찾기";
-            browse.SetBounds(640, 31, 90, 26);
+            browse.SetBounds(784, 125, 94, 30);
             browse.Click += delegate
             {
                 using (OpenFileDialog dlg = new OpenFileDialog())
@@ -423,29 +495,48 @@ internal static class OgsAxelQuickPatch
             };
             Controls.Add(browse);
 
+            GroupBox options = new GroupBox();
+            options.Text = "패치 옵션"; options.SetBounds(22, 172, 856, 124);
+            Controls.Add(options);
+            hiddenCheck.Text = "숨겨진 요소 자동 습득 (OG2)";
+            hiddenCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
+            hiddenCheck.SetBounds(18, 26, 800, 28); hiddenCheck.Checked = false;
+            options.Controls.Add(hiddenCheck);
+            Label optionInfo = new Label();
+            optionInfo.Text = "선택하면 숨겨진 무기·기체·강화파츠를 원래 획득 시점에 조건 없이 받습니다.\n이미 지나간 화의 보상은 소급 지급하지 않습니다. 기본 대사·밸런스·음성 수정은 항상 적용됩니다.";
+            optionInfo.SetBounds(20, 61, 820, 50); options.Controls.Add(optionInfo);
+
+            Label info = new Label();
+            info.Text = "작업 직전 상태를 .ogsbak에 백업합니다. 적용 후 PCSX2를 새로 실행하고 게임 내 세이브를 불러오세요.";
+            info.BackColor = Color.FromArgb(255, 248, 220);
+            info.Padding = new Padding(12); info.SetBounds(22, 310, 856, 52); Controls.Add(info);
+
             patchBtn.Text = "패치 적용";
-            patchBtn.SetBounds(12, 68, 150, 34);
+            patchBtn.SetBounds(22, 380, 180, 40);
+            patchBtn.BackColor = Color.FromArgb(17, 55, 86); patchBtn.ForeColor = Color.White;
             patchBtn.Click += delegate { Start(Mode.Patch); };
             Controls.Add(patchBtn);
 
             verifyBtn.Text = "상태 확인";
-            verifyBtn.SetBounds(172, 68, 120, 34);
+            verifyBtn.SetBounds(216, 380, 140, 40);
             verifyBtn.Click += delegate { Start(Mode.Verify); };
             Controls.Add(verifyBtn);
 
             restoreBtn.Text = "백업으로 되돌리기";
-            restoreBtn.SetBounds(302, 68, 160, 34);
+            restoreBtn.SetBounds(370, 380, 190, 40);
             restoreBtn.Click += delegate { StartRestore(); };
             Controls.Add(restoreBtn);
 
-            bar.SetBounds(12, 112, 718, 18);
+            bar.SetBounds(22, 436, 856, 20);
             Controls.Add(bar);
 
-            logBox.SetBounds(12, 140, 718, 360);
+            logBox.SetBounds(22, 472, 856, 226);
             logBox.Multiline = true;
             logBox.ReadOnly = true;
             logBox.ScrollBars = ScrollBars.Vertical;
             logBox.Font = new Font("Consolas", 9F);
+            logBox.BackColor = Color.FromArgb(22, 28, 34);
+            logBox.ForeColor = Color.FromArgb(224, 236, 244);
             Controls.Add(logBox);
 
             Log("한국어화 v1.4.3s1 기준 ISO 를 선택하고 [패치 적용]을 누르세요.");
@@ -453,7 +544,7 @@ internal static class OgsAxelQuickPatch
             Log("적용 전 기준본 구간을 " + BackupExt + " 백업으로 남깁니다.");
             Log(string.Empty);
             Log("※ 이전 ISO 의 세이브 스테이트는 사용하지 마세요.");
-            Log("※ 정적 전수 검증 완료, 전 루트 실플레이 검증은 진행 중입니다.");
+            Log("※ 옵션은 코드 실행·분기 검증을 마쳤으며 전 루트 실플레이 검증은 별도입니다.");
         }
 
         private void Log(string text)
@@ -471,7 +562,9 @@ internal static class OgsAxelQuickPatch
         private void SetBusy(bool busy)
         {
             if (InvokeRequired) { BeginInvoke((Action<bool>)SetBusy, busy); return; }
+            working = busy;
             patchBtn.Enabled = verifyBtn.Enabled = restoreBtn.Enabled = !busy;
+            hiddenCheck.Enabled = isoBox.Enabled = browse.Enabled = !busy;
         }
 
         private void Start(Mode mode)
@@ -481,9 +574,10 @@ internal static class OgsAxelQuickPatch
             SetBusy(true);
             SetProgress(0);
             logBox.Clear();
+            bool hidden = hiddenCheck.Checked;
             Thread t = new Thread(delegate()
             {
-                try { Run(iso, mode, Log, SetProgress); }
+                try { Run(iso, mode, hidden, Log, SetProgress); }
                 catch (Exception ex) { Log(string.Empty); Log("오류: " + ex.Message); }
                 finally { SetBusy(false); }
             });
@@ -528,6 +622,7 @@ internal static class OgsAxelQuickPatch
     {
         bool cli = false;
         bool restore = false;
+        bool hidden = false;
         string iso = null;
         Mode mode = Mode.Patch;
         for (int i = 0; i < args.Length; i++)
@@ -536,6 +631,7 @@ internal static class OgsAxelQuickPatch
             if (a == "--cli") cli = true;
             else if (a == "--verify") { cli = true; mode = Mode.Verify; }
             else if (a == "--restore") { cli = true; restore = true; }
+            else if (a == "--hidden") hidden = true;
             else if (iso == null) iso = a;
         }
 
@@ -553,7 +649,7 @@ internal static class OgsAxelQuickPatch
             if (iso == null)
             {
                 Console.WriteLine(
-                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore]");
+                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden]");
                 return 2;
             }
             if (restore)
@@ -565,7 +661,7 @@ internal static class OgsAxelQuickPatch
             }
             else
             {
-                Run(iso, mode, Console.WriteLine, null);
+                Run(iso, mode, hidden, Console.WriteLine, null);
             }
             return 0;
         }

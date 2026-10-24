@@ -19,6 +19,7 @@ class CPU:
         self.r[28]=0x5879F0  # executable's global pointer
         self.lo=self.hi=0
         self.fpr=[0]*32
+        self.fcc=False
         self.pc=0
         self.pending=None
         self.count=0
@@ -119,6 +120,23 @@ class CPU:
             v=self.read(addr,n)
             if op in (32,33,35):v=signed(v,8*n)
             self.put(t,v,128 if op==30 else 64)
+        elif op==17:
+            def f(i): return struct.unpack('<f',struct.pack('<I',self.fpr[i]))[0]
+            def sf(i,v): self.fpr[i]=struct.unpack('<I',struct.pack('<f',v))[0]
+            if s==0: self.put(t,signed(self.fpr[d],32))
+            elif s==4: self.fpr[d]=b&0xFFFFFFFF
+            elif s==8:
+                if t not in (0,1,2,3): raise NotImplementedError(f'COP1 branch {pc:X}')
+                branch(self.fcc if t&1 else not self.fcc, bool(t&2))
+            elif s==20 and fn==32: sf(sh,float(signed(self.fpr[d],32)))
+            elif s==16:
+                if fn==6: self.fpr[sh]=self.fpr[d]
+                elif fn==32: self.fpr[sh]=self.fpr[d]
+                elif fn==13: self.fpr[sh]=int(f(d))&0xFFFFFFFF
+                elif fn in (0,1,2,3): sf(sh,{0:lambda:f(d)+f(t),1:lambda:f(d)-f(t),2:lambda:f(d)*f(t),3:lambda:f(d)/f(t)}[fn]())
+                elif fn in (50,60,62): self.fcc={50:lambda:f(d)==f(t),60:lambda:f(d)<f(t),62:lambda:f(d)<=f(t)}[fn]()
+                else: raise NotImplementedError(f'COP1.S {pc:X}/{w:X}')
+            else: raise NotImplementedError(f'COP1 {pc:X}/{w:X}')
         elif op==49:self.fpr[t]=self.read(addr,4)  # lwc1, bit-preserving
         elif op==57:self.write(addr,self.fpr[t],4) # swc1, bit-preserving
         elif op in (31,40,41,43,63):
