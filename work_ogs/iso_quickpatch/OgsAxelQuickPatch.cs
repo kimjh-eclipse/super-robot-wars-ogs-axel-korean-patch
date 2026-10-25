@@ -24,9 +24,11 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261025";
+    private const string VersionText = "v20261025.1";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
+    private const string OukaResourceName = "OGS_ouka_survival.bin";
+    private const string OukaHiddenResourceName = "OGS_ouka_survival_hidden.bin";
     // 선택적 사이드카: 직전 릴리즈 적용본을 핫픽스본으로 올리는 소구간 팩.
     // 없으면 기준본→최신본 팩만으로 동작한다.
     private const string UpgradeResourceName = "OGS_ISO_ranges_upgrade.bin";
@@ -159,20 +161,20 @@ internal static class OgsAxelQuickPatch
         }
     }
 
-    private static Pack[] LoadHidden(Pack full)
+    private static Pack[] LoadOption(Pack full, string resourceName, string title)
     {
-        using (Stream stream = OpenPatchData(HiddenResourceName, true))
+        using (Stream stream = OpenPatchData(resourceName, true))
         using (BinaryReader r = new BinaryReader(stream, Encoding.UTF8))
         {
             if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSHID01")
-                throw new InvalidDataException("숨겨진 요소 데이터 형식 오류");
+                throw new InvalidDataException(title + " 데이터 형식 오류");
             long size = r.ReadInt64();
             byte[] source = r.ReadBytes(32), target = r.ReadBytes(32);
             if (size != full.IsoSize || Hex(source) != Hex(full.TargetHash))
-                throw new InvalidDataException("숨겨진 요소 데이터와 기본 패치 버전이 다릅니다.");
-            Pack on = new Pack { Title = "숨겨진 요소 자동 습득 켜기", IsoSize = size,
+                throw new InvalidDataException(title + " 데이터와 기본 패치 버전이 다릅니다.");
+            Pack on = new Pack { Title = title + " 켜기", IsoSize = size,
                 SourceHash = source, TargetHash = target, Ranges = new List<PatchRange>() };
-            Pack off = new Pack { Title = "숨겨진 요소 자동 습득 끄기", IsoSize = size,
+            Pack off = new Pack { Title = title + " 끄기", IsoSize = size,
                 SourceHash = target, TargetHash = source, Ranges = new List<PatchRange>() };
             int count = r.ReadInt32();
             if (count < 1 || count > 1000000) throw new InvalidDataException("잘못된 옵션 구간 수");
@@ -234,13 +236,17 @@ internal static class OgsAxelQuickPatch
 
     // ---------- 동작 ----------
 
-    private static void Run(string isoPath, Mode mode, bool hidden, Action<string> log,
+    private static void Run(string isoPath, Mode mode, bool hidden, bool ouka, Action<string> log,
                             Action<int> progress)
     {
         List<Pack> packs = LoadPacks();
         Pack full = packs[0];
-        Pack[] option = LoadHidden(full);
-        string desiredHash = Hex(hidden ? option[0].TargetHash : full.TargetHash);
+        Pack[] option = LoadOption(full, HiddenResourceName, "숨겨진 요소 자동 습득");
+        Pack[] oukaBase = LoadOption(full, OukaResourceName, "오우카 생존");
+        Pack[] oukaHidden = LoadOption(option[0], OukaHiddenResourceName, "오우카 생존");
+        string desiredHash = Hex(ouka ? (hidden ? oukaHidden[0].TargetHash : oukaBase[0].TargetHash)
+                                     : (hidden ? option[0].TargetHash : full.TargetHash));
+        log("오우카 생존·라피에사쥬 합류: " + (ouka ? "선택" : "선택 안 함"));
         log("숨겨진 요소 자동 습득: " + (hidden ? "선택" : "선택 안 함"));
         log(full.Title);
         log("패처 " + VersionText);
@@ -275,9 +281,22 @@ internal static class OgsAxelQuickPatch
             if (string.Equals(current, Hex(p.SourceHash), StringComparison.OrdinalIgnoreCase))
             { pack = p; break; }
         }
-        if (pack != null && hidden) pack = Combine(pack, option[0]);
-        else if (hidden && current == Hex(full.TargetHash)) pack = option[0];
-        else if (!hidden && current == Hex(option[0].TargetHash)) pack = option[1];
+        // Normalize a recognized current option combination to the base,
+        // then compose the selected options. Apply the combined pack atomically
+        // with one backup of the original ISO, even when ranges overlap.
+        if (current == Hex(oukaHidden[0].TargetHash))
+            pack = Combine(oukaHidden[1], option[1]);
+        else if (current == Hex(oukaBase[0].TargetHash)) pack = oukaBase[1];
+        else if (current == Hex(option[0].TargetHash)) pack = option[1];
+        else if (current == Hex(full.TargetHash))
+            pack = new Pack { Title = "기본 패치", IsoSize = full.IsoSize,
+                SourceHash = full.TargetHash, TargetHash = full.TargetHash,
+                Ranges = new List<PatchRange>() };
+        if (pack != null)
+        {
+            if (hidden) pack = Combine(pack, option[0]);
+            if (ouka) pack = Combine(pack, hidden ? oukaHidden[0] : oukaBase[0]);
+        }
         bool isPatched = string.Equals(current, dst, StringComparison.OrdinalIgnoreCase);
         bool isFull = current == Hex(full.SourceHash);
 
@@ -437,6 +456,7 @@ internal static class OgsAxelQuickPatch
         private readonly Button restoreBtn = new Button();
         private readonly Button browse = new Button();
         private readonly CheckBox hiddenCheck = new CheckBox();
+        private readonly CheckBox oukaCheck = new CheckBox();
         private bool working;
 
         public MainForm(string initialIso)
@@ -500,10 +520,14 @@ internal static class OgsAxelQuickPatch
             Controls.Add(options);
             hiddenCheck.Text = "숨겨진 요소 자동 습득 (OG2)";
             hiddenCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
-            hiddenCheck.SetBounds(18, 26, 800, 28); hiddenCheck.Checked = false;
+            hiddenCheck.SetBounds(18, 26, 402, 28); hiddenCheck.Checked = false;
             options.Controls.Add(hiddenCheck);
+            oukaCheck.Text = "오우카 생존·라피에사쥬 합류";
+            oukaCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
+            oukaCheck.SetBounds(430, 26, 405, 28); oukaCheck.Checked = false;
+            options.Controls.Add(oukaCheck);
             Label optionInfo = new Label();
-            optionInfo.Text = "선택하면 숨겨진 무기·기체·강화파츠를 원래 획득 시점에 조건 없이 받습니다.\n이미 지나간 화의 보상은 소급 지급하지 않습니다. 기본 대사·밸런스·음성 수정은 항상 적용됩니다.";
+            optionInfo.Text = "숨겨진 요소: 무기·기체·강화파츠를 원래 획득 시점에 조건 없이 받습니다.\n오우카 생존: OG2 44화 결말을 바꾸고 오우카와 라피에사쥬가 아군에 남습니다.\n이미 지나간 화에는 소급 적용되지 않습니다. 두 옵션은 각각 선택할 수 있습니다.";
             optionInfo.SetBounds(20, 61, 820, 50); options.Controls.Add(optionInfo);
 
             Label info = new Label();
@@ -564,7 +588,7 @@ internal static class OgsAxelQuickPatch
             if (InvokeRequired) { BeginInvoke((Action<bool>)SetBusy, busy); return; }
             working = busy;
             patchBtn.Enabled = verifyBtn.Enabled = restoreBtn.Enabled = !busy;
-            hiddenCheck.Enabled = isoBox.Enabled = browse.Enabled = !busy;
+            oukaCheck.Enabled = hiddenCheck.Enabled = isoBox.Enabled = browse.Enabled = !busy;
         }
 
         private void Start(Mode mode)
@@ -575,9 +599,10 @@ internal static class OgsAxelQuickPatch
             SetProgress(0);
             logBox.Clear();
             bool hidden = hiddenCheck.Checked;
+            bool ouka = oukaCheck.Checked;
             Thread t = new Thread(delegate()
             {
-                try { Run(iso, mode, hidden, Log, SetProgress); }
+                try { Run(iso, mode, hidden, ouka, Log, SetProgress); }
                 catch (Exception ex) { Log(string.Empty); Log("오류: " + ex.Message); }
                 finally { SetBusy(false); }
             });
@@ -623,6 +648,7 @@ internal static class OgsAxelQuickPatch
         bool cli = false;
         bool restore = false;
         bool hidden = false;
+        bool ouka = false;
         string iso = null;
         Mode mode = Mode.Patch;
         for (int i = 0; i < args.Length; i++)
@@ -632,6 +658,7 @@ internal static class OgsAxelQuickPatch
             else if (a == "--verify") { cli = true; mode = Mode.Verify; }
             else if (a == "--restore") { cli = true; restore = true; }
             else if (a == "--hidden") hidden = true;
+            else if (a == "--ouka") ouka = true;
             else if (iso == null) iso = a;
         }
 
@@ -649,7 +676,7 @@ internal static class OgsAxelQuickPatch
             if (iso == null)
             {
                 Console.WriteLine(
-                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden]");
+                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden] [--ouka]");
                 return 2;
             }
             if (restore)
@@ -661,7 +688,7 @@ internal static class OgsAxelQuickPatch
             }
             else
             {
-                Run(iso, mode, hidden, Console.WriteLine, null);
+                Run(iso, mode, hidden, ouka, Console.WriteLine, null);
             }
             return 0;
         }

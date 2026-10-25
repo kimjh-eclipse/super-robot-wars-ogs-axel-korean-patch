@@ -1,0 +1,23 @@
+{
+  "source_sha256": "8499be55449d6026831df7697185ba12e5009492ed584b21b645d3dafe7ad3fb",
+  "target_sha256": "5bc30bb635ea895a04a3e2c1f713f91c54f78cf802d1d48a33f53bd77aeba1f1",
+  "applied": true,
+  "checks": [
+    "Actual script opcode 5E and native group initializer create visible Rapiesage with Ouka assigned",
+    "Actual current master tables, owned flags, unit menu gates and native alternate-pilot filter pass",
+    "All other unit/pilot records unchanged; repeated initializer reuses the same pair",
+    "Original persuasion and memory recovery commands untouched",
+    "Ouka death replaced with retreat/wait pair; Agilla removal and other deaths unchanged",
+    "Six scene commands changed and one final grant inserted; branch spans and text-command lookup remain valid",
+    "All edited Korean strings round-trip, use fullwidth text and fit three 27-character lines",
+    "All untouched dialogue byte-identical; full live chapter playthrough not yet tested"
+  ],
+  "version": "v20261025.1",
+  "dialogue_changes": 55,
+  "full_live_playthrough_verified": false,
+  "optional": true,
+  "default": false,
+  "independent_of_hidden_rewards": true,
+  "ui_default_both_unchecked": true,
+  "ui_checkboxes_do_not_overlap": true
+}

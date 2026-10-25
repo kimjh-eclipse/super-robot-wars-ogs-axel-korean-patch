@@ -1,6 +1,6 @@
 {
   "kind": "ogs-lamia-axel-role-swap",
-  "version": "v20261025",
+  "version": "v20261025.1",
   "built": "2026-10-25",
   "status": "RELEASED",
   "base_iso": {
@@ -15,43 +15,53 @@
     "md5": "B9405774D99289FCF4AC04F51A86EBD3"
   },
   "patch": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261025.xdelta",
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261025.1.xdelta",
     "size": 6346104,
     "sha256": "08232330C642C9A73B31B3D450ED9C1C34CED35BEA9D9B6567C042A54673D80E",
     "md5": "3CC8EA4C80F876BB7BC8BB6755FBE05D",
     "verified": "xdelta 복호 SHA-256이 결과 ISO와 일치"
   },
   "quickpatch": {
-    "exe_sha256": "5FEF3C4255116464FF470C33FFD9BE9B98D58397E6F96FE906495F302B7B1EAD",
+    "exe_sha256": "78D755CBE1ECE91FD7AADFAF1E0C978C4EBF15EF650AF40163A0883BCB9422E8",
     "ranges_sha256": "A9D7FE48299F3C896E5596D8698F8DE121A288EF93217BAA3210A162670B6AF3",
     "upgrades": [
       {
         "file": "OGS_ISO_ranges_upgrade_v20260831.bin",
         "source_sha256": "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930",
-        "sha256": "E7C6E39912687660E833D2568051A6E20008FD1DB09B8C90511C94870B8E58DB"
+        "sha256": "70E47344EEC085181A2927ECD22068A5E81ACD9565EE95FCBA297076F50C8623"
       },
       {
         "file": "OGS_ISO_ranges_upgrade_v20260904.bin",
         "source_sha256": "831A646BCDE363B92A1E8CD2C5CACE786102A61833A5757BB155B527CF35B9CC",
-        "sha256": "8E313FC00E0DABE2745F9A6613CB534F42C3F3DCCBA6D13D96CD6A3112D66E9E"
+        "sha256": "77486D4AEF37FDD294CB2D621F89184FDAE064A7EC5DF6CEB9DCF25161EFFAFA"
       },
       {
         "file": "OGS_ISO_ranges_upgrade_v20261002.bin",
         "source_sha256": "747832E0310F6CD4B23A702FC1FC928C19F6D44B8B51879184FCC2459BEF6915",
-        "sha256": "7AC9A6DE358700BBE44B9F54240D6F041189A4C118B9B145FF086C0930A75CC1"
+        "sha256": "7F7B95DF11890BFC350672E81358ABD04DB2E59FAD54E9555E949874082069DA"
       },
       {
         "file": "OGS_ISO_ranges_upgrade_v20261024.bin",
         "source_sha256": "5432A2F5066DB50E54511AB2C3A0744A56911FA4510A519AB65FB803CE7114A8",
-        "sha256": "4311ABFE9DCB2743B021D77C11E3BB28F68CA39134540828A4CE2284F5D660E8"
+        "sha256": "47AB418EBE4EAE1D14752BF14E661ED485B26F069310203E0F348D88A055A07F"
       },
       {
         "file": "OGS_ISO_ranges_upgrade_v20261024_hidden.bin",
         "source_sha256": "687397FA1E1B57CB6FD547B3D6A23701B7AE529C500B491360B6B69566EB1735",
-        "sha256": "74E687996E0B798A1B71B543A9D4B6029CA67CBBEFEC85B96288797D5D16D439"
+        "sha256": "6EF588F18C56674B8E9797E691471A966B923FA10EF61C632C17206E97EB3A0F"
+      },
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20261025.bin",
+        "source_sha256": "637324DD8326CBC2D7035E6F0536759D0FAAA910830633E0E5B5182DE08F5F7D",
+        "sha256": "DECA0E810BDFECB9CC93FB0A1E7624B2B7F2D31AD23B5123684AE29A1132B055"
+      },
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20261025_hidden.bin",
+        "source_sha256": "8499BE55449D6026831DF7697185BA12E5009492ED584B21B645D3DAFE7AD3FB",
+        "sha256": "4F57490BFF77815926991B0ABD412348B2EB017A269686EF31EBD2FCCC6BBD1D"
       }
     ],
-    "verified": "기준본/구버전 5종/옵션 켜기·끄기/재적용/백업 복원 24경로 E2E 해시 일치",
+    "verified": "기준본/구버전 7종/네 옵션 조합/12방향 전환/재적용/백업 복원 57경로 E2E 해시 일치",
     "optional_hidden_rewards": {
       "file": "OGS_hidden_rewards.bin",
       "default": false,
@@ -59,23 +69,30 @@
       "result_iso_sha256": "8499BE55449D6026831DF7697185BA12E5009492ED584B21B645D3DAFE7AD3FB",
       "retroactive": false,
       "live_playthrough_verified": false
+    },
+    "optional_ouka_survival": {
+      "default": false,
+      "file": "OGS_ouka_survival.bin",
+      "sha256": "667C52BFD69033E51151268B36F9AEFE2F6D57BB4F149EE89C417CDB2873BA5E",
+      "with_hidden_file": "OGS_ouka_survival_hidden.bin",
+      "with_hidden_sha256": "A9ED606737F45E72936B474BD680536E467BF538D1F1CD1AF423A5F7C392CA18",
+      "result_iso_sha256": "3739CBBB32BBB1DF1F744E67F5277E5B2A7E97B83AC96781BE5F3C8C7CA48AD0",
+      "both_options_result_iso_sha256": "5BC30BB635EA895A04A3E2C1F713F91C54F78CF802D1D48A33F53BD77AEBA1F1",
+      "retroactive": false,
+      "live_playthrough_verified": false,
+      "dialogue_changes": 55
     }
   },
-  "release_zip": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261025.zip",
-    "size": 31991590,
-    "sha256": "119BBB5493709DB72260D301FB3CB82FB4CD2A0C1DAD441D5533C2171D63ED15"
-  },
   "changes": [
-    "5화 클리어 후 가리온 커스텀 무명 기체 지급",
-    "OG2 6화 클리어 후 무기 3종·강화파츠 3종 각 1개 추가",
-    "OG2 37화 클리어 후 슬레이드겔미르 기체 지급 및 젠거 갈아타기 지원",
-    "다이젠가 HP·장갑 강화, 내장 무장/참함도 환장 및 기본형 목록 소실 수정",
-    "다이젠가·아우센자이터 공격력 및 다이젠가 무장 개조비용 조정",
-    "다이젠가·아우센자이터·알트아이젠 리제 배리어 관통 추가",
-    "지정 무장 사거리·EN·기력·ALL 속성 조정",
-    "5화·22화 보상 삽입 후 대사 위치표 교정"
+    "오우카 생존·라피에사쥬 합류 선택 옵션(기본값 꺼짐)",
+    "해당 화·후속 시나리오 대사 55곳 교정",
+    "숨겨진 요소·오우카 생존 네 조합 전환 지원"
   ],
-  "previous": "v20261024",
-  "ouka_survival_included": false
+  "previous": "v20261025",
+  "ouka_survival_included": true,
+  "release_zip": {
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261025.1.zip",
+    "size": 32106649,
+    "sha256": "C08FEE5A48F48745FE07D88D4BF09637ECD795F551F41CFB160069542307AF4D"
+  }
 }

@@ -1,14 +1,16 @@
 <p class="badges">
-  <img src="https://img.shields.io/badge/버전-v20261025-1e2a5a" alt="버전">
+  <img src="https://img.shields.io/badge/버전-v20261025.1-1e2a5a" alt="버전">
   <img src="https://img.shields.io/badge/플랫폼-PS2-a8871c" alt="플랫폼">
   <img src="https://img.shields.io/badge/형식-xdelta-informational" alt="형식">
   <img src="https://img.shields.io/badge/종류-역할교체 개조-success" alt="개조">
 </p>
 
-> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20261025.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (빠른패처 + xdelta 동봉)
+> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20261025.1.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (빠른패처 + xdelta 동봉)
 >
-> **v20261025** — 무명·슬레이드겔미르 추가, OG2 6화 보상, 다이젠가 환장·무장 강화와 환장 목록 오류 수정.
-> v20261024 옵션 ON/OFF 적용본을 포함한 이전 버전에서 업데이트할 수 있습니다.
+> **v20261025.1** — 무명·슬레이드겔미르 추가, OG2 6화 보상, 다이젠가 환장·무장 강화와 환장 목록 오류 수정.
+> v20261025·v20261024 옵션 ON/OFF 적용본을 포함한 이전 버전에서 업데이트할 수 있습니다.
+
+> **오우카 생존 선택 옵션(기본값 꺼짐)**: OG2 44화 결말을 생환으로 바꾸고 라피에사쥬와 함께 아군에 남도록 했습니다. 대사 55곳을 교정했습니다. 실제 전체 연출은 확인 전이며, 44화 결말 이전의 메모리카드 세이브가 필요합니다.
 
 # 슈퍼로봇대전 OGs 액셀 역할 교체 패치
 
@@ -28,7 +30,7 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 패치 형식 | 빠른패처 (exe) + xdelta (`.xdelta`) |
-| 최신 버전 | **v20261025** (2026-10-25) |
+| 최신 버전 | **v20261025.1** (2026-10-25) |
 
 > **이 저장소는 게임 ISO를 포함하지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
 
@@ -37,15 +39,15 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 1. OGs 한글패치 v1.4.3s1이 적용된 ISO를 준비합니다. **(이 저장소는 ISO를 포함하지 않습니다.)**
    - 크기: 4,518,150,144 bytes
    - MD5: `ef740dd41f5abcc05c6f6ba96ada9f5b`
-2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261025.zip`을 내려받습니다.
+2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261025.1.zip`을 내려받습니다.
 3. **빠른패처(권장)**: ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해
-   ISO를 선택하고 [패치 적용]을 누릅니다. 기준 ISO와 v20261024(자동 습득 ON/OFF)·v20261002·v20260904·v20260831 적용본을 모두
+   ISO를 선택하고 [패치 적용]을 누릅니다. 기준 ISO와 v20261025·v20261024(자동 습득 ON/OFF)·v20261002·v20260904·v20260831 적용본을 모두
    인식합니다. 제자리 수정이며 적용 전 `.ogsbak` 백업을 남기고 적용 전후 해시를 검증합니다.
 4. **xdelta 방식**: `xdelta` 폴더의 패치를 xdelta(또는 xdeltaUI, Delta Patcher 등)로
    기준 ISO에 적용합니다.
 
    ```bash
-   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261025.xdelta srwogs-axel.iso
+   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261025.1.xdelta srwogs-axel.iso
    ```
 5. 적용 결과를 확인합니다 (선택).
    - 결과 크기: 4,518,150,144 bytes
@@ -54,7 +56,22 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 > 💡 GUI 툴만 쓰신다면 **xdeltaUI**에서 원본 ISO를 Source, 패치를 Patch로 지정하고 Apply Patch를 누르면 됩니다.
 > 적용 전 해시가 위와 다르면 정상 적용되지 않습니다.
 
-## v20261025 변경사항
+## v20261025.1 변경사항
+
+OG2 44화에서 오우카가 생환하고, 클리어 후 라피에사쥬와 함께 아군에 남도록 했습니다.
+
+- 라투니의 설득과 쿠엘보의 기억 회복 이벤트, 아기라를 쓰러뜨리는 흐름을 유지했습니다.
+- 자폭·사망 처리를 구조·귀환으로 바꾸고 해당 화와 후속 시나리오 대사 55곳을 교정했습니다.
+- 숨겨진 요소 자동 습득과 독립적으로 선택할 수 있으며 기본값은 꺼짐입니다. 기존 v20261025의 추가 기체·보상·다이젠가 환장·무장 조정도 포함합니다.
+
+**44화 결말 이전의 게임 내 메모리카드 세이브에서 진행해 주세요.** 이미 지난 화의 합류를 소급 적용하지 않습니다. 에뮬레이터를 완전히 재시작한 뒤 로드해야 하며, 이전 세이브 스테이트는 구 데이터를 복원합니다.
+
+빠른패처는 기준 한글판 v1.4.3s1, v20260831·v20260904·v20261002 및 v20261024·v20261025의 숨겨진 요소 옵션 ON/OFF 적용본을 지원합니다. ZIP을 풀고 patcher/OGS_AxelSwap_QuickPatch.exe로 적용하세요. xdelta는 기준 한글판 전용이며 숨겨진 요소·오우카 생존 옵션이 모두 꺼진 결과입니다.
+
+게임 코드로 합류·보유·탑승·목록 판정과 중복 생성 방지를 검증했습니다. 패처의 업데이트·옵션 전환·백업 복원도 검증합니다. **44화 전체 연출의 실플레이 검증은 아직 완료하지 않았습니다.**
+
+
+### 이전 v20261025 변경사항
 
 이번 릴리즈는 추가 기체·보상과 다이젠가 환장 및 무장 조정을 포함합니다.
 
@@ -67,9 +84,9 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 - **제너럴 블라스터** ALL 공격 및 EN 40 → 20, **가디언 소드** EN 50 → 30, **지간테 운기아** 필요 기력 125 → 115, **그룬가스트 암검살** EN 10 감소(2호기 EN 유지).
 - 보상 명령 삽입으로 어긋난 **5화·22화 대사 위치표 교정**. 기존 대사 문장과 음성은 유지했습니다.
 
-신규 기체·6화 보상·밸런스 변경은 항상 적용됩니다. 기존 **숨겨진 요소 자동 습득(OG2)** 옵션은 기본값 꺼짐이며, 빠른패처에서 선택할 수 있습니다. 이미 지난 화의 기체·보상은 소급 지급하지 않습니다. 오우카 생존은 이번 버전에 포함되지 않았습니다.
+신규 기체·6화 보상·밸런스 변경은 항상 적용됩니다. 기존 **숨겨진 요소 자동 습득(OG2)** 옵션은 기본값 꺼짐이며, 빠른패처에서 선택할 수 있습니다. 이미 지난 화의 기체·보상은 소급 지급하지 않습니다. 오우카 생존과 라피에사쥬 합류는 별도 옵션으로 선택할 수 있습니다(기본값 꺼짐). 44화 결말 이전의 메모리카드 세이브에서 진행해 주세요.
 
-ZIP을 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`로 ISO를 선택해 적용하세요. 기준 한글판 v1.4.3s1, v20260831·v20260904·v20261002·v20261024(옵션 ON/OFF)에서 업데이트할 수 있습니다. 적용 전 구간 백업과 복원을 지원합니다. xdelta는 기준 한글판에만 적용되며 숨겨진 요소 옵션은 꺼진 결과입니다.
+ZIP을 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`로 ISO를 선택해 적용하세요. 기준 한글판 v1.4.3s1, v20260831·v20260904·v20261002·v20261025·v20261024(옵션 ON/OFF)에서 업데이트할 수 있습니다. 적용 전 구간 백업과 복원을 지원합니다. xdelta는 기준 한글판에만 적용되며 숨겨진 요소·오우카 생존 옵션이 모두 꺼진 결과입니다.
 
 에뮬레이터를 완전히 재시작하고 **게임 내 메모리카드 세이브**로 이어서 플레이해 주세요. 이전 세이브 스테이트는 구 실행코드와 데이터를 복원합니다.
 

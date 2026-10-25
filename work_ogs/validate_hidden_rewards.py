@@ -535,7 +535,7 @@ def validate_mumei(edits,code):
             'Original LOGO records, tables and dialogue preserved byte for byte',
             'Full prospective ISO hash covers every unchanged byte; no live playthrough yet']
 
-def validate_ouka(row,blobs,s):
+def validate_ouka(row,blobs,s,edits):
     from build_hidden_rewards import OUKA_SURVIVAL_TEXT
     from ogs_korean_codec import encode,decode
     c=CPU(ram)
@@ -544,7 +544,21 @@ def validate_ouka(row,blobs,s):
     c.mem[0x100000:0x100000+len(blob)]=blob
     pt=c.mem.find(b'Plot',0xB00000);ut=c.mem.find(b'Unit',0xB00000)
     assert pt>0 and ut>0
-    c.write(pt+12+96*148+18,1,2);c.write(ut+12+295*100+34,1,2)
+    # Validate actual current master tables and proposed guarded bytes.
+    with ISO.open('rb') as f:
+        f.seek(0x5DA000);master_blob=bytearray(f.read(0x190000))
+    for off,old,new in edits:
+        rel=off-0x5DA000
+        if 0<=rel<len(master_blob):
+            assert master_blob[rel:rel+len(old)]==old
+            master_blob[rel:rel+len(new)]=new
+    for tag in (b'Plot',b'Unit',b'PTbl',b'UTbl'):
+        src=master_blob.find(tag);dst=c.mem.find(tag,0xB00000)
+        assert src>=0 and dst>=0
+        length=u32(master_blob,src+4)
+        c.mem[dst:dst+length]=master_blob[src:src+length]
+    assert c.read(pt+12+96*148+18,2)==1
+    assert c.read(ut+12+295*100+34,2)==1
     ctx=0x1700000;bundle=0x1780000;data=0x1790000
     c.write(ctx+40,bundle,4)
     for off,g in [(0x2120,0x59D360),(0x2124,0x59D364),(0x212C,0x59D36C)]:
@@ -563,6 +577,11 @@ def validate_ouka(row,blobs,s):
     assert c.run(0x1A9B70,[save,slot,1])==1
     assert c.run(0x1AB6F0,[save,0x43A,1])==pilot
     assert c.run(0x1B01D0,[save,0x34,slot])==1
+    for flag in (0x37,0x38,0x39):
+        assert c.run(0x1ACA50,[save,flag,slot])==0,('unit gate',hex(flag))
+    assert c.run(0x1ACA50,[save,0x59,slot])!=0
+    assert c.run(0x1AC800,[save,0xF2,pilot])==1
+    assert c.run(0x311200,[save,slot,1],limit=10000000)>0
     p=save+0x25CFC+pilot*92
     assert c.read(p+0x2C,1)&0x40==0 and c.read(p+0x2D,1)&3==0
     for i in range(512):
@@ -581,6 +600,19 @@ def validate_ouka(row,blobs,s):
             target=i+(n==109 and i>=2572)
             if i not in changed:assert struct.unpack_from('<24I',b,co+target*96)==r
         if n==109:assert struct.unpack_from('<24I',b,co+2572*96)==tuple(command(0x5E,0x24))
+        # Actor/main lookup indices must retain their original targets.
+        at,size=s.logos[n];original=s.data[at:at+size]
+        assert u32(b,0x38)==u32(original,0x38)
+        for j in range(u32(b,0x38)):
+            old_index=u32(original,u32(original,0x3C)+j*4)
+            new_index=u32(b,u32(b,0x3C)+j*4)
+            assert old_index==new_index
+            main_index=old_index-u32(original,0x20)
+            if main_index>=0:
+                assert main_index<len(old)
+                assert u32(b,co+main_index*96)==old[main_index][1][0]
+        for offset,count,stride in [(0x3C,u32(b,0x38),4),(0x54,u32(b,0x50),4)]:
+            assert u32(b,offset)+count*stride<=len(b)
         # Every untouched localized string is byte-identical. Updated strings
         # resolve through the original string index and have no halfwidth text.
         for i,(original_at,text) in enumerate(s.texts(n)):
@@ -593,7 +625,7 @@ def validate_ouka(row,blobs,s):
                 assert b[start:end]==s.data[original_at:original_end],(n,i,'untouched string changed')
     return [
         'Actual script opcode 5E and native group initializer create visible Rapiesage with Ouka assigned',
-        'Pilot is owned and type gates are clear; matching boarding masks set to 1',
+        'Actual current master tables, owned flags, unit menu gates and native alternate-pilot filter pass',
         'All other unit/pilot records unchanged; repeated initializer reuses the same pair',
         'Original persuasion and memory recovery commands untouched',
         'Ouka death replaced with retreat/wait pair; Agilla removal and other deaths unchanged',

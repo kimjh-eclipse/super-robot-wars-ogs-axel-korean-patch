@@ -1029,7 +1029,7 @@ def ouka_survival(apply=False):
     """Preserve the memory recovery; replace the later sacrifice with rescue."""
     from ogs_korean_codec import encode
     import re,os,subprocess
-    expected='7d3e4cf7598d2b45ea138852bbd1dde59b6ca37790944c55d997038d267a7eaf'
+    expected='8499be55449d6026831df7697185ba12e5009492ed584b21b645d3dafe7ad3fb'
     before=sha(ISO);assert before==expected,('Changed ISO; audit first',before)
     s=Scripts();edits=[];decisions=[];blobs={}
     def add(off,old,new):
@@ -1109,7 +1109,7 @@ def ouka_survival(apply=False):
         add(base+0x13B490+96*148+0x12,b'\0\0',b'\1\0')
         add(base+0x11F8A4+295*100+0x22,b'\0\0',b'\1\0')
     from validate_hidden_rewards import validate_ouka
-    checks=validate_ouka(row,blobs,s)
+    checks=validate_ouka(row,blobs,s,edits)
     edits.sort()
     for x,y in zip(edits,edits[1:]):assert x[0]+len(x[1])<=y[0]
     h=hashlib.sha256();cursor=0
