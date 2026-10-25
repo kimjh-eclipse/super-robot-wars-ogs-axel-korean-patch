@@ -1,0 +1,215 @@
+{
+  "version": "v20261025",
+  "changes": [
+    {
+      "feature": "mumei_grant",
+      "source_sha256": "687397fa1e1b57cb6fd547b3d6a23701b7ae529c500b491360b6b69566eb1735",
+      "target_sha256": "7d3e4cf7598d2b45ea138852bbd1dde59b6ca37790944c55d997038d267a7eaf",
+      "applied": true,
+      "validation": [
+        "Native grant creates one owned, visible, boardable robot",
+        "No pilot assigned; all pilot records and other unit records unchanged",
+        "Repeated reward is idempotent; enemy key 0x52A remains separate",
+        "Unrelated native grant produces byte-identical save effects",
+        "Original LOGO records, tables and dialogue preserved byte for byte",
+        "Full prospective ISO hash covers every unchanged byte; no live playthrough yet"
+      ]
+    },
+    {
+      "feature": "episode6_bonus",
+      "source_sha256": "7d3e4cf7598d2b45ea138852bbd1dde59b6ca37790944c55d997038d267a7eaf",
+      "target_sha256": "1cd99b938c23ee0806effaabe11aad2dc79055bd5b2d96d0a312f6982623850f",
+      "applied": true,
+      "validation": [
+        "Current ISO native grant handlers executed on copied RAM",
+        "Three distinct weapon allocations and +1 to each part count per pass",
+        "Second pass adds new copies without replacing existing copies",
+        "All original episode 6 commands, dialogue bytes and lookup values preserved",
+        "Only LOGO 74 and its directory length change; other episodes/master/voices untouched"
+      ]
+    },
+    {
+      "feature": "daizengar_durability",
+      "source_sha256": "1cd99b938c23ee0806effaabe11aad2dc79055bd5b2d96d0a312f6982623850f",
+      "target_sha256": "dd7d0d59bd4a3f47ce61d5d55232ff87d8f491b1bad881c76da1de520a90155e",
+      "applied": true,
+      "validation": {}
+    },
+    {
+      "feature": "daizengar_refit",
+      "source_sha256": "dd7d0d59bd4a3f47ce61d5d55232ff87d8f491b1bad881c76da1de520a90155e",
+      "target_sha256": "0f03d735593756d080f009816e8566ea4e396a38e6e3f88a8642ef300cae25b4",
+      "applied": true,
+      "validation": [
+        "Native refit list rejects original 0x499 and accepts patched 0x499/0x49A",
+        "Native preview builds both real menu rows; native commit executes three round trips in the same roster slot",
+        "Four unit upgrade values, assigned pilot and entire unit/pilot records preserved after round trips",
+        "Huckebein Mk-III L/Boxer native menu and save effects match the unpatched executable byte for byte",
+        "No replacement equipment requirement; no event, dialogue, weapon or voice edits",
+        "Offline CPU validation only; rendered menu and battle playback still require PCSX2 verification"
+      ]
+    },
+    {
+      "feature": "melee_range_two",
+      "source_sha256": "0f03d735593756d080f009816e8566ea4e396a38e6e3f88a8642ef300cae25b4",
+      "target_sha256": "9ef321ab5af7e5f25df9a96904e793fd09797995d8cc48b452320175144b20bd",
+      "applied": true,
+      "validation": {}
+    },
+    {
+      "feature": "weapon_balance",
+      "source_sha256": "9ef321ab5af7e5f25df9a96904e793fd09797995d8cc48b452320175144b20bd",
+      "target_sha256": "2ba436de324d215ed070cae45ed1c103feba29123514cf2dd5d3d9d6b07b1da2",
+      "applied": true,
+      "validation": {
+        "native_weapon_keys_verified": 25,
+        "weapon_records": 25,
+        "ten_stage_cost": 110000,
+        "ten_stage_attack_growth": 2500,
+        "unrelated_weapon_bytes_preserved": true,
+        "combination_formula_preserved": true,
+        "live_battle_test": false
+      }
+    },
+    {
+      "feature": "sladegelmir_grant",
+      "source_sha256": "2ba436de324d215ed070cae45ed1c103feba29123514cf2dd5d3d9d6b07b1da2",
+      "target_sha256": "5b7958c7299ef20f8cee17f211f03ce5d29e2247505d8fdbba9dbb9455e6fa1b",
+      "applied": true,
+      "validation": [
+        "Native reward: owned, pilotless robot; general boarding candidates exist",
+        "Repeated grant is idempotent; enemy key490 is independently allocated",
+        "All existing pilot and other unit records preserved by reward",
+        "Sanger category8000 and Sladegelmir/Daizengar boarding round trip verified",
+        "Mumei and unrelated grant save effects byte-identical",
+        "Original episode37 script and dialogue preserved; live playthrough pending"
+      ]
+    },
+    {
+      "feature": "daizengar_refit_labels",
+      "source_sha256": "5b7958c7299ef20f8cee17f211f03ce5d29e2247505d8fdbba9dbb9455e6fa1b",
+      "target_sha256": "2c28ac820bfb2d410c67569166a531a5d423c32aecefa54dc2c969403f752041",
+      "applied": true,
+      "validation": {
+        "labels": {
+          "0x499": {
+            "0x49a": "기본",
+            "0x499": "참함도"
+          },
+          "0x49a": {
+            "0x499": "참함도",
+            "0x49a": "기본"
+          }
+        },
+        "non_daizengar_ui_unchanged": true,
+        "preview_stats_and_save_unchanged": true,
+        "live_render_test": false
+      }
+    },
+    {
+      "feature": "daizengar_builtin_weapons",
+      "source_sha256": "2c28ac820bfb2d410c67569166a531a5d423c32aecefa54dc2c969403f752041",
+      "target_sha256": "41cd9c59f56db24fc9ae89709da27dc0f2c388253c08eff74ba514f986271b53",
+      "applied": true,
+      "validation": {
+        "general_blaster": "ALL / 5200 / range3-6",
+        "guardian_sword": "single / 5900 / range1-2",
+        "native_getters_passed": true,
+        "previous_barrier_and_upgrade_changes_preserved": true,
+        "iso_changed_bytes": 4,
+        "live_battle_test": false
+      }
+    },
+    {
+      "feature": "weapon_consumption",
+      "source_sha256": "41cd9c59f56db24fc9ae89709da27dc0f2c388253c08eff74ba514f986271b53",
+      "target_sha256": "285fd41ad2df72317995c827587b4d67b1c297543db4245eeefb0e2b01653e1f",
+      "applied": true,
+      "validation": {
+        "native_weapon_keys_verified": 5,
+        "unrelated_weapon_fields_preserved": true,
+        "general_blaster_en": 20,
+        "guardian_sword_en": 30,
+        "gigante_unghia_morale": 115,
+        "grungust_ankensatsu_en": [
+          60,
+          40
+        ],
+        "iso_changed_bytes": 10,
+        "live_battle_test": false
+      }
+    },
+    {
+      "feature": "daizengar_refit_visibility",
+      "source_sha256": "285fd41ad2df72317995c827587b4d67b1c297543db4245eeefb0e2b01653e1f",
+      "target_sha256": "7dd4b260f47249fba54f25ae76bd10b6b5ec9270e72a30d949bd432a4d0cec2a",
+      "applied": true,
+      "validation": {
+        "source_state_sha256": "2b36504f8d12d8dd1176124283ba99a90a50483c7a9ea5f1bda6274b4a1d97d1",
+        "failure_reproduced_before_patch": true,
+        "native_menu_gate_fixed": true,
+        "stored_scenario_flags_unchanged": true,
+        "other_123_dt_queries_unchanged": true,
+        "native_refit_round_trips": 3,
+        "unit_and_pilot_records_preserved": true,
+        "actual_first_row_text_arguments": [
+          "참함도",
+          "기본",
+          "참함도",
+          "기본",
+          "참함도",
+          "기본"
+        ],
+        "ordinary_first_row_unchanged": true,
+        "live_render_and_battle_test": false
+      }
+    },
+    {
+      "feature": "daizengar_upgrade_cost",
+      "source_sha256": "7dd4b260f47249fba54f25ae76bd10b6b5ec9270e72a30d949bd432a4d0cec2a",
+      "target_sha256": "1a46685f9bf38766e29893e4264225d334477138d5b949cfd7496c68458050bd",
+      "applied": true,
+      "validation": {
+        "weapon_records": 11,
+        "native_weapon_keys_verified": 11,
+        "cost_tier_before": 0,
+        "cost_tier_after": 1,
+        "ten_stage_cost_before": 110000,
+        "ten_stage_cost_after": 165000,
+        "per_stage_cost": [
+          3000,
+          6000,
+          9000,
+          12000,
+          15000,
+          18000,
+          21000,
+          24000,
+          27000,
+          30000
+        ],
+        "attack_growth_tier_unchanged": 0,
+        "all_other_weapon_bytes_preserved": true,
+        "combined_attack_formula_preserved": true,
+        "live_menu_test": false
+      }
+    },
+    {
+      "feature": "release_preflight",
+      "source_sha256": "1a46685f9bf38766e29893e4264225d334477138d5b949cfd7496c68458050bd",
+      "target_sha256": "8499be55449d6026831df7697185ba12e5009492ed584b21b645d3dafe7ad3fb",
+      "applied": true,
+      "validation": {
+        "lookup_entries_corrected": {
+          "138": 41,
+          "88": 3
+        },
+        "all_lookup_opcodes_match_original": true,
+        "encoded_dialogue_bytes_unchanged": true,
+        "live_playthrough": false
+      }
+    }
+  ],
+  "ouka_survival_included": false,
+  "live_playthrough_verified": false
+}

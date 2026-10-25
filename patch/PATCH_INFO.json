@@ -1,7 +1,7 @@
 {
   "kind": "ogs-lamia-axel-role-swap",
-  "version": "v20261024",
-  "built": "2026-10-24",
+  "version": "v20261025",
+  "built": "2026-10-25",
   "status": "RELEASED",
   "base_iso": {
     "name": "srwogs-v1.4.3s1.iso",
@@ -11,57 +11,71 @@
   },
   "result_iso": {
     "size": 4518150144,
-    "sha256": "5432A2F5066DB50E54511AB2C3A0744A56911FA4510A519AB65FB803CE7114A8",
-    "md5": "FF94B73361C05CD984D16E072A160BAE"
+    "sha256": "637324DD8326CBC2D7035E6F0536759D0FAAA910830633E0E5B5182DE08F5F7D",
+    "md5": "B9405774D99289FCF4AC04F51A86EBD3"
   },
   "patch": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261024.xdelta",
-    "size": 6345010,
-    "sha256": "D31CBAE86B6EBC349411860D5599C7AB365AA5FEBCE3B5F2661CEE159A5D12C3",
-    "md5": "C27096F85D26C66A748DDDF94E292B07",
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261025.xdelta",
+    "size": 6346104,
+    "sha256": "08232330C642C9A73B31B3D450ED9C1C34CED35BEA9D9B6567C042A54673D80E",
+    "md5": "3CC8EA4C80F876BB7BC8BB6755FBE05D",
     "verified": "xdelta 복호 SHA-256이 결과 ISO와 일치"
   },
   "quickpatch": {
-    "exe_sha256": "7DEE27E962D22DD75F6479FE9B327290AD89F66BC378FC1EC63BA5C2E592DC0E",
-    "ranges_sha256": "0190C4306F4BE830131A4A834F0B8EEBFECAC769DEAD1F5BE67D22B770446E8F",
+    "exe_sha256": "5FEF3C4255116464FF470C33FFD9BE9B98D58397E6F96FE906495F302B7B1EAD",
+    "ranges_sha256": "A9D7FE48299F3C896E5596D8698F8DE121A288EF93217BAA3210A162670B6AF3",
     "upgrades": [
       {
         "file": "OGS_ISO_ranges_upgrade_v20260831.bin",
         "source_sha256": "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930",
-        "sha256": "53361C26D8661D1571393C82786DF79F16DFDF35506A778D456B84965AA92BB1"
+        "sha256": "E7C6E39912687660E833D2568051A6E20008FD1DB09B8C90511C94870B8E58DB"
       },
       {
         "file": "OGS_ISO_ranges_upgrade_v20260904.bin",
         "source_sha256": "831A646BCDE363B92A1E8CD2C5CACE786102A61833A5757BB155B527CF35B9CC",
-        "sha256": "3B4FB1F625959DCE3E49A73C0A0817B0423BD5322E5D5A3617E1A537F9CA9E99"
+        "sha256": "8E313FC00E0DABE2745F9A6613CB534F42C3F3DCCBA6D13D96CD6A3112D66E9E"
       },
       {
         "file": "OGS_ISO_ranges_upgrade_v20261002.bin",
         "source_sha256": "747832E0310F6CD4B23A702FC1FC928C19F6D44B8B51879184FCC2459BEF6915",
-        "sha256": "FA586FDA7B5F5282ABA24D701659F1FC26B4A46F5986E66568FB7F6C1DAB525F"
+        "sha256": "7AC9A6DE358700BBE44B9F54240D6F041189A4C118B9B145FF086C0930A75CC1"
+      },
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20261024.bin",
+        "source_sha256": "5432A2F5066DB50E54511AB2C3A0744A56911FA4510A519AB65FB803CE7114A8",
+        "sha256": "4311ABFE9DCB2743B021D77C11E3BB28F68CA39134540828A4CE2284F5D660E8"
+      },
+      {
+        "file": "OGS_ISO_ranges_upgrade_v20261024_hidden.bin",
+        "source_sha256": "687397FA1E1B57CB6FD547B3D6A23701B7AE529C500B491360B6B69566EB1735",
+        "sha256": "74E687996E0B798A1B71B543A9D4B6029CA67CBBEFEC85B96288797D5D16D439"
       }
     ],
-    "verified": "기준본/구버전 3종/옵션 켜기·끄기/재적용/백업 복원 12경로 E2E 해시 일치",
+    "verified": "기준본/구버전 5종/옵션 켜기·끄기/재적용/백업 복원 24경로 E2E 해시 일치",
     "optional_hidden_rewards": {
       "file": "OGS_hidden_rewards.bin",
       "default": false,
-      "sha256": "9916333683A5AF96D51501F6C1DC4C6FB3817814FB80B912BE829F8D63128D3A",
-      "result_iso_sha256": "687397FA1E1B57CB6FD547B3D6A23701B7AE529C500B491360B6B69566EB1735",
+      "sha256": "B84A92997B9DEB52BD9B4E8D1E2B407138F85F6E138D051806D7F8845CFF5388",
+      "result_iso_sha256": "8499BE55449D6026831DF7697185BA12E5009492ED584B21B645D3DAFE7AD3FB",
       "retroactive": false,
       "live_playthrough_verified": false
     }
   },
   "release_zip": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261024.zip",
-    "size": 31740461,
-    "sha256": "339F1E1AB239A6DB9126ED2E9898BAA13C2DC1E59A33C2575DDC35FB096CB2CE"
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261025.zip",
+    "size": 31991590,
+    "sha256": "119BBB5493709DB72260D301FB3CB82FB4CD2A0C1DAD441D5533C2171D63ED15"
   },
   "changes": [
-    "35화 아군 아슈세이버 지급(이벤트 + 갈아타기 메뉴 진입 백필, 실키 0x428/0x41C, 소속 +0x2A 등록)",
-    "역방향 안쥬르그 Unit[0x136] 무장키 0x8B3~0x8B7로 분리",
-    "초반 라미아 대사 117슬롯 교정",
-    "반각 공백 전수 제거(라미아·액셀·기타 화자)",
-    "OGMD 스타일 빠른패처 및 선택형 OG2 숨겨진 요소 자동 습득"
+    "5화 클리어 후 가리온 커스텀 무명 기체 지급",
+    "OG2 6화 클리어 후 무기 3종·강화파츠 3종 각 1개 추가",
+    "OG2 37화 클리어 후 슬레이드겔미르 기체 지급 및 젠거 갈아타기 지원",
+    "다이젠가 HP·장갑 강화, 내장 무장/참함도 환장 및 기본형 목록 소실 수정",
+    "다이젠가·아우센자이터 공격력 및 다이젠가 무장 개조비용 조정",
+    "다이젠가·아우센자이터·알트아이젠 리제 배리어 관통 추가",
+    "지정 무장 사거리·EN·기력·ALL 속성 조정",
+    "5화·22화 보상 삽입 후 대사 위치표 교정"
   ],
-  "previous": "v20260904"
+  "previous": "v20261024",
+  "ouka_survival_included": false
 }

@@ -120,6 +120,14 @@ class CPU:
             v=self.read(addr,n)
             if op in (32,33,35):v=signed(v,8*n)
             self.put(t,v,128 if op==30 else 64)
+        elif op==28 and fn==9 and sh==14: # PCPYLD
+            self.put(d,b|(a<<64),128)
+        elif op==28 and fn==0x29 and sh==0x1B: # PCPYH, used by native memset
+            # Each 64-bit lane repeats its own low halfword (PCSX2 MMI.cpp).
+            rt=self.r[t]
+            value=sum(((rt>>(64*lane))&0xFFFF)<<(64*lane+16*i)
+                      for lane in range(2) for i in range(4))
+            self.put(d,value,128)
         elif op==17:
             def f(i): return struct.unpack('<f',struct.pack('<I',self.fpr[i]))[0]
             def sf(i,v): self.fpr[i]=struct.unpack('<I',struct.pack('<f',v))[0]

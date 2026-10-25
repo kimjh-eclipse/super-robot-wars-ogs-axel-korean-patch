@@ -1,14 +1,14 @@
 <p class="badges">
-  <img src="https://img.shields.io/badge/버전-v20261024-1e2a5a" alt="버전">
+  <img src="https://img.shields.io/badge/버전-v20261025-1e2a5a" alt="버전">
   <img src="https://img.shields.io/badge/플랫폼-PS2-a8871c" alt="플랫폼">
   <img src="https://img.shields.io/badge/형식-xdelta-informational" alt="형식">
   <img src="https://img.shields.io/badge/종류-역할교체 개조-success" alt="개조">
 </p>
 
-> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20261024.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (약 30.2MB, 빠른패처 + xdelta 동봉)
+> ⬇️ **패치 다운로드**: [SRWOGS_AxelRoleSwap_kr_v20261025.zip](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest) (빠른패처 + xdelta 동봉)
 >
-> **v20261024** — 소울게인·바이사가 무장별 전투 대사·음성, 적 라미아·안쥬르그 능력치 상향,
-> 「머스터쉬 맨」 호칭과 관계 대사 정리. v20261002·v20260904·v20260831 적용본은 빠른패처가 자동 인식합니다.
+> **v20261025** — 무명·슬레이드겔미르 추가, OG2 6화 보상, 다이젠가 환장·무장 강화와 환장 목록 오류 수정.
+> v20261024 옵션 ON/OFF 적용본을 포함한 이전 버전에서 업데이트할 수 있습니다.
 
 # 슈퍼로봇대전 OGs 액셀 역할 교체 패치
 
@@ -28,7 +28,7 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 | 적용 전 크기 | 4,518,150,144 bytes |
 | 적용 전 MD5 | `ef740dd41f5abcc05c6f6ba96ada9f5b` |
 | 패치 형식 | 빠른패처 (exe) + xdelta (`.xdelta`) |
-| 최신 버전 | **v20261024** (2026-10-24) |
+| 최신 버전 | **v20261025** (2026-10-25) |
 
 > **이 저장소는 게임 ISO를 포함하지 않습니다.** xdelta 패치와 작업 스크립트만 배포합니다.
 
@@ -37,22 +37,44 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 1. OGs 한글패치 v1.4.3s1이 적용된 ISO를 준비합니다. **(이 저장소는 ISO를 포함하지 않습니다.)**
    - 크기: 4,518,150,144 bytes
    - MD5: `ef740dd41f5abcc05c6f6ba96ada9f5b`
-2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261024.zip`을 내려받습니다.
+2. [릴리즈 페이지](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)에서 `SRWOGS_AxelRoleSwap_kr_v20261025.zip`을 내려받습니다.
 3. **빠른패처(권장)**: ZIP을 풀고 `patcher\OGS_AxelSwap_QuickPatch.exe`를 실행해
-   ISO를 선택하고 [패치 적용]을 누릅니다. 기준 ISO와 v20261002·v20260904·v20260831 적용본을 모두
+   ISO를 선택하고 [패치 적용]을 누릅니다. 기준 ISO와 v20261024(자동 습득 ON/OFF)·v20261002·v20260904·v20260831 적용본을 모두
    인식합니다. 제자리 수정이며 적용 전 `.ogsbak` 백업을 남기고 적용 전후 해시를 검증합니다.
 4. **xdelta 방식**: `xdelta` 폴더의 패치를 xdelta(또는 xdeltaUI, Delta Patcher 등)로
    기준 ISO에 적용합니다.
 
    ```bash
-   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261024.xdelta srwogs-axel.iso
+   xdelta -d -s srwogs-v1.4.3s1.iso SRWOGS_AxelRoleSwap_kr_v20261025.xdelta srwogs-axel.iso
    ```
 5. 적용 결과를 확인합니다 (선택).
    - 결과 크기: 4,518,150,144 bytes
-   - 결과 MD5: `ff94b73361c05cd984d16e072a160bae`
+   - 결과 MD5: `b9405774d99289fcf4ac04f51a86ebd3`
 
 > 💡 GUI 툴만 쓰신다면 **xdeltaUI**에서 원본 ISO를 Source, 패치를 Patch로 지정하고 Apply Patch를 누르면 됩니다.
 > 적용 전 해시가 위와 다르면 정상 적용되지 않습니다.
+
+## v20261025 변경사항
+
+이번 릴리즈는 추가 기체·보상과 다이젠가 환장 및 무장 조정을 포함합니다.
+
+- **추가 기체**: 5화 「산토끼가 다 죽으면 사냥개를 삶는가? 후편」 클리어 후 가리온 커스텀 무명, OG2 37화 클리어 후 슬레이드겔미르. 기체만 지급하며 무라타·워단은 합류하지 않습니다. 일반 파일럿 탑승을 허용하고 젠거의 다이젠가↔슬레이드겔미르 갈아타기를 지원합니다.
+- **OG2 6화 클리어 보상**: 부스트 해머·시시오 블레이드·G 임팩트 스테이크·강철의 혼·용자의 증표·고성능 전자두뇌 각각 1개 추가.
+- **다이젠가**: HP 7,800 → 8,800, 장갑 1,900 → 2,100. 기본형(내장 무장)과 참함도형 환장 추가, 선택명 수정 및 기본형 선택 후 목록에서 빠지는 오류 수정. 파일럿·개조값 유지. 무장 개조 10단계 총비용 165,000, 공격력 증가량 2,500.
+- **다이젠가·아우센자이터** 일반 무장 공격력 +200. 용권참함도는 기존 구성 무장 계산 유지.
+- **다이젠가·아우센자이터·알트아이젠 리제** 모든 무장에 배리어 관통.
+- **사거리 1 → 1~2**: 운요의 태도, 공용 시시오 블레이드, 그룬가스트/2호기 암검살, 빌트빌거/타입L 스태그 비틀 크래셔, 가디언 소드.
+- **제너럴 블라스터** ALL 공격 및 EN 40 → 20, **가디언 소드** EN 50 → 30, **지간테 운기아** 필요 기력 125 → 115, **그룬가스트 암검살** EN 10 감소(2호기 EN 유지).
+- 보상 명령 삽입으로 어긋난 **5화·22화 대사 위치표 교정**. 기존 대사 문장과 음성은 유지했습니다.
+
+신규 기체·6화 보상·밸런스 변경은 항상 적용됩니다. 기존 **숨겨진 요소 자동 습득(OG2)** 옵션은 기본값 꺼짐이며, 빠른패처에서 선택할 수 있습니다. 이미 지난 화의 기체·보상은 소급 지급하지 않습니다. 오우카 생존은 이번 버전에 포함되지 않았습니다.
+
+ZIP을 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`로 ISO를 선택해 적용하세요. 기준 한글판 v1.4.3s1, v20260831·v20260904·v20261002·v20261024(옵션 ON/OFF)에서 업데이트할 수 있습니다. 적용 전 구간 백업과 복원을 지원합니다. xdelta는 기준 한글판에만 적용되며 숨겨진 요소 옵션은 꺼진 결과입니다.
+
+에뮬레이터를 완전히 재시작하고 **게임 내 메모리카드 세이브**로 이어서 플레이해 주세요. 이전 세이브 스테이트는 구 실행코드와 데이터를 복원합니다.
+
+게임 코드 오프라인 실행 및 패처 적용·옵션 전환·복원 해시 검증을 수행했습니다. 모든 시나리오와 전투의 실플레이 검증은 완료하지 않았습니다.
+
 
 ## 바뀌는 것
 
@@ -67,7 +89,7 @@ PS2용 **슈퍼로봇대전 OG ORIGINAL GENERATIONS**(スーパーロボット�
 | 아군 | 안쥬르그 | **소울게인** |
 | 적 | 소울게인 | **안쥬르그** |
 
-적 보스의 HP는 원래 값(**18,928**)을 그대로 씁니다. 기체만 바꾸고 난이도는 건드리지 않았습니다.
+적 라미아·안쥬르그의 능력치 조정과 이번 버전의 기체·무장 강화가 함께 적용됩니다.
 
 ### 이벤트 대사
 - 대상 **3,245건 전수 대조**, **2,722 오프셋** 교체

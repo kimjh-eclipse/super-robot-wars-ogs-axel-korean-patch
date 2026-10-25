@@ -157,9 +157,1025 @@ def build(apply=False):
         report['applied']=True;out.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(dict(applied=apply,source=before,target=after,ranges=len(edits),bytes=sum(len(a) for _,_,a in edits),decisions=len(notes)),indent=2))
 
+def grant_mumei(apply=False):
+    """Independent episode-5 robot-only reward; preserve the installed option.
+
+    Alias 0x600 avoids enemy key 0x52A removal/spawn events. A narrowly
+    keyed wrapper makes only this grant affiliation 1, instead of reserve 31.
+    The original opcode still performs allocation and duplicate detection.
+    """
+    expected='687397fa1e1b57cb6fd547b3d6a23701b7ae529c500b491360b6b69566eb1735'
+    before=sha(ISO)
+    assert before==expected,('Audit changed ISO before applying',before)
+    s=Scripts();n=138;insert=626;at,size=s.logos[n]
+    rs=s.records(n);assert len(rs)==803 and rs[insert][1][:4]==(0x9C,DEAD,1,0)
+    assert rs[insert-4][1][:4]==(0xC5,DEAD,5,0)
+    b=bytearray(s.data[at:at+size]);original=bytes(b)
+    co=u32(b,0x2C);pos=co+insert*96
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8B,0x8C):
+            for j in ([6,7] if r[0]==0x8B else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j],(i,j)
+    b[pos:pos]=struct.pack('<24I',*command(0x5A,0x600))
+    for off in [4,0x6C]:struct.pack_into('<I',b,off,u32(b,off)+96)
+    struct.pack_into('<I',b,0x28,u32(b,0x28)+1)
+    for off in [0x34,0x3C,0x44,0x4C,0x54,0x5C]:
+        assert u32(b,off)>=pos
+        struct.pack_into('<I',b,off,u32(b,off)+96)
+    assert len(b)<=s.logos[n+1][0]-at and not any(s.data[at+size:at+len(b)])
+    # Removing the inserted command and undoing header fields must reproduce
+    # every old record, auxiliary table and encoded dialogue byte exactly.
+    restored=bytearray(b);del restored[pos:pos+96];restored[:0x70]=original[:0x70]
+    assert restored==original
+    edits=[]
+    def add(off,old,new):
+        assert len(old)==len(new)
+        with ISO.open('rb') as f:f.seek(off);assert f.read(len(old))==old,hex(off)
+        edits.append((off,old,new))
+    add(MAP+at,s.data[at:at+len(b)],bytes(b))
+    add(MAP+0x557F800+12+n*8,struct.pack('<I',size),struct.pack('<I',len(b)))
+    for base in [0x5DA000,0x83F000]:
+        add(base+0x11E88C+12+0x600*2,b'\xff\xff',struct.pack('<H',0x15C))
+        add(base+0x11F898+12+0x15C*100+0x22,b'\0\0',b'\xff\xff')
+    cave=0x114F88
+    words=[0x8E280008,0x39080600,0x15000002,0,0x24070001,
+           0x08000000|(0x1AF000>>2),0x0000402D]
+    code=struct.pack('<7I',*words)
+    elf=lambda va:0x94880+va-0x100000
+    add(elf(cave),bytes(len(code)),code)
+    add(elf(0x2D0F90),struct.pack('<I',0x0C000000|(0x1AF000>>2)),
+        struct.pack('<I',0x0C000000|(cave>>2)))
+    edits.sort()
+    for x,y in zip(edits,edits[1:]):assert x[0]+len(x[1])<=y[0]
+    from validate_hidden_rewards import validate_mumei
+    checks=validate_mumei(edits,code)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='OG2 episode 5 clear: Mumei robot only, no Murata pilot',
+        checks=checks,edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/mumei_grant_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        with ISO.open('r+b') as f:
+            for off,old,new in edits:
+                f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+            f.flush();os.fsync(f.fileno())
+        assert sha(ISO)==report['target_sha256']
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def episode6_bonus(apply=False):
+    """Six additive grants at OG2 episode 6 clear; no dialogue/master edits."""
+    expected='7d3e4cf7598d2b45ea138852bbd1dde59b6ca37790944c55d997038d267a7eaf'
+    before=sha(ISO)
+    assert before==expected,('Audit changed ISO before applying',before)
+    s=Scripts();n=74;insert=526;at,size=s.logos[n];rs=s.records(n)
+    assert len(rs)==529 and rs[insert][1][:4]==(0x9C,DEAD,2,0)
+    # Reuse native reward identifiers verified against episodes 22/23/24.
+    assert s.records(89)[1184][1][:4]==(0x5F,DEAD,0xDCA,0)
+    assert s.records(90)[923][1][:4]==(0x5F,DEAD,0xDB9,0)
+    assert s.records(88)[816][1][:4]==(0x5F,DEAD,0xDAC,0)
+    grants=[command(0x5F,k,0) for k in (0xDCA,0xDB9,0xDAC)]
+    grants += [command(0x5B,k,0) for k in (0x1F,0x20,0x21)]
+    original=s.data[at:at+size];b=bytearray(original)
+    pos=u32(b,0x2C)+insert*96;amount=len(grants)*96
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8B,0x8C):
+            for j in ([6,7] if r[0]==0x8B else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j],(i,j)
+    # No text-bearing command follows this clear point: lookup values remain valid.
+    lookup=struct.unpack_from('<%dI'%u32(b,0x38),b,u32(b,0x3C))
+    assert max(lookup)<insert+u32(b,0x20)
+    b[pos:pos]=b''.join(struct.pack('<24I',*r) for r in grants)
+    for off in (4,0x6C):struct.pack_into('<I',b,off,u32(b,off)+amount)
+    struct.pack_into('<I',b,0x28,len(rs)+len(grants))
+    for off in (0x34,0x3C,0x44,0x4C,0x54,0x5C):
+        assert u32(b,off)>=pos
+        struct.pack_into('<I',b,off,u32(b,off)+amount)
+    restored=bytearray(b);del restored[pos:pos+amount];restored[:0x70]=original[:0x70]
+    assert restored==original,'Existing commands, tables and dialogue must remain byte-identical'
+    assert len(b)<=s.logos[n+1][0]-at and not any(s.data[at+size:at+len(b)])
+    dp=0x557F800+12+n*8
+    edits=sorted([(MAP+dp,s.data[dp:dp+4],struct.pack('<I',len(b))),
+                  (MAP+at,s.data[at:at+len(b)],bytes(b))])
+    from validate_hidden_rewards import validate_episode6_bonus
+    checks=validate_episode6_bonus(grants)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='OG2 episode 6 clear: Boost Hammer, Shishio Blade, G Impact Stake, Steel Soul, Hero Mark, High Performance Electronic Brain; +1 each',
+        script=n,insert_before=insert,grants=grants,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/episode6_bonus_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k not in ('edits','grants')},ensure_ascii=False,indent=2))
+
+def daizengar_durability(apply=False):
+    """User-requested +1000 HP/+200 armor in all three Daizengar variants."""
+    expected='1cd99b938c23ee0806effaabe11aad2dc79055bd5b2d96d0a312f6982623850f'
+    before=sha(ISO)
+    assert before==expected,('Audit changed ISO before applying',before)
+    edits=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            for idx in (0xD0,0xD1,0x176):
+                p=base+0x11F8A4+idx*100;f.seek(p);r=f.read(100)
+                assert struct.unpack_from('<H',r,0x0C)[0]==0x150
+                assert u32(r,0)==7800 and struct.unpack_from('<H',r,0x1A)[0]==1900
+                edits.extend([(p,r[:4],struct.pack('<I',8800)),
+                              (p+0x1A,r[0x1A:0x1C],struct.pack('<H',2100))])
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Daizengar all three variants, SHARED/IM: HP 7800 -> 8800; armor 1900 -> 2100',
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/daizengar_durability_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_refit(apply=False):
+    """Restore the native DT type-7 refit between sword and built-in weapons."""
+    before=sha(ISO)
+    assert before=='dd7d0d59bd4a3f47ce61d5d55232ff87d8f491b1bad881c76da1de520a90155e',before
+    edits=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            for rel,old,new in [
+                # DTS[60] already points at DT[111]: return to built-in 0x49A.
+                (0x11F8A4+0xD0*100+0x5E,b'\0',b'\x3c'),
+                # Built-in DTS[33] -> DT[110]. Use normal acquired sword form,
+                # rather than unused 0x543, and remove required unit 0x56E.
+                (0x1492BC+110*12+2,b'\x43\x05\x6e\x05',b'\x99\x04\xff\xff')]:
+                f.seek(base+rel);assert f.read(len(old))==old,(hex(base+rel),old)
+                edits.append((base+rel,old,new))
+        # The stock preview builder only creates a refit row after finding
+        # an equipment-unit record. Add its no-equipment case in place.
+        # Reusing the first computed UI pointer saves two instructions;
+        # the branch enters the existing preview allocation path once.
+        va=0x42DEB4;off=0x94880+va-0x100000
+        old=struct.pack('<5I',0x3C010001,0x7FA200B0,0x342156E4,0x02E11021,0x7FA200A0)
+        new=struct.pack('<5I',0x7FA200B0,0x244205F4,0x7FA200A0,0x8FA300FC,0x04600014)
+        f.seek(off);assert f.read(len(old))==old
+        edits.append((off,old,new))
+    from validate_hidden_rewards import validate_daizengar_refit
+    checks=validate_daizengar_refit(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Daizengar normal 0x499 <-> built-in 0x49A through native refit menu',checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/daizengar_refit_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def melee_range_two(apply=False):
+    """Requested melee weapons: range 1 -> 1-2 in both master copies."""
+    before=sha(ISO)
+    assert before=='0f03d735593756d080f009816e8566ea4e396a38e6e3f88a8642ef300cae25b4',before
+    targets={0x1D5:'계도나후검・암검살',0x1D9:'계도나후검・암검살',
+             0x1DD:'계도나후검・암검살',0x1E1:'계도나후검・암검살',
+             0x30F:'참함도・운요의태도',0x578:'참함도・운요의태도',
+             0x3C5:'스태그비틀크래셔',0x3CA:'스태그비틀크래셔',
+             0x60B:'시시오블레이드',0x639:'시시오블레이드'}
+    edits=[];records={}
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);blob=f.read(0x190000)
+            assert blob[0x12BF7C:0x12BF80]==b'Weap'
+            for idx,name in targets.items():
+                rel=0x12BF88+idx*36;r=blob[rel:rel+36]
+                sid=struct.unpack_from('<H',r,4)[0]
+                p=0x155BFC+u32(blob,0x155C08+sid*4)
+                # IM retains Japanese strings; its weapon record must still
+                # match the localized SHARED record byte for byte below.
+                if base==0x5DA000:assert decode(blob[p:blob.index(0,p)])==name
+                assert r[0x17:0x19]==b'\1\1',(idx,r.hex())
+                if idx in records:assert records[idx]==r
+                records[idx]=r
+                edits.append((base+rel+0x18,b'\1',b'\2'))
+            # Mumei's fixed Shishio weapons already have range 1-3.
+            for idx in (0x528,0x5F4):
+                assert blob[0x12BF88+idx*36+0x17:0x12BF88+idx*36+0x19]==b'\1\3'
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Requested melee weapons: maximum range 1 -> 2; minimum remains 1',
+        weapons={hex(i):n for i,n in targets.items()},
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/melee_range_two_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def weapon_balance(apply=False):
+    """DGG attack/upgrade changes and DGG + Riese barrier penetration."""
+    before=sha(ISO)
+    assert before=='9ef321ab5af7e5f25df9a96904e793fd09797995d8cc48b452320175144b20bd',before
+    dai=set(range(0x30C,0x314))|set(range(0x575,0x57A))
+    aus=set(range(0xA8,0xAE));riese=set(range(0xDC,0xE2))
+    targets=dai|aus|riese;edits=[];records={};weapons=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);blob=f.read(0x190000)
+            assert blob[0x12BF7C:0x12BF80]==b'Weap'
+            assert blob[0x12BF88+0x609*36+3]&0x3F==0
+            for idx in sorted(targets):
+                rel=0x12BF88+idx*36;old=blob[rel:rel+36];new=bytearray(old)
+                if idx in records:assert records[idx]==old
+                records[idx]=old
+                power=struct.unpack_from('<H',old,8)[0]
+                # Zero-power combination attacks use Tagg constituent attacks;
+                # do not replace their computed power with a fixed 200.
+                if idx in dai|aus and power:
+                    struct.pack_into('<H',new,8,power+200)
+                if idx in dai and power:new[3]&=0xC0
+                # Native getter 1A4CB0: Weap+15 bits4..5; 2 is penetration,
+                # 1 is weakening. Preserve every unrelated flag.
+                new[0x15]=(new[0x15]&0xCF)|0x20
+                if base==0x5DA000:
+                    sid=struct.unpack_from('<H',old,4)[0]
+                    p=0x155BFC+u32(blob,0x155C08+sid*4)
+                    weapons.append(dict(index=hex(idx),name=decode(blob[p:blob.index(0,p)]),
+                        power_before=power,power_after=struct.unpack_from('<H',new,8)[0],
+                        combined=not power,upgrade_before=old[3]&0x3F,upgrade_after=new[3]&0x3F,
+                        barrier_before=(old[0x15]>>4)&3,barrier_after=2))
+                for j,(a,b) in enumerate(zip(old,new)):
+                    if a!=b:edits.append((base+rel+j,bytes([a]),bytes([b])))
+    from validate_hidden_rewards import validate_weapon_balance
+    checks=validate_weapon_balance(edits,targets,dai,aus)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        checks=checks,weapons=weapons,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/weapon_balance_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k not in ('edits','weapons')},ensure_ascii=False,indent=2))
+
+def grant_sladegelmir(apply=False):
+    """Add one independent robot at OG2 episode 37 clear."""
+    before=sha(ISO)
+    assert before=='2ba436de324d215ed070cae45ed1c103feba29123514cf2dd5d3d9d6b07b1da2',before
+    s=Scripts();n=103;insert=1463;at,size=s.logos[n];rs=s.records(n)
+    assert len(rs)==1466 and rs[insert][1][:4]==(0x9C,DEAD,0x1D,0)
+    original=s.data[at:at+size];b=bytearray(original);co=u32(b,0x2C);pos=co+insert*96
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8B,0x8C):
+            for j in ([6,7] if r[0]==0x8B else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j],(i,j)
+    assert max(u32(b,u32(b,0x3C)+i*4) for i in range(u32(b,0x38)))<insert+u32(b,0x20)
+    b[pos:pos]=struct.pack('<24I',*command(0x5A,0x601))
+    for off in (4,0x6C):struct.pack_into('<I',b,off,u32(b,off)+96)
+    struct.pack_into('<I',b,0x28,len(rs)+1)
+    for off in (0x34,0x3C,0x44,0x4C,0x54,0x5C):
+        assert u32(b,off)>=pos;struct.pack_into('<I',b,off,u32(b,off)+96)
+    assert len(b)<=s.logos[n+1][0]-at and not any(s.data[at+size:at+len(b)])
+    restored=bytearray(b);del restored[pos:pos+96];restored[:0x70]=original[:0x70]
+    assert restored==original
+    edits=[]
+    def add(off,old,new):
+        assert len(old)==len(new)
+        with ISO.open('rb') as f:f.seek(off);assert f.read(len(old))==old,hex(off)
+        if old!=new:edits.append((off,old,new))
+    add(MAP+at,s.data[at:at+len(b)],bytes(b))
+    add(MAP+0x557F800+12+n*8,struct.pack('<I',size),struct.pack('<I',len(b)))
+    for base in (0x5DA000,0x83F000):
+        with ISO.open('rb') as f:f.seek(base);master=f.read(0x190000)
+        assert struct.unpack_from('<H',master,0x11E898+0x490*2)[0]==0xC8
+        assert struct.unpack_from('<H',master,0x11F8A4+0xC8*100+0x0C)[0]==0x144
+        # Only player key469 points at OG2 Sanger A3. Reserve an unused pilot
+        # category so he can leave AND return to his otherwise dedicated Dai.
+        assert [k for k in range(2048) if struct.unpack_from('<H',master,0x13A484+k*2)[0]==0xA3]==[0x469]
+        assert all(not struct.unpack_from('<H',master,0x13B490+i*148+0x12)[0]&0x8000 for i in range(382))
+        add(base+0x11E898+0x601*2,b'\xff\xff',struct.pack('<H',0xC8))
+        add(base+0x11F8A4+0xC8*100+0x22,b'\0\0',b'\xff\xff')
+        add(base+0x13B490+0xA3*148+0x12,b'\0\0',b'\0\x80')
+        for idx in (0xD0,0xD1,0x176):
+            add(base+0x11F8A4+idx*100+0x22,b'\0\0',b'\0\x80')
+    # Extend the existing Mumei wrapper: only reward aliases600/601 get
+    # owned affiliation1. All ordinary grants retain the original argument.
+    old=struct.pack('<8I',0x8E280008,0x39080600,0x15000002,0,0x24070001,0x0806BC00,0x0000402D,0)
+    code=struct.pack('<8I',0x8E280008,0x39080600,0x2D080002,0x11000002,0,0x24070001,0x0806BC00,0x0000402D)
+    add(0x94880+0x114F88-0x100000,old,code)
+    from validate_hidden_rewards import validate_sladegelmir
+    checks=validate_sladegelmir(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            assert cursor<=off
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='OG2 episode37 clear Sladegelmir robot only; native stats retained',checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/sladegelmir_grant_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import subprocess,os
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_refit_labels(apply=False):
+    """Name the two refit choices without renaming the robot or global strings."""
+    from ogs_korean_codec import encode
+    before=sha(ISO)
+    assert before=='5b7958c7299ef20f8cee17f211f03ce5d29e2247505d8fdbba9dbb9455e6fa1b',before
+    cave=0x499D38;strings=0x114FA8
+    words=[0x3C080001,0x02E84021,0x950955C6,0x2529FB67,
+           0x2D2A0002,0x11400008,0x000948C0,
+           0x3C0A0011,0x254A4FA8,0x01495821,0xAD0B56E4,
+           0x39290008,0x01495821,0xAD0B56E8,
+           0xDFBF0090,0x7BBE0080,0x0810B8B2,0]
+    code=struct.pack('<18I',*words)
+    names=encode('참함도').ljust(8,b'\0')+encode('기본').ljust(8,b'\0')
+    assert len(names)==16
+    elf=lambda va:0x94880+va-0x100000
+    edits=[(elf(cave),bytes(len(code)),code),(elf(strings),bytes(16),names),
+           (elf(0x42E2C0),struct.pack('<2I',0xDFBF0090,0x7BBE0080),struct.pack('<2I',0x08000000|(cave>>2),0))]
+    with ISO.open('rb') as f:
+        for off,old,new in edits:f.seek(off);assert f.read(len(old))==old,hex(off)
+    from validate_hidden_rewards import validate_refit_labels
+    checks=validate_refit_labels(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/daizengar_refit_labels_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import os,subprocess
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_refit_visibility(apply=False):
+    """Fix DT110's scenario lock in the refit eligibility scan, plus row0 label."""
+    before=sha(ISO)
+    assert before=='285fd41ad2df72317995c827587b4d67b1c297543db4245eeefb0e2b01653e1f',before
+    elf=lambda va:0x94880+va-0x100000
+    pack=lambda words:struct.pack('<%dI'%len(words),*words)
+    # DT110 is referenced ONLY by built-in Daizengar Unit D1. Keep the stored
+    # scenario flag intact; bypass only this menu's type7 eligibility query.
+    # 12-byte function-alignment padding immediately before the stock getter.
+    # DT110 returns zero through a native jr ra/nop; all others fall through
+    # to the untouched getter. Neither global data nor runtime state is used.
+    wrapper=[0x24A1FF92,0x10200000|(((0x1985E8-0x19A0BC)//4)&0xFFFF),0x0000102D]
+    oldlabel=[0x3C080001,0x02E84021,0x950955C6,0x2529FB67,
+        0x2D2A0002,0x11400008,0x000948C0,0x3C0A0011,0x254A4FA8,
+        0x01495821,0xAD0B56E4,0x39290008,0x01495821,0xAD0B56E8,
+        0xDFBF0090,0x7BBE0080,0x0810B8B2,0]
+    # Clear row0 for ordinary refits, even after visiting Daizengar in same UI.
+    newlabel=oldlabel[:5]+[0x11400009,0xAD0056E4,0x000948C0]+oldlabel[7:14]+[0xDFBF0090,0x0810B8B2,0x7BBE0080]
+    assert len(newlabel)==18
+    edits=[(elf(0x19A0B4),bytes(12),pack(wrapper)),
+        (elf(0x44D424),bytes(12),pack([0x00E7300B,0x08060D34,0x0000382D])),
+        (elf(0x43EAA0),pack([0x0C066830]),pack([0x0C000000|(0x19A0B4>>2)])),
+        (elf(0x499D38),pack(oldlabel),pack(newlabel)),
+        (elf(0x44EEC4),pack([0x0C060D34,0x0000382D]),pack([0x0C000000|(0x44D424>>2),0x8E0705F4]))]
+    with ISO.open('rb') as f:
+        for off,old,new in edits:f.seek(off);assert f.read(len(old))==old,hex(off)
+        # Guard return stub and alignment gaps on both ends.
+        f.seek(elf(0x1985E8));assert f.read(8)==pack([0x03E00008,0])
+        for gap in (0x19A0B4,0x44D424):
+            f.seek(elf(gap-8));assert u32(f.read(4),0)==0x03E00008
+            f.seek(elf(gap+12));assert u32(f.read(4),0)>>16==0x27BD
+        f.seek(0x5DA000);b=f.read(0x190000)
+    refs=[]
+    for idx in range(427):
+        dts=struct.unpack_from('<H',b,0x11F8A4+idx*100+0x5E)[0]
+        if dts<63 and 110 in b[0x149174+dts*5:0x149179+dts*5]:refs.append(idx)
+    assert refs==[0xD1],refs
+    from validate_hidden_rewards import validate_refit_visibility
+    checks=validate_refit_visibility(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/daizengar_refit_visibility_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import os,subprocess
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_builtin_weapons(apply=False):
+    """General Blaster ALL; Guardian Sword range1-2. Four ISO bytes only."""
+    before=sha(ISO)
+    assert before=='2c28ac820bfb2d410c67569166a531a5d423c32aecefa54dc2c969403f752041',before
+    edits=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            for idx,field,old,new in ((0x312,0x14,b'\0',b'\x80'),(0x313,0x18,b'\1',b'\2')):
+                off=base+0x12BF88+idx*36+field
+                f.seek(off);assert f.read(1)==old
+                edits.append((off,old,new))
+    from validate_hidden_rewards import validate_builtin_weapons
+    checks=validate_builtin_weapons(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/daizengar_builtin_weapons_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import os,subprocess
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def release_preflight(apply=False):
+    """Relocate existing LOGO lookup entries alongside inserted reward commands."""
+    before=sha(ISO)
+    assert before=='1a46685f9bf38766e29893e4264225d334477138d5b949cfd7496c68458050bd',before
+    s=Scripts();base=Scripts(ROOT/'baseline/srwogs-v1.4.3s1.iso');edits=[];counts={}
+    for n in (138,88):
+        at,size=s.logos[n];b=s.data[at:at+size]
+        ba,bs=base.logos[n];original=base.data[ba:ba+bs]
+        actors=u32(b,0x20);assert actors==u32(original,0x20)
+        count=u32(b,0x38);assert count==u32(original,0x38)
+        fixed=0
+        for i in range(count):
+            pos=u32(b,0x3C)+i*4;old=u32(b,pos)
+            assert old==u32(original,u32(original,0x3C)+i*4)
+            record=old-actors;target=record
+            if n==138 and record>=626:target+=1
+            if n==88:
+                if 681<=record<688:target=812+record-681
+                elif record>=812:target+=7
+            new=target+actors
+            # Every entry still resolves to the original opcode, including
+            # the two Inspector reward-message entries moved to scenario clear.
+            def opcode(blob,index):
+                if index<actors:return u32(blob,u32(blob,0x24)+index*96)
+                return u32(blob,u32(blob,0x2C)+(index-actors)*96)
+            assert opcode(b,new)==opcode(original,old),(n,i,old,new)
+            if new!=old:
+                edits.append((MAP+at+pos,struct.pack('<I',old),struct.pack('<I',new)));fixed+=1
+        counts[n]=fixed
+    assert counts=={138:41,88:3},counts
+    checks=dict(lookup_entries_corrected=counts,all_lookup_opcodes_match_original=True,
+        encoded_dialogue_bytes_unchanged=True,live_playthrough=False)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/release_preflight_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import os,subprocess
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_upgrade_cost(apply=False):
+    """Raise Daizengar weapon cost tier0 to tier1; preserve attack growth."""
+    before=sha(ISO)
+    assert before=='7dd4b260f47249fba54f25ae76bd10b6b5ec9270e72a30d949bd432a4d0cec2a',before
+    targets=set(range(0x30C,0x314))|set(range(0x575,0x57A))
+    edits=[];changed=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            for idx in sorted(targets):
+                off=base+0x12BF88+idx*36
+                f.seek(off);record=f.read(36)
+                if not struct.unpack_from('<H',record,8)[0]:continue
+                assert record[3]&0x3F==0,(hex(idx),record[3])
+                edits.append((off+3,record[3:4],bytes([record[3]|1])))
+                if base==0x5DA000:changed.append(idx)
+    from validate_hidden_rewards import validate_daizengar_upgrade_cost
+    checks=validate_daizengar_upgrade_cost(edits,changed)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/daizengar_upgrade_cost_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import os,subprocess
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def weapon_consumption(apply=False):
+    """Requested weapon EN and morale reductions; all other fields unchanged."""
+    before=sha(ISO)
+    assert before=='41cd9c59f56db24fc9ae89709da27dc0f2c388253c08eff74ba514f986271b53',before
+    edits=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            for idx,field,old,new in ((0x312,0x1A,bytes([40]),bytes([20])),(0x313,0x1A,bytes([50]),bytes([30])),(0x2A3,0x1B,bytes([125]),bytes([115])),(0x1D5,0x1A,bytes([70]),bytes([60])),(0x1D9,0x1A,bytes([50]),bytes([40]))):
+                off=base+0x12BF88+idx*36+field
+                f.seek(off);assert f.read(1)==old
+                edits.append((off,old,new))
+    from validate_hidden_rewards import validate_weapon_consumption
+    checks=validate_weapon_consumption(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/weapon_consumption_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        import os,subprocess
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+OUKA_SURVIVAL_TEXT = {
+    109: {
+        760:'오우카：도망치게　하지　않아……！@리미터　해제……！',
+        761:'아기라：너、너　이년！@그　몸으로　출력을　올릴　셈이냐！？',
+        762:'오우카：머신셀도　남김없이@태워버리면……재생할　수　없겠지！',
+        764:'오우카：아라드……제오라……라트……。@너희들을　다시는　저　사람의@인형으로　만들지　않겠어……！',
+        767:'아라드：혼자　떠안지　마！@우리도　함께　싸우겠어！！',
+        768:'오우카：안돼、가까이　오지　마！！',
+        770:'오우카：머신셀이……@너희들까지　삼키고　말아……！',
+        771:'제오라：그럼　여기서　엄호할게요！',
+        772:'오우카：게임・시스템　때문에……@몸이　말을　듣지　않아……。@이대로는……',
+        773:'아라드：누나、포기하지　마！！',
+        775:'오우카：놓치지　않겠어요……！@여기서　끝을　내겠습니다！',
+        776:'라투니：언니、무장에　출력을　모아！',
+        777:'오우카：……라트……。@그래、아직　할　수　있어……！',
+        778:'오우카：아라드……도와줘……',
+        779:'아라드：맡겨줘！！',
+        780:'오우카：제오라……엄호를……',
+        781:'제오라：네、언니！！',
+        782:'오우카：너희들과……@함께　돌아가기　위해서……！',
+        783:'오우카：이　일격에……@남은　출력을　전부　쏟겠어……！',
+        785:'아라드：지금이야！！',
+        786:'제오라：아라드、언니를　부탁해！！',
+        787:'아라드：누나、기체를　잡았어！！',
+        788:'라투니：언니、대답해……！',
+        789:'라투니：생체　반응……있어！',
+        790:'라투니：살아있어……언니가……！',
+        791:'아라드：쿠로가네로　데려갈게！！',
+        792:'샤인：의료반에　연락하겠어요！',
+        845:'에이타：다이젠가가　미귀환……！@오우카는　의료반에　인계했습니다！',
+        881:'라다：오우카는　고비를　넘겼어。@하지만　쿠엘보는……@돌아오지　못했어。',
+        882:'제오라：언니가……살았군요……！',
+        883:'라다：라피에사쥬도　회수했어。@위험한　시스템은　제거하고、@오우카는　치료를　계속할　거야。',
+        884:'아라드：세로　박사님……。',
+        885:'아라드：……누나를　구해주셨는데……。',
+        886:'제오라：……박사님……。',
+        887:'아라드：누나의　기억을……@우리의　누나를　되찾아주셨는데……。',
+        889:'아라드：제오라……。@이번에는　누나와　함께　살아가자。',
+        890:'아라드：박사님이　지켜준　목숨이야。@누구도　쉽게　버려서는　안돼。',
+        892:'아라드：이제　누나　혼자@모든　걸　짊어지게　하지　말자。',
+        893:'아라드：우리、모두　살아남는　거야。',
+        898:'라다（쿠엘보……오우카는　살았어요……）',
+        899:'라다（이　애들이　앞으로　살아갈　날들을@　지켜보겠어요……。@　당신이　바랐던　대로……）',
+        902:'샤인：의무실에　다녀온　뒤、@잠시　혼자　있고　싶다며……',
+        905:'마이：많이　놀랐을　거야……。',
+        906:'샤인：네……。@줄곧　언니를　잃을까　걱정했으니까요。',
+        909:'마이：나도……알　것　같아。@아야가　그렇게　다쳤다면……',
+        921:'라투니：언니를……@또　잃는　줄　알았어……。',
+        922:'라투니：아라드와　제오라가……@류세이들이　도와주지　않았다면……',
+        923:'라투니：나　혼자서는……',
+        924:'류세이：너도　언니를　구한　거야。',
+        926:'류세이：너희　목소리가@그　사람의　기억을　되찾아준　거야。',
+        927:'류세이：그리고　이번엔@모두　함께　돌아왔어。@그걸　잊지　마。',
+        930:'라투니：응……。@앞으로는　언니와　함께　살아갈래。',
+        931:'라투니：추억뿐만　아니라……@앞으로의　날들도　함께……。',
+    },
+    151: {
+        587:'아라드：……혼자서는　안돼。@오우카　누나도　모두　힘을　합쳐서@구했어。　이번에도　함께　구하자。',
+        742:'라투니：오우카　언니와@함께　되찾은　날들을……。@소중한　사람들과의　기억을　지우지　마。',
+    },
+}
+
+def ouka_survival(apply=False):
+    """Preserve the memory recovery; replace the later sacrifice with rescue."""
+    from ogs_korean_codec import encode
+    import re,os,subprocess
+    expected='7d3e4cf7598d2b45ea138852bbd1dde59b6ca37790944c55d997038d267a7eaf'
+    before=sha(ISO);assert before==expected,('Changed ISO; audit first',before)
+    s=Scripts();edits=[];decisions=[];blobs={}
+    def add(off,old,new):
+        assert len(old)==len(new)
+        with ISO.open('rb') as f:f.seek(off);assert f.read(len(old))==old,hex(off)
+        if old!=new:edits.append((off,old,new))
+    for n,changes in OUKA_SURVIVAL_TEXT.items():
+        at,size=s.logos[n];b=bytearray(s.data[at:at+size]);ts=s.texts(n)
+        for i,new in changes.items():
+            p,old_text=ts[i];old=encode(old_text);raw=encode(new)
+            assert b[p-at:p-at+len(old)]==old
+            assert old_text.split('：')[0].split('（')[0]==new.split('：')[0].split('（')[0]
+            assert decode(raw)==new and new.count('@')<=2
+            assert all(len(encode(line))<=54 for line in new.split('@')),(n,i,new)
+            assert not any(ord(c)<128 and c!='@' for c in new)
+            assert not re.search('[\u3040-\u30fa\u4e00-\u9fff]',new)
+            if len(raw)<=len(old):b[p-at:p-at+len(old)]=raw.ljust(len(old),b'\0')
+            else:
+                # Original LOGO may end without its final NUL (sector padding
+                # supplies it). Preserve that terminator before appending.
+                if b[-1]!=0:b.append(0)
+                struct.pack_into('<I',b,u32(b,0x54)+i*4,len(b)-u32(b,0x4C))
+                b.extend(raw+b'\0')
+            decisions.append(dict(script=n,text=i,before=old_text,after=new))
+        blobs[n]=b
+    b=blobs[109];rs=s.records(109);co=u32(b,0x2C)
+    # Keep the blast and Agilla's removal, but aim the effects at Agilla.
+    # Reuse a movement/wait pair already used by this scene to withdraw Ouka
+    # toward the Kurogane. Do not execute Ouka's original death command.
+    for i in [2147,2148,2149,2154]:
+        r=list(rs[i][1]);assert r[3]==0x43A;r[3]=0x415
+        struct.pack_into('<24I',b,co+i*96,*r)
+    assert rs[2163][1][:5]==(0x81,DEAD,0x100A5,0x43A,0)
+    retreat=list(rs[2111][1]);assert retreat[4]==0x43A and retreat[9]==0x415
+    retreat[9]=0x471
+    struct.pack_into('<24I',b,co+2163*96,*retreat)
+    assert rs[2164][1][:6]==(0x9D,DEAD,0x100A5,0x43A,1,0x3E)
+    wait=list(rs[2112][1]);assert wait[3]==0x43A and wait[5]==0x415
+    wait[5]=0x471
+    struct.pack_into('<24I',b,co+2164*96,*wait)
+    assert rs[2165][1][:5]==(0x81,DEAD,0x100A5,0x415,0x3F)
+    insert=2572;pos=co+insert*96
+    assert rs[insert][1][:4]==(0x9C,DEAD,0x22,0)
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8B,0x8C):
+            for j in ([6,7] if r[0]==0x8B else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j]
+    # Text-command lookup contains combined actor/main command indices.
+    # No text command follows this final clear insertion.
+    assert max(u32(b,u32(b,0x3C)+i*4) for i in range(u32(b,0x38)))<insert+u32(b,0x20)
+    b[pos:pos]=struct.pack('<24I',*command(0x5E,0x24))
+    struct.pack_into('<I',b,0x28,u32(b,0x28)+1)
+    for off in [0x34,0x3C,0x44,0x4C,0x54,0x5C]:
+        assert u32(b,off)>=pos;struct.pack_into('<I',b,off,u32(b,off)+96)
+    for n,b in blobs.items():
+        at,size=s.logos[n]
+        cap=(s.logos[n+1][0]-at) if n+1<len(s.logos) else (size+2047)//2048*2048
+        assert len(b)<=cap,(n,len(b),cap)
+        assert not any(s.data[at+size:at+len(b)])
+        for off in [4,0x6C]:struct.pack_into('<I',b,off,len(b))
+        add(MAP+at,s.data[at:at+len(b)],bytes(b))
+        add(MAP+0x557F800+12+n*8,struct.pack('<I',size),struct.pack('<I',len(b)))
+    # A new reserved group uses the original recovered ally row, invoked by
+    # native roster-grant opcode 5E after all existing post-clear setup.
+    wp=0x5071000;dp=wp+8+110*8;off,size=struct.unpack_from('<II',s.data,dp);at=wp+off
+    count=u32(s.data,at+0x28);assert count==202 and size==44+count*336
+    old=s.data[at:at+size];row=bytearray(old[44:380])
+    assert struct.unpack_from('<3I',row)==(0x4E4,0xE,0) and u32(row,0x20)==0x43A
+    assert all(u32(old,44+j*336+4)!=0x24 for j in range(count))
+    struct.pack_into('<I',row,4,0x24)
+    ub=bytearray(old);struct.pack_into('<I',ub,0x28,count+1);ub.extend(row)
+    assert len(ub)<=wp+u32(s.data,dp+8)-at
+    assert not any(s.data[at+size:at+len(ub)])
+    add(MAP+at,s.data[at:at+len(ub)],bytes(ub))
+    add(MAP+dp+4,struct.pack('<I',size),struct.pack('<I',len(ub)))
+    for base in [0x5DA000,0x83F000]:
+        add(base+0x13B490+96*148+0x12,b'\0\0',b'\1\0')
+        add(base+0x11F8A4+295*100+0x22,b'\0\0',b'\1\0')
+    from validate_hidden_rewards import validate_ouka
+    checks=validate_ouka(row,blobs,s)
+    edits.sort()
+    for x,y in zip(edits,edits[1:]):assert x[0]+len(x[1])<=y[0]
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        checks=checks,dialogue=decisions,
+        edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/ouka_survival_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k not in ('edits','dialogue')},ensure_ascii=False,indent=2))
+
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--dump',type=int,nargs='+');p.add_argument('--find',type=str);p.add_argument('--plan',action='store_true');p.add_argument('--apply',action='store_true')
+    p.add_argument('--grant-mumei',action='store_true')
+    p.add_argument('--ouka-survival',action='store_true')
+    p.add_argument('--episode6-bonus',action='store_true')
+    p.add_argument('--daizengar-durability',action='store_true')
+    p.add_argument('--daizengar-refit',action='store_true')
+    p.add_argument('--melee-range-two',action='store_true')
+    p.add_argument('--weapon-balance',action='store_true')
+    p.add_argument('--grant-sladegelmir',action='store_true')
+    p.add_argument('--daizengar-refit-labels',action='store_true')
+    p.add_argument('--daizengar-builtin-weapons',action='store_true')
+    p.add_argument('--weapon-consumption',action='store_true')
+    p.add_argument('--release-preflight',action='store_true')
+    p.add_argument('--daizengar-upgrade-cost',action='store_true')
+    p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.daizengar_refit_visibility:daizengar_refit_visibility(a.apply);sys.exit()
+    if a.daizengar_upgrade_cost:daizengar_upgrade_cost(a.apply);sys.exit()
+    if a.release_preflight:release_preflight(a.apply);sys.exit()
+    if a.weapon_consumption:weapon_consumption(a.apply);sys.exit()
+    if a.daizengar_builtin_weapons:daizengar_builtin_weapons(a.apply);sys.exit()
+    if a.daizengar_refit_labels:daizengar_refit_labels(a.apply);sys.exit()
+    if a.grant_sladegelmir:grant_sladegelmir(a.apply);sys.exit()
+    if a.weapon_balance:weapon_balance(a.apply);sys.exit()
+    if a.melee_range_two:melee_range_two(a.apply);sys.exit()
+    if a.daizengar_refit:daizengar_refit(a.apply);sys.exit()
+    if a.daizengar_durability:daizengar_durability(a.apply);sys.exit()
+    if a.episode6_bonus:episode6_bonus(a.apply);sys.exit()
+    if a.ouka_survival:ouka_survival(a.apply);sys.exit()
+    if a.grant_mumei:grant_mumei(a.apply);sys.exit()
     if a.plan or a.apply:build(a.apply);sys.exit()
     s=Scripts()
     if a.dump:s.dump(*a.dump)
