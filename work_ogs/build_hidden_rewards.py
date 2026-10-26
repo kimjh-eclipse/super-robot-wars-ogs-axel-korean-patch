@@ -1145,6 +1145,250 @@ def ouka_survival(apply=False):
         journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k not in ('edits','dialogue')},ensure_ascii=False,indent=2))
 
+def daizengar_combined_arsenal(apply=False):
+    """Basic keeps three built-ins; sword form gains those same weapons."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='5bc30bb635ea895a04a3e2c1f713f91c54f78cf802d1d48a33f53bd77aeba1f1',before
+    edits=[];builtins=[0xA6A,0xA6B,0xA6C];swords=list(range(0xA65,0xA6A))
+    merged=builtins+swords
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base+0x11F8A4+0xD1*100+0x24)
+            assert list(struct.unpack('<16H',f.read(32)))==builtins+[0xFFFF]*13
+            at=base+0x11F8A4+0xD0*100+0x24;f.seek(at);old=f.read(32)
+            assert list(struct.unpack('<16H',old))==swords+[0xFFFF]*11
+            new=struct.pack('<16H',*(merged+[0xFFFF]*8))
+            edits.append((at,old,new))
+    from validate_hidden_rewards import validate_daizengar_combined_arsenal
+    checks=validate_daizengar_combined_arsenal(edits)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for at,old,new in edits:
+            while cursor<at:
+                chunk=f.read(min(4<<20,at-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Basic: built-ins only; Zankantou: three built-ins plus four sword attacks and Tornado Zankantou',
+        checks=checks,edits=[dict(offset=at,before=old.hex(),after=new.hex()) for at,old,new in edits])
+    journal=ROOT/'runtime/daizengar_combined_arsenal_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for at,old,new in edits:
+                    f.seek(at);assert f.read(len(old))==old;f.seek(at);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for at,old,new in edits:f.seek(at);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_unified(apply=False):
+    """One full arsenal, no refit; old Basic saves resolve to the same master."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='994f35f4197318ce3f06b4953dae3ae44130d56621e19d470f90ad6bdf24e311',before
+    overlay={}
+    with ISO.open('rb') as f:
+        def change(at,expected,replacement):
+            assert len(expected)==len(replacement)
+            f.seek(at);raw=f.read(len(expected))
+            actual=bytes(overlay.get(at+i,value) for i,value in enumerate(raw))
+            assert actual==expected,('Changed refit bytes; audit first',hex(at))
+            overlay.update((at+i,value) for i,value in enumerate(replacement))
+        # Reverse only the guarded Daizengar refit additions, newest first.
+        for name in ('daizengar_refit_visibility_manifest.json',
+                     'daizengar_refit_labels_manifest.json','daizengar_refit_manifest.json'):
+            m=json.loads((ROOT/'runtime'/name).read_text(encoding='utf-8'));assert m['applied']
+            for e in reversed(m['edits']):
+                change(e['offset'],bytes.fromhex(e['after']),bytes.fromhex(e['before']))
+        for base in (0x5DA000,0x83F000):
+            # Keep the persistent raw key of an old Basic-form save intact;
+            # its lookup now resolves to the same complete Daizengar master.
+            change(base+0x11E898+0x49A*2,b'\xd1\x00',b'\xd0\x00')
+        addresses=sorted(overlay);groups=[]
+        for at in addresses:
+            if not groups or at!=groups[-1][-1]+1:groups.append([])
+            groups[-1].append(at)
+        edits=[]
+        for group in groups:
+            at=group[0];f.seek(at);old=f.read(len(group));new=bytes(overlay[p] for p in group)
+            if old!=new:edits.append((at,old,new))
+    from validate_hidden_rewards import validate_daizengar_unified
+    checks=validate_daizengar_unified(edits)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for at,old,new in edits:
+            while cursor<at:
+                chunk=f.read(min(4<<20,at-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Unified Daizengar arsenal, no refit, existing Basic save compatibility',
+        checks=checks,edits=[dict(offset=at,before=old.hex(),after=new.hex()) for at,old,new in edits])
+    journal=ROOT/'runtime/daizengar_unified_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for at,old,new in edits:
+                    f.seek(at);assert f.read(len(old))==old;f.seek(at);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for at,old,new in edits:f.seek(at);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_animation_links(apply=False):
+    """Fix the renderer's (unit animation bank, weapon motion) lookup."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='37a78a5ad4a632e4ac8734bd56e3b4bc3883a9d552f1b8d4368f451786e17385',before
+    edits=[];builtin_keys=(0xA6A,0xA6B,0xA6C)
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);master=f.read(0x190000)
+            consumers=[]
+            for unit in range(427):
+                keys=struct.unpack_from('<16H',master,0x11F8A4+unit*100+0x24)
+                if any(k!=0xFFFF and struct.unpack_from('<H',master,0x129F7C+k*2)[0] in (0x311,0x312,0x313) for k in keys):
+                    consumers.append(unit)
+            assert consumers==[0xD0,0xD1],consumers
+            for i,key in enumerate(builtin_keys):
+                idx=struct.unpack_from('<H',master,0x129F7C+key*2)[0];assert idx==0x311+i
+                off=base+0x12BF88+idx*36+0x21
+                f.seek(off);assert f.read(1)==bytes([i])
+                edits.append((off,bytes([i]),bytes([5+i])))
+        # Wpbb offsets are relative to their directory, not the LICE file.
+        battle_wp=0x2511F800+0x800;f.seek(battle_wp);assert f.read(8)==b'Wpbb'+struct.pack('<I',12)
+        f.seek(battle_wp+8+7*8);entry,size=struct.unpack('<II',f.read(8))
+        nested=battle_wp+entry+0x800;f.seek(nested);assert f.read(8)==b'Wpbb'+struct.pack('<I',1)
+        child,length=struct.unpack('<II',f.read(8));table=nested+child
+        assert length==300*144
+        f.seek(table);data=f.read(length)
+        assert u32(data,108*144)==u32(data,179*144)==26
+        assert struct.unpack_from('<5H',data,108*144+4)==tuple(range(0x783,0x788))
+        original=bytes(data[179*144+4:179*144+10]);assert original==struct.pack('<3H',0xC19,0xC1A,0xC1B)
+        for bank in (108,179):
+            off=table+bank*144+4+5*2
+            assert data[bank*144+14:bank*144+20]==b'\xff'*6
+            edits.append((off,b'\xff'*6,original))
+    edits.sort()
+    from validate_hidden_rewards import validate_daizengar_animation_links
+    checks=validate_daizengar_animation_links(edits,table,data)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Daizengar built-in attacks resolve their original separated-form animation assets',
+        checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/daizengar_animation_links_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def daizengar_arsenal_balance(apply=False):
+    """Agreed unified-arsenal costs/power; penetration only on sword attacks."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='461d74f3794a3b4cf8cadb6c8d92c951158f0e99ef87c1faa5ea03304e8c8a51',before
+    edits=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);blob=f.read(0x190000)
+            for idx in range(1628):
+                rel=0x12BF88+idx*36;old=blob[rel:rel+36];new=bytearray(old)
+                if idx==0x311:struct.pack_into('<H',new,8,4000)
+                if idx==0x313:
+                    struct.pack_into('<H',new,8,5000);new[0x1A]=20;new[0x1B]=110
+                if idx in (0x30E,0x577):new[0x1A]=30
+                if idx in (0x30F,0x578):new[0x1A]=50
+                if idx in (0x311,0x312,0x313):new[0x15]&=0xCF
+                if idx in set(range(0x30C,0x311))|set(range(0x575,0x57A)):
+                    assert (old[0x15]>>4)&3==2
+                if idx==0x312:
+                    assert struct.unpack_from('<H',old,8)[0]==5200 and old[0x1A]==20
+                    assert old[0x14]&0x80 and not(old[0x15]&1)
+                for j,(a,b) in enumerate(zip(old,new)):
+                    if a!=b:edits.append((base+rel+j,bytes([a]),bytes([b])))
+    from validate_hidden_rewards import validate_daizengar_arsenal_balance
+    checks=validate_daizengar_arsenal_balance(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/daizengar_arsenal_balance_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--dump',type=int,nargs='+');p.add_argument('--find',type=str);p.add_argument('--plan',action='store_true');p.add_argument('--apply',action='store_true')
     p.add_argument('--grant-mumei',action='store_true')
@@ -1152,6 +1396,10 @@ if __name__=='__main__':
     p.add_argument('--episode6-bonus',action='store_true')
     p.add_argument('--daizengar-durability',action='store_true')
     p.add_argument('--daizengar-refit',action='store_true')
+    p.add_argument('--daizengar-combined-arsenal',action='store_true')
+    p.add_argument('--daizengar-unified',action='store_true')
+    p.add_argument('--daizengar-animation-links',action='store_true')
+    p.add_argument('--daizengar-arsenal-balance',action='store_true')
     p.add_argument('--melee-range-two',action='store_true')
     p.add_argument('--weapon-balance',action='store_true')
     p.add_argument('--grant-sladegelmir',action='store_true')
@@ -1162,6 +1410,10 @@ if __name__=='__main__':
     p.add_argument('--daizengar-upgrade-cost',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.daizengar_arsenal_balance:daizengar_arsenal_balance(a.apply);sys.exit()
+    if a.daizengar_animation_links:daizengar_animation_links(a.apply);sys.exit()
+    if a.daizengar_unified:daizengar_unified(a.apply);sys.exit()
+    if a.daizengar_combined_arsenal:daizengar_combined_arsenal(a.apply);sys.exit()
     if a.daizengar_refit_visibility:daizengar_refit_visibility(a.apply);sys.exit()
     if a.daizengar_upgrade_cost:daizengar_upgrade_cost(a.apply);sys.exit()
     if a.release_preflight:release_preflight(a.apply);sys.exit()

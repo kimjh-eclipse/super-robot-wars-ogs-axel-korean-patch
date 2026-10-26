@@ -1,5 +1,5 @@
 {
-  "version": "v20261025",
+  "version": "v20261026",
   "changes": [
     {
       "feature": "mumei_grant",
@@ -208,8 +208,132 @@
         "encoded_dialogue_bytes_unchanged": true,
         "live_playthrough": false
       }
+    },
+    {
+      "source_sha256": "5bc30bb635ea895a04a3e2c1f713f91c54f78cf802d1d48a33f53bd77aeba1f1",
+      "target_sha256": "994f35f4197318ce3f06b4953dae3ae44130d56621e19d470f90ad6bdf24e311",
+      "applied": true,
+      "feature": "daizengar_combined_arsenal",
+      "validation": {
+        "basic_weapon_count": 3,
+        "sword_weapon_count": 8,
+        "native_weapon_names": [
+          "다이너믹・너클",
+          "제너럴・블라스터",
+          "가디언・소드",
+          "참함도・전광석화",
+          "참함도・대차륜",
+          "참함도・뇌광베기",
+          "참함도・운요의태도",
+          "용권참함도"
+        ],
+        "native_weapon_preview_records_identical": true,
+        "original_weapon_and_animation_keys_preserved": true,
+        "original_combination_recipe_preserved": true,
+        "native_refit_round_trips": 3,
+        "unit_pilot_and_upgrade_records_preserved": true,
+        "live_battle_playback_verified": false
+      }
+    },
+    {
+      "source_sha256": "994f35f4197318ce3f06b4953dae3ae44130d56621e19d470f90ad6bdf24e311",
+      "target_sha256": "37a78a5ad4a632e4ac8734bd56e3b4bc3883a9d552f1b8d4368f451786e17385",
+      "applied": true,
+      "feature": "daizengar_unified",
+      "validation": {
+        "unified_weapon_count": 8,
+        "both_existing_unit_keys_preserved": true,
+        "both_forms_use_same_unit_master": true,
+        "daizengar_absent_from_native_refit_menu": true,
+        "no_save_conversion_or_unit_pilot_upgrade_changes": true,
+        "ordinary_native_refit_ui_and_commit_unchanged": true,
+        "daizengar_refit_additions_reverted": true,
+        "weapon_definitions_unchanged": true,
+        "live_menu_and_battle_playthrough_verified": false
+      }
+    },
+    {
+      "source_sha256": "37a78a5ad4a632e4ac8734bd56e3b4bc3883a9d552f1b8d4368f451786e17385",
+      "target_sha256": "461d74f3794a3b4cf8cadb6c8d92c951158f0e99ef87c1faa5ea03304e8c8a51",
+      "applied": true,
+      "feature": "daizengar_animation_links",
+      "validation": {
+        "original_failure_reproduced": true,
+        "native_animation_resolver": "0x290C90",
+        "native_unit_bank_getter": "0x1A6690",
+        "native_weapon_motion_getter": "0x1A4A20",
+        "builtins": [
+          {
+            "weapon_key": "0xa6a",
+            "original_split_asset": "0xc19",
+            "reproduced_wrong_asset": "0x783",
+            "corrected_asset": "0xc19",
+            "motion_before": 0,
+            "motion_after": 5
+          },
+          {
+            "weapon_key": "0xa6b",
+            "original_split_asset": "0xc1a",
+            "reproduced_wrong_asset": "0x784",
+            "corrected_asset": "0xc1a",
+            "motion_before": 1,
+            "motion_after": 6
+          },
+          {
+            "weapon_key": "0xa6c",
+            "original_split_asset": "0xc1b",
+            "reproduced_wrong_asset": "0x785",
+            "corrected_asset": "0xc1b",
+            "motion_before": 2,
+            "motion_after": 7
+          }
+        ],
+        "all_five_sword_assets_preserved": true,
+        "legacy_builtin_bank_preserved": true,
+        "all_other_animation_banks_unchanged": true,
+        "weapon_stats_and_balance_unchanged": true,
+        "actual_changed_bytes": 18,
+        "live_rendered_battle_verified": false
+      }
+    },
+    {
+      "source_sha256": "461d74f3794a3b4cf8cadb6c8d92c951158f0e99ef87c1faa5ea03304e8c8a51",
+      "target_sha256": "c3a1525f4754ec88dd5812cb52e3c563a30558ee50e6b43a212b881e94924753",
+      "applied": true,
+      "feature": "daizengar_arsenal_balance",
+      "validation": {
+        "dynamic_knuckle_power": 4000,
+        "guardian_sword": {
+          "power": 5000,
+          "en": 20,
+          "morale": 110
+        },
+        "raikogiri_en": 30,
+        "unyo_en": 50,
+        "general_blaster": {
+          "en": 20,
+          "ALL": true,
+          "W": false
+        },
+        "builtins_barrier": "none",
+        "all_sword_attacks_including_combination_barrier": "penetration",
+        "unused_sword_variant_costs_consistent": true,
+        "combination_recipe_and_power_unchanged": true,
+        "all_eight_actual_animation_asset_routes_preserved": true,
+        "ranges_mobility_flags_upgrade_costs_and_other_weapons_unchanged": true,
+        "native_property_checks_passed": true,
+        "live_battle_playthrough_verified": false
+      }
     }
   ],
   "ouka_survival_included": false,
-  "live_playthrough_verified": false
+  "live_playthrough_verified": false,
+  "bundle_policy": {
+    "label": "오우카 생존 + 젠가 밸런스",
+    "default": false,
+    "on": "Ouka survival and all Daizengar combat changes; single arsenal of eight weapons",
+    "off": "Baseline Daizengar HP, armor, weapon list, weapon stats and upgrade cost; original Ouka ending",
+    "common_boarding_compatibility_preserved": true,
+    "previous_refit_implementation_superseded": true
+  }
 }

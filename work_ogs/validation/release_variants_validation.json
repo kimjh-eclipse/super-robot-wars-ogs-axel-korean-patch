@@ -1,0 +1,117 @@
+{
+  "passed": true,
+  "profiles": [
+    {
+      "profile": "default",
+      "bundle": false,
+      "hidden": false,
+      "baseline_policy_verified": true,
+      "common_master_changes_preserved": true,
+      "native_weapon_checks": true,
+      "native_animation_routes": {
+        "0x499": [
+          "0x783",
+          "0x784",
+          "0x785",
+          "0x786",
+          "0x787"
+        ],
+        "0x49a": [
+          "0xc19",
+          "0xc1a",
+          "0xc1b"
+        ]
+      },
+      "ouka_scene_and_grant_present": false
+    },
+    {
+      "profile": "hidden",
+      "bundle": false,
+      "hidden": true,
+      "baseline_policy_verified": true,
+      "common_master_changes_preserved": true,
+      "native_weapon_checks": true,
+      "native_animation_routes": {
+        "0x499": [
+          "0x783",
+          "0x784",
+          "0x785",
+          "0x786",
+          "0x787"
+        ],
+        "0x49a": [
+          "0xc19",
+          "0xc1a",
+          "0xc1b"
+        ]
+      },
+      "ouka_scene_and_grant_present": false
+    },
+    {
+      "profile": "bundle",
+      "bundle": true,
+      "hidden": false,
+      "baseline_policy_verified": true,
+      "common_master_changes_preserved": true,
+      "native_weapon_checks": true,
+      "native_animation_routes": {
+        "0x499": [
+          "0xc19",
+          "0xc1a",
+          "0xc1b",
+          "0x783",
+          "0x784",
+          "0x785",
+          "0x786",
+          "0x787"
+        ],
+        "0x49a": [
+          "0xc19",
+          "0xc1a",
+          "0xc1b",
+          "0x783",
+          "0x784",
+          "0x785",
+          "0x786",
+          "0x787"
+        ]
+      },
+      "ouka_scene_and_grant_present": true
+    },
+    {
+      "profile": "both",
+      "bundle": true,
+      "hidden": true,
+      "baseline_policy_verified": true,
+      "common_master_changes_preserved": true,
+      "native_weapon_checks": true,
+      "native_animation_routes": {
+        "0x499": [
+          "0xc19",
+          "0xc1a",
+          "0xc1b",
+          "0x783",
+          "0x784",
+          "0x785",
+          "0x786",
+          "0x787"
+        ],
+        "0x49a": [
+          "0xc19",
+          "0xc1a",
+          "0xc1b",
+          "0x783",
+          "0x784",
+          "0x785",
+          "0x786",
+          "0x787"
+        ]
+      },
+      "ouka_scene_and_grant_present": true
+    }
+  ],
+  "scope": "all Daizengar combat data + Ouka survival",
+  "baseline_daizengar_unit_and_weapon_records_restored_when_off": true,
+  "common_boarding_masks_preserved": true,
+  "live_rendered_playthrough_verified": false
+}

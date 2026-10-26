@@ -24,11 +24,11 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261025.1";
+    private const string VersionText = "v20261026";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
-    private const string OukaResourceName = "OGS_ouka_survival.bin";
-    private const string OukaHiddenResourceName = "OGS_ouka_survival_hidden.bin";
+    private const string OukaResourceName = "OGS_ouka_zengar.bin";
+    private const string OukaHiddenResourceName = "OGS_ouka_zengar_hidden.bin";
     // 선택적 사이드카: 직전 릴리즈 적용본을 핫픽스본으로 올리는 소구간 팩.
     // 없으면 기준본→최신본 팩만으로 동작한다.
     private const string UpgradeResourceName = "OGS_ISO_ranges_upgrade.bin";
@@ -242,11 +242,11 @@ internal static class OgsAxelQuickPatch
         List<Pack> packs = LoadPacks();
         Pack full = packs[0];
         Pack[] option = LoadOption(full, HiddenResourceName, "숨겨진 요소 자동 습득");
-        Pack[] oukaBase = LoadOption(full, OukaResourceName, "오우카 생존");
-        Pack[] oukaHidden = LoadOption(option[0], OukaHiddenResourceName, "오우카 생존");
+        Pack[] oukaBase = LoadOption(full, OukaResourceName, "오우카 생존·젠가 밸런스");
+        Pack[] oukaHidden = LoadOption(option[0], OukaHiddenResourceName, "오우카 생존·젠가 밸런스");
         string desiredHash = Hex(ouka ? (hidden ? oukaHidden[0].TargetHash : oukaBase[0].TargetHash)
                                      : (hidden ? option[0].TargetHash : full.TargetHash));
-        log("오우카 생존·라피에사쥬 합류: " + (ouka ? "선택" : "선택 안 함"));
+        log("오우카 생존 + 젠가 밸런스: " + (ouka ? "선택" : "선택 안 함"));
         log("숨겨진 요소 자동 습득: " + (hidden ? "선택" : "선택 안 함"));
         log(full.Title);
         log("패처 " + VersionText);
@@ -522,12 +522,12 @@ internal static class OgsAxelQuickPatch
             hiddenCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             hiddenCheck.SetBounds(18, 26, 402, 28); hiddenCheck.Checked = false;
             options.Controls.Add(hiddenCheck);
-            oukaCheck.Text = "오우카 생존·라피에사쥬 합류";
+            oukaCheck.Text = "오우카 생존 + 젠가 밸런스";
             oukaCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             oukaCheck.SetBounds(430, 26, 405, 28); oukaCheck.Checked = false;
             options.Controls.Add(oukaCheck);
             Label optionInfo = new Label();
-            optionInfo.Text = "숨겨진 요소: 무기·기체·강화파츠를 원래 획득 시점에 조건 없이 받습니다.\n오우카 생존: OG2 44화 결말을 바꾸고 오우카와 라피에사쥬가 아군에 남습니다.\n이미 지나간 화에는 소급 적용되지 않습니다. 두 옵션은 각각 선택할 수 있습니다.";
+            optionInfo.Text = "숨겨진 요소: 무기·기체·강화파츠를 원래 획득 시점에 조건 없이 받습니다.\n오우카·젠가: 생존·합류와 다이젠가 통합 무장·강화를 함께 적용합니다.\n이미 지나간 화에는 소급 적용되지 않습니다. 두 옵션은 각각 선택할 수 있습니다.";
             optionInfo.SetBounds(20, 61, 820, 50); options.Controls.Add(optionInfo);
 
             Label info = new Label();
@@ -658,7 +658,7 @@ internal static class OgsAxelQuickPatch
             else if (a == "--verify") { cli = true; mode = Mode.Verify; }
             else if (a == "--restore") { cli = true; restore = true; }
             else if (a == "--hidden") hidden = true;
-            else if (a == "--ouka") ouka = true;
+            else if (a == "--bundle" || a == "--ouka") ouka = true;
             else if (iso == null) iso = a;
         }
 
@@ -676,7 +676,7 @@ internal static class OgsAxelQuickPatch
             if (iso == null)
             {
                 Console.WriteLine(
-                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden] [--ouka]");
+                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden] [--bundle]");
                 return 2;
             }
             if (restore)

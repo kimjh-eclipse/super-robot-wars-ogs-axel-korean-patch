@@ -535,6 +535,333 @@ def validate_mumei(edits,code):
             'Original LOGO records, tables and dialogue preserved byte for byte',
             'Full prospective ISO hash covers every unchanged byte; no live playthrough yet']
 
+def validate_release_variants(default,hidden,bundle,both):
+    """Independent baseline policy + actual native animation/property checks."""
+    baseline=ROOT/'baseline/srwogs-v1.4.3s1.iso'
+    ranges=list(range(0x30C,0x314))+list(range(0x575,0x57A))
+    bases=(0x5DA000,0x83F000);original={};current={}
+    for start in bases:
+        with baseline.open('rb') as f:f.seek(start);original[start]=f.read(0x190000)
+        with both.open('rb') as f:f.seek(start);current[start]=f.read(0x190000)
+    with both.open('rb') as f:
+        f.seek(0x94880);executable=f.read(0x49A778-0x100000)
+        f.seek(0x859F9000);current_animation=f.read(0xA8C0)
+    with baseline.open('rb') as f:f.seek(0x859F9000);original_animation=f.read(0xA8C0)
+    results=[]
+    for label,path,enabled,hidden_on in [('default',default,False,False),('hidden',hidden,False,True),
+                                        ('bundle',bundle,True,False),('both',both,True,True)]:
+        masters={}
+        for start in bases:
+            with path.open('rb') as f:f.seek(start);actual=f.read(0x190000)
+            want=bytearray(current[start])
+            if not enabled:
+                for idx in (0xD0,0xD1,0x176):
+                    at=0x11F8A4+idx*100;want[at:at+100]=original[start][at:at+100]
+                    want[at+0x22:at+0x24]=current[start][at+0x22:at+0x24]
+                for idx in ranges:
+                    at=0x12BF88+idx*36;want[at:at+36]=original[start][at:at+36]
+                at=0x11E898+0x49A*2;want[at:at+2]=original[start][at:at+2]
+                for at in (0x13B490+96*148+0x12,0x11F8A4+295*100+0x22):
+                    want[at:at+2]=original[start][at:at+2]
+            assert actual==want,(label,hex(start),'unexpected master change')
+            masters[start]=actual
+        with path.open('rb') as f:f.seek(0x859F9000);animation=f.read(0xA8C0)
+        want=bytearray(current_animation)
+        if not enabled:
+            for bank in (108,179):
+                at=bank*144;want[at:at+144]=original_animation[at:at+144]
+        assert animation==want,(label,'animation metadata outside bundle changed')
+        c=CPU(ram);c.mem[0x100000:0x49A778]=executable;master=u32(ram,0x59D360);save=u32(ram,0x59D364)
+        data=masters[0x5DA000]
+        for offset,rel in ((0x28,0x11E88C),(0x40,0x11F898),(0x58,0x129F70),(0x70,0x12BF7C)):
+            dst=c.read(master+offset,4);size=u32(data,rel+4);c.mem[dst:dst+size]=data[rel:rel+size]
+        obj=0x1780000;c.run(0x290E10,[obj]);dst=c.read(obj+0x24,4);c.mem[dst:dst+len(animation)]=animation
+        normal=[0xA65,0xA66,0xA67,0xA68,0xA69];built=[0xA6A,0xA6B,0xA6C]
+        all_keys=built+normal
+        expected_stats={0xA6A:(4000,0,0,0),0xA6B:(5200,20,110,0),0xA6C:(5000,20,110,0),
+                        0xA65:(4100,5,0,2),0xA66:(4400,15,0,2),0xA67:(5700,30,120,2),
+                        0xA68:(6300,50,130,2),0xA69:(0,65,130,2)}
+        for key in all_keys:
+            if enabled:power,en,morale,barrier=expected_stats[key]
+            else:
+                idx=struct.unpack_from('<H',original[0x5DA000],0x129F7C+key*2)[0]
+                at=0x12BF88+idx*36;r=original[0x5DA000][at:at+36]
+                power=struct.unpack_from('<H',r,8)[0];en=r[0x1A];morale=r[0x1B];barrier=(r[0x15]>>4)&3
+            assert c.run(0x1A5DC0,[master,key])==power,(label,hex(key),'attack')
+            assert c.run(0x1A5AC0,[master,key])==en,(label,hex(key),'EN')
+            assert c.run(0x1A5A40,[master,key])==morale,(label,hex(key),'morale')
+            assert c.run(0x1A4CB0,[master,key])==barrier,(label,hex(key),'barrier')
+        routes={}
+        for unit in (0x499,0x49A):
+            slot=c.run(0x1B2070,[save,unit,0]);assert slot>=0
+            wanted=all_keys if enabled else (normal if unit==0x499 else built)
+            keys=[c.run(0x1AC9D0,[save,0x75,slot,i]) for i in range(16)]
+            assert keys==wanted+[-1]*(16-len(wanted)),(label,hex(unit),'arsenal')
+            bank=c.run(0x1A6690,[master,unit])
+            route=[c.run(0x290C90,[obj,bank,c.run(0x1A4A20,[master,key])]) for key in wanted]
+            expected_route=([0xC19,0xC1A,0xC1B]+list(range(0x783,0x788))) if enabled else (list(range(0x783,0x788)) if unit==0x499 else [0xC19,0xC1A,0xC1B])
+            assert route==expected_route,(label,hex(unit),'real animation route')
+            routes[hex(unit)]=[hex(x) for x in route]
+        # Read the actual chapter directory, not a reconstructed command plan.
+        with path.open('rb') as f:
+            f.seek(MAP+0x557F800+8+109*8);rel,length=struct.unpack('<II',f.read(8))
+            f.seek(MAP+0x557F800+rel);chapter=f.read(length)
+        assert chapter[:4]==b'LOGO';count,commands=struct.unpack_from('<II',chapter,0x28)
+        assert count==(2576 if enabled else 2575)
+        assert u32(chapter,commands+2163*96)==(0x4F if enabled else 0x81)
+        assert u32(chapter,commands+2572*96)==(0x5E if enabled else 0x9C)
+        if enabled:assert u32(chapter,commands+2572*96+8)==0x24
+        results.append(dict(profile=label,bundle=enabled,hidden=hidden_on,baseline_policy_verified=True,
+                            common_master_changes_preserved=True,native_weapon_checks=True,native_animation_routes=routes,
+                            ouka_scene_and_grant_present=enabled))
+    return dict(passed=True,profiles=results,scope='all Daizengar combat data + Ouka survival',
+                baseline_daizengar_unit_and_weapon_records_restored_when_off=True,
+                common_boarding_masks_preserved=True,live_rendered_playthrough_verified=False)
+
+def validate_daizengar_arsenal_balance(edits):
+    with ISO.open('rb') as f:
+        f.seek(0x5DA000);original=f.read(0x190000)
+        f.seek(0x94880);code=f.read(0x49A778-0x100000)
+        f.seek(0x859F9000);animation_table=f.read(0xA8C0)
+    blob=bytearray(original)
+    for off,old,new in edits:
+        rel=off-0x5DA000
+        if 0<=rel<len(blob):assert blob[rel:rel+1]==old;blob[rel:rel+1]=new
+    c=CPU(ram);c.mem[0x100000:0x49A778]=code;master=u32(ram,0x59D360)
+    for offset,rel in ((0x28,0x11E88C),(0x40,0x11F898),(0x58,0x129F70),(0x70,0x12BF7C)):
+        dest=c.read(master+offset,4);size=u32(blob,rel+4);c.mem[dest:dest+size]=blob[rel:rel+size]
+    expected={0xA6A:(4000,0,0,0),0xA6B:(5200,20,110,0),0xA6C:(5000,20,110,0),
+              0xA65:(4100,5,0,2),0xA66:(4400,15,0,2),0xA67:(5700,30,120,2),
+              0xA68:(6300,50,130,2),0xA69:(0,65,130,2),
+              0xCD2:(5700,30,120,2),0xCD3:(6300,50,130,2)}
+    for key,(power,en,morale,barrier) in expected.items():
+        assert c.run(0x1A5DC0,[master,key])==power,('power',hex(key))
+        assert c.run(0x1A5AC0,[master,key])==en,('EN',hex(key))
+        assert c.run(0x1A5A40,[master,key])==morale,('morale',hex(key))
+        assert c.run(0x1A4CB0,[master,key])==barrier,('barrier',hex(key))
+    assert c.run(0x1A4EE0,[master,0xA6B])==1
+    assert c.run(0x1A4E60,[master,0xA6B])==0
+    allowed={0x311:{8,9,0x15},0x312:{0x15},0x313:{8,9,0x15,0x1A,0x1B},
+             0x30E:{0x1A},0x577:{0x1A},0x30F:{0x1A},0x578:{0x1A}}
+    for idx in range(1628):
+        p=0x12BF88+idx*36
+        changed={j for j,(a,b) in enumerate(zip(original[p:p+36],blob[p:p+36])) if a!=b}
+        assert changed==allowed.get(idx,set()),(idx,changed)
+    assert blob[0x14988C:0x1499EC]==original[0x14988C:0x1499EC]
+    obj=0x1780000;c.run(0x290E10,[obj]);dest=c.read(obj+0x24,4);c.mem[dest:dest+len(animation_table)]=animation_table
+    for unit in (0x499,0x49A):
+        bank=c.run(0x1A6690,[master,unit])
+        result=[c.run(0x290C90,[obj,bank,c.run(0x1A4A20,[master,key])]) for key in expected if key<0xB00]
+        assert result==[0xC19,0xC1A,0xC1B,0x783,0x784,0x785,0x786,0x787],result
+    return dict(dynamic_knuckle_power=4000,guardian_sword=dict(power=5000,en=20,morale=110),
+                raikogiri_en=30,unyo_en=50,general_blaster=dict(en=20,ALL=True,W=False),
+                builtins_barrier='none',all_sword_attacks_including_combination_barrier='penetration',
+                unused_sword_variant_costs_consistent=True,combination_recipe_and_power_unchanged=True,
+                all_eight_actual_animation_asset_routes_preserved=True,
+                ranges_mobility_flags_upgrade_costs_and_other_weapons_unchanged=True,
+                native_property_checks_passed=True,live_battle_playthrough_verified=False)
+
+def validate_daizengar_animation_links(edits,table_offset,original_table):
+    with ISO.open('rb') as f:
+        f.seek(0x94880);code=f.read(0x49A778-0x100000)
+        f.seek(0x5DA000);original_master=f.read(0x190000)
+    changed_master=bytearray(original_master);changed_table=bytearray(original_table)
+    for off,old,new in edits:
+        if 0x5DA000<=off<0x76A000:
+            rel=off-0x5DA000;assert changed_master[rel:rel+len(old)]==old
+            changed_master[rel:rel+len(new)]=new
+        elif table_offset<=off<table_offset+len(original_table):
+            rel=off-table_offset;assert changed_table[rel:rel+len(old)]==old
+            changed_table[rel:rel+len(new)]=new
+    def setup(patched=False,separated=False):
+        c=CPU(ram);c.mem[0x100000:0x49A778]=code;master=u32(ram,0x59D360)
+        data=bytearray(changed_master if patched else original_master)
+        if separated:struct.pack_into('<H',data,0x11E898+0x49A*2,0xD1)
+        for off,rel in ((0x28,0x11E88C),(0x40,0x11F898),(0x58,0x129F70),(0x70,0x12BF7C)):
+            dst=c.read(master+off,4);size=u32(data,rel+4);c.mem[dst:dst+size]=data[rel:rel+size]
+        obj=0x1780000;c.run(0x290E10,[obj]);dest=c.read(obj+0x24,4)
+        assert dest==0x93B900 and c.mem[dest:dest+len(original_table)]==original_table
+        if patched:c.mem[dest:dest+len(changed_table)]=changed_table
+        return c,master,obj
+    def resolve(q,master,obj,unit_key,weapon_key):
+        bank=q.run(0x1A6690,[master,unit_key])
+        motion=q.run(0x1A4A20,[master,weapon_key])
+        asset=q.run(0x290C90,[obj,bank,motion])
+        return bank,motion,asset
+    original,om,oo=setup(separated=True);broken,bm,bo=setup();patched,pm,po=setup(patched=True)
+    expected=[0xC19,0xC1A,0xC1B];proof=[]
+    for i,key in enumerate((0xA6A,0xA6B,0xA6C)):
+        ref=resolve(original,om,oo,0x49A,key);wrong=resolve(broken,bm,bo,0x499,key)
+        fixed=resolve(patched,pm,po,0x499,key)
+        assert ref==(179,i,expected[i])
+        assert wrong==(108,i,0x783+i),('Must reproduce wrong sword animation',key,wrong)
+        assert fixed==(108,5+i,expected[i])
+        assert resolve(patched,pm,po,0x49A,key)==fixed
+        assert patched.run(0x290C90,[po,179,5+i])==expected[i]
+        assert patched.run(0x290C90,[po,179,i])==expected[i]
+        proof.append(dict(weapon_key=hex(key),original_split_asset=hex(ref[2]),
+                          reproduced_wrong_asset=hex(wrong[2]),corrected_asset=hex(fixed[2]),motion_before=i,motion_after=5+i))
+    for i,key in enumerate(range(0xA65,0xA6A)):
+        assert resolve(patched,pm,po,0x499,key)==resolve(broken,bm,bo,0x499,key)==(108,i,0x783+i)
+    allowed={bank*144+4+slot*2+j for bank in (108,179) for slot in (5,6,7) for j in (0,1)}
+    assert {i for i,(a,b) in enumerate(zip(original_table,changed_table)) if a!=b}==allowed
+    for idx in range(1628):
+        at=0x12BF88+idx*36;a=original_master[at:at+36];b=changed_master[at:at+36]
+        diff={j for j,(x,y) in enumerate(zip(a,b)) if x!=y}
+        assert diff==({0x21} if idx in (0x311,0x312,0x313) else set()),(idx,diff)
+    # Only Daizengar uses these weapon definitions. Animation data are reused,
+    # not rewritten; unrelated animation banks and all sword slots are intact.
+    return dict(original_failure_reproduced=True,native_animation_resolver='0x290C90',
+                native_unit_bank_getter='0x1A6690',native_weapon_motion_getter='0x1A4A20',
+                builtins=proof,all_five_sword_assets_preserved=True,legacy_builtin_bank_preserved=True,
+                all_other_animation_banks_unchanged=True,weapon_stats_and_balance_unchanged=True,
+                actual_changed_bytes=sum(sum(a!=b for a,b in zip(old,new)) for _,old,new in edits),
+                live_rendered_battle_verified=False)
+
+def validate_daizengar_unified(edits):
+    with ISO.open('rb') as f:
+        f.seek(0x94880);executable=f.read(0x49A778-0x100000)
+        f.seek(0x5DA000);original=f.read(0x190000)
+    modified=bytearray(original);patched_code=bytearray(executable)
+    for off,old,new in edits:
+        rel=off-0x5DA000
+        if 0<=rel<len(modified):
+            assert modified[rel:rel+len(old)]==old;modified[rel:rel+len(new)]=new
+        elif 0x94880<=off<0x94880+len(patched_code):
+            rel=off-0x94880;assert patched_code[rel:rel+len(old)]==old
+            patched_code[rel:rel+len(new)]=new
+    def setup(patched):
+        vm=VM();c=vm.cpu;c.mem[0x100000:0x49A778]=patched_code if patched else executable
+        blob=modified if patched else original
+        master=u32(ram,0x59D360);save=u32(ram,0x59D364);glob=u32(ram,0x59D36C)
+        for offset,rel in ((0x28,0x11E88C),(0x40,0x11F898),(0x58,0x129F70),
+                           (0x70,0x12BF7C),(0xB8,0x149168),(0xD0,0x1492B0)):
+            dst=c.read(master+offset,4);size=u32(blob,rel+4)
+            c.mem[dst:dst+size]=blob[rel:rel+size]
+        return vm,c,master,save,glob
+    def eligible(c,sv,glob,slot):
+        c.r[17]=glob;c.r[18]=sv;c.r[21]=slot;c.r[16]=0;c.r[29]=0x1F00000
+        c.pc=0x43EA34;c.pending=None
+        for _ in range(100000):
+            if c.pc in (0x43EC2C,0x43ECB0,0x43ED30):return c.pc==0x43EC2C
+            c.step()
+        raise AssertionError('Native refit eligibility did not terminate')
+    expected=[0xA6A,0xA6B,0xA6C,0xA65,0xA66,0xA67,0xA68,0xA69]
+    for key in (0x499,0x49A):
+        baseline,bc,bm,bs,bg=setup(False);patched,c,master,save,glob=setup(True)
+        for vm,q,sv in ((baseline,bc,bs),(patched,c,save)):
+            vm.op(command(0x5A,key));sl=q.run(0x1ABC50,[sv,key,0,0]);assert sl>=0
+            q.run(0x1AF000,[sv,2,sl,1,0])
+            pi=q.run(0x1B1FD0,[sv,0x469,0]);assert pi>=0
+            q.run(0x1B13D0,[sv,pi,sl,0])
+            for j in range(4):
+                q.write(REC,j,4);q.run(0x1AF000,[sv,6,sl,j+1,REC])
+        slot=c.run(0x1ABC50,[save,key,0,0]);bslot=bc.run(0x1ABC50,[bs,key,0,0]);assert slot==bslot
+        assert eligible(bc,bs,bg,bslot)
+        before=bytes(c.mem[save:save+0x3B400]);flags=bytes(c.mem[glob:glob+0x1000])
+        assert not eligible(c,save,glob,slot)
+        assert c.mem[save:save+0x3B400]==before and c.mem[glob:glob+0x1000]==flags
+        assert [c.run(0x1AC9D0,[save,0x75,slot,i]) for i in range(16)]==expected+[-1]*8
+        assert c.run(0x1ACA50,[save,1,slot])==key
+        assert c.run(0x1A9B70,[save,slot,1])==1
+        assert c.mem[save:save+0x3B400]==bc.mem[bs:bs+0x3B400],('save conversion occurred',hex(key))
+    # Ordinary native refits keep their UI and save effects unchanged.
+    for key in (0x4B8,0x4BD):
+        baseline,bc,bm,bs,bg=setup(False);patched,c,master,save,glob=setup(True)
+        for vm,q,sv in ((baseline,bc,bs),(patched,c,save)):
+            vm.op(command(0x5A,0x559));vm.op(command(0x5A,key))
+            slot=q.run(0x1ABC50,[sv,key,0,0]);q.run(0x1AF000,[sv,2,slot,1,0]);q.write(CTX+0x32D8,slot,4)
+            assert eligible(q,sv,q.read(0x59D36C,4),slot)
+            q.run(0x42DA80,[CTX],limit=10000000)
+            count=q.read(CTX+0x1559C,1)+1
+            choices=[q.read(CTX+0x155C6+i*64,2) for i in range(count)]
+            assert set(choices)=={0x4B8,0x4BD}
+            q.write(CTX+0x15558,choices.index(0x4BD if key==0x4B8 else 0x4B8),4)
+            assert q.run(0x42E2F0,[CTX])==0
+        # The removed Daizengar hook formerly zeroed its private row-label
+        # pointer even for ordinary units. Stock drawing never reads that word.
+        draw=0x44EEC4-0x100000
+        assert patched_code[draw:draw+8]==struct.pack('<II',0x0C060D34,0x0000382D)
+        visible=bytearray(c.mem[CTX:CTX+0x17000])
+        visible[0x156E4:0x156E8]=bc.mem[CTX+0x156E4:CTX+0x156E8]
+        assert visible==bc.mem[CTX:CTX+0x17000]
+
+        assert c.mem[save:save+0x3B400]==bc.mem[bs:bs+0x3B400]
+    assert modified[0x129F70:0x13A478]==original[0x129F70:0x13A478]
+    return dict(unified_weapon_count=8,both_existing_unit_keys_preserved=True,
+                both_forms_use_same_unit_master=True,daizengar_absent_from_native_refit_menu=True,
+                no_save_conversion_or_unit_pilot_upgrade_changes=True,
+                ordinary_native_refit_ui_and_commit_unchanged=True,
+                daizengar_refit_additions_reverted=True,weapon_definitions_unchanged=True,
+                live_menu_and_battle_playthrough_verified=False)
+
+def validate_daizengar_combined_arsenal(edits):
+    from ogs_korean_codec import decode
+    with ISO.open('rb') as f:
+        f.seek(0x94880);code=f.read(0x49A778-0x100000)
+        f.seek(0x5DA000);original=f.read(0x190000)
+    changed=bytearray(original)
+    for off,old,new in edits:
+        rel=off-0x5DA000
+        if 0<=rel<len(changed):
+            assert changed[rel:rel+len(old)]==old;changed[rel:rel+len(new)]=new
+    def setup(blob):
+        vm=VM();c=vm.cpu;c.mem[0x100000:0x49A778]=code
+        master=u32(ram,0x59D360);save=u32(ram,0x59D364)
+        for offset,rel in ((0x28,0x11E88C),(0x40,0x11F898),(0x58,0x129F70),(0x70,0x12BF7C),
+                           (0xB8,0x149168),(0xD0,0x1492B0)):
+            dst=c.read(master+offset,4);size=u32(blob,rel+4)
+            assert c.mem[dst:dst+4]==blob[rel:rel+4]
+            c.mem[dst:dst+size]=blob[rel:rel+size]
+        vm.op(command(0x5A,0x499));slot=c.run(0x1ABC50,[save,0x499,0,0]);assert slot>=0
+        c.run(0x1AF000,[save,2,slot,1,0])
+        return vm,c,master,save,slot
+    base,bc,bm,bs,bslot=setup(original)
+    base.op(command(0x5A,0x49A));builtin_slot=bc.run(0x1ABC50,[bs,0x49A,0,0]);assert builtin_slot>=0
+    vm,c,master,save,slot=setup(changed)
+    def keys(q,sv,sl):return [q.run(0x1AC9D0,[sv,0x75,sl,i]) for i in range(16)]
+    basic=[0xA6A,0xA6B,0xA6C];sword=list(range(0xA65,0xA6A));merged=basic+sword
+    assert keys(bc,bs,bslot)==sword+[-1]*11
+    assert keys(bc,bs,builtin_slot)==basic+[-1]*13
+    assert keys(c,save,slot)==merged+[-1]*8
+    native_names=[]
+    for i,key in enumerate(merged):
+        old_slot,old_index=(builtin_slot,i) if i<3 else (bslot,i-3)
+        # Actual preview serializer: names, attack values, ammo/EN, range,
+        # categories and animation-mode inputs match the original weapon.
+        bc.run(0x30CDF0,[CTX,REC,old_slot,old_index],limit=10000000)
+        c.run(0x30CDF0,[CTX,REC,slot,i],limit=10000000)
+        before=bytes(bc.mem[REC:REC+0x5C]);after=bytes(c.mem[REC:REC+0x5C])
+        assert before==after,('native weapon preview differs',hex(key),[(j,x,y) for j,(x,y) in enumerate(zip(before,after)) if x!=y])
+        ptr=c.run(0x1AC9D0,[save,0x7C,slot,i]);end=c.mem.index(0,ptr)
+        native_names.append(decode(bytes(c.mem[ptr:end])))
+        assert c.run(0x1A4A20,[master,key])==bc.run(0x1A4A20,[bm,key])
+    # Original fixed-weapon definitions and combination recipe are unchanged.
+    assert changed[0x129F70:0x13A478]==original[0x129F70:0x13A478]
+    assert changed[0x14988C:0x1499EC]==original[0x14988C:0x1499EC]
+    c.run(0x1B1FD0,[save,0x469,0]);pilot=c.run(0x1AB6F0,[save,0x469,1]);assert pilot>=0
+    c.run(0x1B13D0,[save,pilot,slot,0]);ui=CTX;c.write(ui+0x32D8,slot,4)
+    arg=REC
+    for i in range(4):
+        c.write(arg,i,4);c.run(0x1AF000,[save,6,slot,i+1,arg])
+    unit=save+0x6EFC+slot*0xD8;unit_before=bytes(c.mem[unit:unit+0xD8])
+    pilot_before=bytes(c.mem[save+0x25CFC:save+0x25CFC+192*0x5C])
+    for target in (0x49A,0x499)*3:
+        c.run(0x42DA80,[ui],limit=10000000)
+        choices=[c.read(ui+0x155C6+i*64,2) for i in range(c.read(ui+0x1559C,1)+1)]
+        assert set(choices)=={0x499,0x49A}
+        c.write(ui+0x15558,choices.index(target),4);assert c.run(0x42E2F0,[ui])==0
+        assert c.run(0x1ACA50,[save,1,slot])==target
+        expected=basic+[-1]*13 if target==0x49A else merged+[-1]*8
+        assert keys(c,save,slot)==expected
+        assert c.run(0x1B1300,[save,slot,0])==pilot
+    assert c.mem[unit:unit+0xD8]==unit_before
+    assert c.mem[save+0x25CFC:save+0x25CFC+192*0x5C]==pilot_before
+    return dict(basic_weapon_count=3,sword_weapon_count=8,native_weapon_names=native_names,
+                native_weapon_preview_records_identical=True,original_weapon_and_animation_keys_preserved=True,
+                original_combination_recipe_preserved=True,native_refit_round_trips=3,
+                unit_pilot_and_upgrade_records_preserved=True,live_battle_playback_verified=False)
+
 def validate_ouka(row,blobs,s,edits):
     from build_hidden_rewards import OUKA_SURVIVAL_TEXT
     from ogs_korean_codec import encode,decode

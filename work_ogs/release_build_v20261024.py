@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v20261025.1 릴리즈 산출물 일괄 생성 (build/SRWOGS_K.iso 기준).
+"""v20261026 릴리즈 산출물 일괄 생성 (build/SRWOGS_K.iso 기준).
 
 xdelta → 전체 구간 팩 → 업그레이드 팩(v20260831, v20260904, v20261002 적용본 → 신판)
-→ 패처 E2E(기준본/구판 및 옵션ON 적용본/복원) → release_v20261025.1 폴더·SHA256SUMS·ZIP.
+→ 패처 E2E(기준본/구판 및 옵션ON 적용본/복원) → release_v20261026 폴더·SHA256SUMS·ZIP.
 임시 ISO는 한 번에 하나만 만들고 즉시 지운다. 모든 단계 해시 가드.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 sys.stdout.reconfigure(encoding='utf-8')
 
-V = "v20261025.1"
+V = "v20261026"
 W = Path(__file__).resolve().parent
 ROOT = W.parent
 XD = ROOT / "xdelta.exe"
@@ -31,9 +31,9 @@ QP = W / "iso_quickpatch"
 REL = W / f"release_{V}"
 BASE_SHA = "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C"
 EXPECT = ""  # derived from the guarded current ISO by removing only the option
-HIDDEN_EXPECT = "8499BE55449D6026831DF7697185BA12E5009492ED584B21B645D3DAFE7AD3FB"
-OUKA_EXPECT = "3739CBBB32BBB1DF1F744E67F5277E5B2A7E97B83AC96781BE5F3C8C7CA48AD0"
-BOTH_EXPECT = "5BC30BB635EA895A04A3E2C1F713F91C54F78CF802D1D48A33F53BD77AEBA1F1"
+HIDDEN_EXPECT = ""  # derived after reverting the selected bundle
+OUKA_EXPECT = ""  # bundled Ouka + Daizengar, without hidden rewards
+BOTH_EXPECT = "C3A1525F4754EC88DD5812CB52E3C563A30558EE50E6B43A212B881E94924753"
 OLD = [  # (라벨, xdelta, 복원 해시)
     ("v20260831", DIST / "old_v20260831" / "SRWOGS_AxelRoleSwap_kr_v20260831.xdelta",
      "08615F303D301AC9935A7C71379D8AE4BD5B2F9E0C2B328397D103FD0352B930"),
@@ -52,6 +52,11 @@ OLD += [
      '637324DD8326CBC2D7035E6F0536759D0FAAA910830633E0E5B5182DE08F5F7D'),
     ('v20261025_hidden',DIST/'SRWOGS_AxelRoleSwap_kr_v20261025.xdelta',
      '8499BE55449D6026831DF7697185BA12E5009492ED584B21B645D3DAFE7AD3FB')]
+OLD += [
+    ('v20261025_1_ouka',DIST/'SRWOGS_AxelRoleSwap_kr_v20261025.1.xdelta',
+     '3739CBBB32BBB1DF1F744E67F5277E5B2A7E97B83AC96781BE5F3C8C7CA48AD0'),
+    ('v20261025_1_both',DIST/'SRWOGS_AxelRoleSwap_kr_v20261025.1.xdelta',
+     '5BC30BB635EA895A04A3E2C1F713F91C54F78CF802D1D48A33F53BD77AEBA1F1')]
 XDELTA_OUT = DIST / f"SRWOGS_AxelRoleSwap_kr_{V}.xdelta"
 
 
@@ -87,20 +92,27 @@ def remove_build_tree(path):
 
 def restore_old(label, xd, expected, target):
     run(XD,'-d','-f','-s',BASE,xd,target)
-    if label=='v20261025_hidden':
-        # Reconstruct the published variant using its immutable option pack.
-        pack=W/'release_v20261025/patcher/OGS_hidden_rewards.bin'
-        with pack.open('rb') as p, target.open('r+b') as f:
+    def apply_option(pack):
+        with pack.open('rb') as p:
             need(p.read(8)==b'OGSHID01','Old option pack magic')
             need(struct.unpack('<Q',p.read(8))[0]==target.stat().st_size,'Old option size')
             source,destination=p.read(32).hex().upper(),p.read(32).hex().upper()
-            need(sha(target)==source and destination==expected,'Old variant source/destination')
-            for _ in range(struct.unpack('<I',p.read(4))[0]):
-                off,length=struct.unpack('<QI',p.read(12));old,new=p.read(length),p.read(length)
-                need(len(new)==length,'Old option payload truncated')
-                f.seek(off);need(f.read(length)==old,'Old option byte guard')
-                f.seek(off);f.write(new)
+            need(sha(target)==source,'Old variant source mismatch')
+            with target.open('r+b') as f:
+                for _ in range(struct.unpack('<I',p.read(4))[0]):
+                    off,length=struct.unpack('<QI',p.read(12));old,new=p.read(length),p.read(length)
+                    need(len(new)==length,'Old option payload truncated')
+                    f.seek(off);need(f.read(length)==old,'Old option byte guard')
+                    f.seek(off);f.write(new)
             need(not p.read(1),'Old option trailing bytes')
+        need(sha(target)==destination,'Old option result mismatch')
+    if label=='v20261025_hidden':
+        apply_option(W/'release_v20261025/patcher/OGS_hidden_rewards.bin')
+    elif label=='v20261025_1_ouka':
+        apply_option(W/'release_v20261025.1/patcher/OGS_ouka_survival.bin')
+    elif label=='v20261025_1_both':
+        apply_option(W/'release_v20261025.1/patcher/OGS_hidden_rewards.bin')
+        apply_option(W/'release_v20261025.1/patcher/OGS_ouka_survival_hidden.bin')
     elif label.endswith('_hidden'):
         m=json.loads((W/'runtime/hidden_rewards_manifest.json').read_text(encoding='utf-8'))
         need(sha(target)==m['source_sha256'].upper(),'Old option source mismatch')
@@ -113,19 +125,32 @@ def restore_old(label, xd, expected, target):
 
 
 def prepare_default():
-    global EXPECT
-    default=DIST/'DEFAULT_BUILD.iso';hidden=DIST/'HIDDEN_BUILD.iso';ouka=DIST/'OUKA_BUILD.iso'
-    # The user's local ISO keeps both options enabled. Derive independent
-    # variants in build files; never rewrite the user's ISO during packaging.
-    m=json.loads((W/'runtime/ouka_survival_manifest.json').read_text(encoding='utf-8'))
-    need(m['applied'] and m['target_sha256'].upper()==BOTH_EXPECT,'Ouka manifest mismatch')
+    global EXPECT,HIDDEN_EXPECT,OUKA_EXPECT
+    default=DIST/'DEFAULT_BUILD.iso';hidden=DIST/'HIDDEN_BUILD.iso';bundle=DIST/'OUKA_BUILD.iso'
+    # Keep the user's ISO unchanged. Build the bundle-off variant by reverting
+    # Ouka, Daizengar combat data and its appended animation routes only.
     shutil.copyfile(ISO,hidden)
-    with hidden.open('r+b') as f:
-        for e in m['edits']:
+    ouka=json.loads((W/'runtime/ouka_survival_manifest.json').read_text(encoding='utf-8'))
+    animations=json.loads((W/'runtime/daizengar_animation_links_manifest.json').read_text(encoding='utf-8'))
+    need(ouka['applied'] and animations['applied'],'Bundle inputs not applied')
+    with BASE.open('rb') as base,hidden.open('r+b') as f:
+        for e in ouka['edits']+animations['edits']:
             old,new=bytes.fromhex(e['before']),bytes.fromhex(e['after'])
-            f.seek(e['offset']);need(f.read(len(new))==new,'Ouka reverse byte guard')
+            f.seek(e['offset']);need(f.read(len(new))==new,'Bundle reverse byte guard')
             f.seek(e['offset']);f.write(old)
-    need(sha(hidden)==HIDDEN_EXPECT,'Hidden-only reconstruction failed')
+        for start in (0x5DA000,0x83F000):
+            for idx in (0xD0,0xD1,0x176):
+                at=start+0x11F8A4+idx*100;base.seek(at);original=bytearray(base.read(100))
+                f.seek(at+0x22);boarding=f.read(2)
+                # Keep the common Sanger/Sladegelmir boarding compatibility.
+                original[0x22:0x24]=boarding;f.seek(at);f.write(original)
+            for idx in list(range(0x30C,0x314))+list(range(0x575,0x57A)):
+                at=start+0x12BF88+idx*36;base.seek(at);original=base.read(36)
+                f.seek(at);f.write(original)
+            at=start+0x11E898+0x49A*2;base.seek(at);original=base.read(2)
+            need(original==bytes.fromhex('d100'),'Original basic unit alias mismatch')
+            f.seek(at);f.write(original)
+    HIDDEN_EXPECT=sha(hidden)
     repair=json.loads((W/'runtime/release_preflight_manifest.json').read_text(encoding='utf-8'))
     rewards=json.loads((W/'runtime/hidden_rewards_manifest.json').read_text(encoding='utf-8'))
     from build_hidden_rewards import Scripts,MAP
@@ -142,14 +167,18 @@ def prepare_default():
                 old,new=bytes.fromhex(e['before']),bytes.fromhex(e['after'])
                 f.seek(e['offset']);need(f.read(len(new))==new,'Option reverse guard')
                 f.seek(e['offset']);f.write(old)
-    remove_hidden(hidden,default);remove_hidden(ISO,ouka)
-    EXPECT=sha(default)
-    need(EXPECT=='637324DD8326CBC2D7035E6F0536759D0FAAA910830633E0E5B5182DE08F5F7D','Default must equal published v20261025')
-    need(sha(ouka)==OUKA_EXPECT,'Ouka-only reconstruction failed')
+    remove_hidden(hidden,default);remove_hidden(ISO,bundle)
+    EXPECT=sha(default);OUKA_EXPECT=sha(bundle)
     metadata=dict(version=V,default_sha256=EXPECT,hidden_sha256=HIDDEN_EXPECT,
-                  ouka_sha256=OUKA_EXPECT,both_sha256=BOTH_EXPECT,default_md5=md5(default),
-                  hidden_default=False,ouka_default=False)
+                  ouka_sha256=OUKA_EXPECT,bundle_sha256=OUKA_EXPECT,both_sha256=BOTH_EXPECT,
+                  default_md5=md5(default),hidden_default=False,bundle_default=False,
+                  bundle_scope='Ouka survival + all Daizengar combat changes',
+                  sanger_sladegelmir_boarding_compatibility_preserved=True)
     (W/'runtime/release_build_metadata.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
+    from validate_hidden_rewards import validate_release_variants
+    validation=validate_release_variants(default,hidden,bundle,ISO)
+    (W/'runtime/release_variants_validation.json').write_text(json.dumps(validation,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('Four native option profiles verified',flush=True)
     return default
 
 
@@ -165,16 +194,16 @@ def hidden_pack():
             for off,size in entries:
                 a.seek(off);b.seek(off);f.write(struct.pack('<QI',off,size));f.write(a.read(size));f.write(b.read(size))
     option(DIST/'DEFAULT_BUILD.iso',DIST/'HIDDEN_BUILD.iso','OGS_hidden_rewards.bin')
-    option(DIST/'DEFAULT_BUILD.iso',DIST/'OUKA_BUILD.iso','OGS_ouka_survival.bin')
-    option(DIST/'HIDDEN_BUILD.iso',ISO,'OGS_ouka_survival_hidden.bin')
+    option(DIST/'DEFAULT_BUILD.iso',DIST/'OUKA_BUILD.iso','OGS_ouka_zengar.bin')
+    option(DIST/'HIDDEN_BUILD.iso',ISO,'OGS_ouka_zengar_hidden.bin')
 
 
 def test_options():
     exe=QP/'OGS_AxelSwap_QuickPatch.exe';t=QP/'TEST.iso';bak=Path(str(t)+'.ogsbak')
     variants=[('기본',DIST/'DEFAULT_BUILD.iso',EXPECT,()),
               ('숨김',DIST/'HIDDEN_BUILD.iso',HIDDEN_EXPECT,('--hidden',)),
-              ('오우카',DIST/'OUKA_BUILD.iso',OUKA_EXPECT,('--ouka',)),
-              ('두 옵션',ISO,BOTH_EXPECT,('--hidden','--ouka'))]
+              ('오우카·젠가',DIST/'OUKA_BUILD.iso',OUKA_EXPECT,('--bundle',)),
+              ('두 옵션',ISO,BOTH_EXPECT,('--hidden','--bundle'))]
     results=[]
     def action(label, expected, *flags):
         run(exe,t,*flags);need(sha(t)==expected,label+' 결과 해시 실패');results.append(label)
@@ -195,7 +224,7 @@ def test_options():
                 action(source+' → '+destination+' 복원',source_hash,'--restore')
         for label,xd,expected in OLD:
             bak.unlink(missing_ok=True);restore_old(label,xd,expected,t)
-            action(label+' → 두 옵션',BOTH_EXPECT,'--cli','--hidden','--ouka')
+            action(label+' → 두 옵션',BOTH_EXPECT,'--cli','--hidden','--bundle')
             action(label+' 업그레이드 백업 복원',expected,'--restore')
             action(label+' → 기본 옵션',EXPECT,'--cli')
         report=dict(version=V,passed=True,paths=results,base_iso_sha256=EXPECT,
@@ -212,11 +241,11 @@ def main() -> None:
     print("[0] 해시 가드")
     need(sha(BASE) == BASE_SHA, "기준 ISO 해시 불일치")
     need(sha(ISO) == BOTH_EXPECT, "SRWOGS_K.iso 해시 불일치")
-    global EXPECT
+    global EXPECT,HIDDEN_EXPECT,OUKA_EXPECT
     if any(x in sys.argv for x in ('--publish','--test-options','--package-only')):
         meta=json.loads((W/'runtime/release_build_metadata.json').read_text(encoding='utf-8'))
         need(meta['version']==V and meta['both_sha256']==BOTH_EXPECT,'Build metadata mismatch')
-        EXPECT=meta['default_sha256']
+        EXPECT=meta['default_sha256'];HIDDEN_EXPECT=meta['hidden_sha256'];OUKA_EXPECT=meta['bundle_sha256']
     if '--publish' in sys.argv:
         publish();return
     if '--test-options' in sys.argv:
@@ -276,7 +305,7 @@ def package(exe: Path) -> None:
         keep = {}
     (REL / "patcher").mkdir(parents=True)
     (REL / "xdelta").mkdir()
-    for p in [exe, QP / "OGS_ISO_ranges.bin", QP/'OGS_hidden_rewards.bin', QP/'OGS_ouka_survival.bin', QP/'OGS_ouka_survival_hidden.bin', *sorted(QP.glob("OGS_ISO_ranges_upgrade_*.bin"))]:
+    for p in [exe, QP / "OGS_ISO_ranges.bin", QP/'OGS_hidden_rewards.bin', QP/'OGS_ouka_zengar.bin', QP/'OGS_ouka_zengar_hidden.bin', *sorted(QP.glob("OGS_ISO_ranges_upgrade_*.bin"))]:
         shutil.copy2(p, REL / "patcher")
     for p in (XDELTA_OUT, XD, W / "release_v20260904" / "xdelta" / "xdeltaUI.exe"):
         shutil.copy2(p, REL / "xdelta")
@@ -308,7 +337,7 @@ def package(exe: Path) -> None:
             lines.append(f"{sha(p)}  {p.relative_to(REL).as_posix()}")
     lines += ["", "기준 ISO (배포물에 미포함)", f"{BASE_SHA}  srwogs-v1.4.3s1.iso (4,518,150,144B)",
               "", "기본 옵션 결과 ISO", f"{EXPECT}  (4,518,150,144B)",
-              "", "숨겨진 요소 자동 습득 선택 결과 ISO", f"{HIDDEN_EXPECT}  (4,518,150,144B)", "", "오우카 생존 선택 결과 ISO", f"{OUKA_EXPECT}  (4,518,150,144B)", "", "두 옵션 선택 결과 ISO", f"{BOTH_EXPECT}  (4,518,150,144B)"]
+              "", "숨겨진 요소 자동 습득 선택 결과 ISO", f"{HIDDEN_EXPECT}  (4,518,150,144B)", "", "오우카 생존·젠가 밸런스 묶음 선택 결과 ISO", f"{OUKA_EXPECT}  (4,518,150,144B)", "", "두 옵션 선택 결과 ISO", f"{BOTH_EXPECT}  (4,518,150,144B)"]
     (REL / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     stage = DIST / f"stage_{V}"
@@ -350,7 +379,7 @@ def publish():
     body=(W/'runtime/release_notes.md').read_text(encoding='utf-8')
     body+='\n\nZIP SHA-256: `'+sha(z)+'`\n'
     rel=api('POST',api_root+'/releases',json.dumps(dict(tag_name=V,target_commitish=head,
-        name='OGs 액셀 역할 교체 패치 '+V+' — 오우카 생존 및 라피에사쥬 합류',
+        name='OGs 액셀 역할 교체 패치 '+V+' — 오우카 생존·젠가 밸런스 선택 옵션',
         body=body,draft=True,prerelease=False),ensure_ascii=False).encode())
     for file,ctype in ((z,'application/zip'),(XDELTA_OUT,'application/octet-stream')):
         uploaded=api('POST',rel['upload_url'].split('{')[0]+'?name='+urllib.parse.quote(file.name),file.read_bytes(),ctype)
