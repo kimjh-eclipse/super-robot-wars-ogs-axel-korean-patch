@@ -12,7 +12,7 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』에서 라미아와 액셀�
 
 ■ 다운로드
 
-https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest
+https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261028/SRWOGS_AxelRoleSwap_kr_v20261028.zip
 
 ■ 이번 추가 — 워단 생존·합류
 
@@ -40,13 +40,13 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases
 
 빠른 패처에서 다섯 옵션을 각각 선택할 수 있습니다. 기본값은 모두 꺼짐입니다.
 
-1. 자금 +20% · PP 2배 [추가]
+1. 자금 +20% · PP 2배
 
 · 적 격추로 받는 자금은 20%, PP는 2배로 늘립니다.
 · 기존 보너스와 분배 계산을 거친 보상에 적용합니다.
 · 시나리오 이벤트로 지급하는 자금·PP는 변경하지 않습니다.
 
-2. 적 강화 [추가]
+2. 적 강화
 
 · 적 파일럿의 격투·사격·기량·방어·명중·회피를 각각 5 올립니다.
 · SP·레벨·격추수는 이 옵션으로 올리지 않습니다.
@@ -54,7 +54,7 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases
 · 파일럿의 능력치 보정은 현재 적 소속일 때 적용됩니다.
 · 기체 기본 개조 증가는 다음 시나리오 등에서 적이 새로 생성될 때 적용됩니다.
 
-3. 액셀·제오라 정신기 변경 [추가]
+3. 액셀·제오라 정신기 변경
 
 액셀
 · 불굴 → 철벽, 소비 SP 20
@@ -131,7 +131,7 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases
 
 슬레이드겔미르
 · OG2 37화 클리어 후 아군 기체로 추가합니다.
-· 기체만 지급하며 적 파일럿을 함께 영입하지 않습니다.
+· 37화에는 기체만 지급합니다. 워단은 이번 버전에서 44화 마지막 결전 후 별도로 합류합니다.
 · 원래 능력치·무장·전투 연출은 유지하고, 젠가를 포함한 아군 파일럿이 탑승할 수 있도록 조정했습니다.
 · 다이젠가와 슬레이드겔미르 사이의 젠가 갈아타기 호환성을 유지합니다.
 
@@ -188,23 +188,24 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases
 
 ■ xdelta로 적용할 경우
 
-xdelta는 기준 한글패치 v1.4.3s1 적용본에만 사용하며, 다섯 선택 옵션이 모두 꺼진 결과를 만듭니다. 무명 6화 보충 지급은 기본 적용됩니다. 선택 옵션을 사용하려면 빠른 패처를 이용해 주세요.
+기준 한글패치 v1.4.3s1 적용본에만 사용하며, 다섯 선택 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 보충은 기본 적용됩니다. 선택 옵션을 사용하려면 빠른 패처를 이용해 주세요.
 
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261027.1.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261028.xdelta" "출력.iso"
 
 ■ 파일 확인
 
-ZIP SHA256
-6827240F775FBF199AA3391BF8490B361C7AFE36EC6EC884D3B8D92D559D0604
+SRWOGS_AxelRoleSwap_kr_v20261028.zip
+크기: 39,744,310 바이트
+SHA256: C592509112D7F4478A378455A32537C94B0EE78509ECB7EEC1C249E7BD32B7BB
 
 ZIP 안의 SHA256SUMS.txt에서 개별 파일의 해시도 확인할 수 있습니다.
 
-패처의 32가지 옵션 조합 적용과 옵션 전환·백업 복원을 검사했고, 제보에 사용된 v20261025.1에서의 업데이트도 확인했습니다. 모든 시나리오와 전투 연출을 새로 실플레이한 것은 아닙니다.
+32개 옵션 조합의 전체 ISO 해시, 패처 내부 3,072개 전환, 실제 ISO의 32개 조합 적용과 대표 조합의 백업 복원을 확인했습니다. 이전 공개판에서 업데이트하는 경로와 공개 파일의 다운로드 해시도 확인했습니다. 모든 시나리오와 전투 연출을 새로 실플레이한 것은 아닙니다.
 
 ■ 링크
 
 릴리즈 및 변경내역
-https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261027.1
+https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261028
 
 설치 안내
 https://kimjh-eclipse.github.io/super-robot-wars-ogs-axel-korean-patch/
@@ -216,24 +217,3 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/issues
 
 게임 ISO는 배포하지 않습니다.
 패치가 도움이 되셨다면 GitHub 저장소에 스타(★)를 남겨 주세요. 감사합니다.
-■ xdelta 적용
-
-기준 한글패치 v1.4.3s1 적용본에만 사용합니다. 다섯 선택 옵션이 모두 꺼진 결과를 만듭니다. 옵션을 사용하려면 빠른 패처를 이용해 주세요.
-
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261028.xdelta" "출력.iso"
-
-워단 생존·삼식 추가 지급·무명 보충은 모든 옵션 조합과 xdelta에 기본 적용됩니다. 이전 버전과 결과 ISO가 다릅니다.
-
-■ 검증 및 다운로드
-
-32개 조합의 전체 ISO 해시, 패처 내부 3,072개 전환, 실제 ISO의 32개 조합 적용 및 대표 조합 백업 복원을 확인했습니다. 모든 시나리오와 전투 연출의 실플레이를 새로 완료한 것은 아닙니다.
-
-https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261028/SRWOGS_AxelRoleSwap_kr_v20261028.zip
-
-게임 ISO는 배포하지 않습니다.
-
-■ 배포 파일
-
-SRWOGS_AxelRoleSwap_kr_v20261028.zip
-크기: 39,744,310 바이트
-SHA256: C592509112D7F4478A378455A32537C94B0EE78509ECB7EEC1C249E7BD32B7BB
