@@ -1641,9 +1641,71 @@ def enemy_strength(apply=False):
         journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+
+def mumei_fallback(apply=False):
+    """OG2 episode 6 clear: native grant is a no-op if alias 600 is owned."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='aa4aaa2fa4ab136eba8904e7270c6623a3b0b22147c0bd96be5630c33cc0dc77',before
+    s=Scripts();n=74;insert=532;at,size=s.logos[n];rs=s.records(n)
+    assert len(rs)==535 and rs[insert][1][:4]==(0x9c,DEAD,2,0)
+    assert [r[1][0] for r in rs[526:532]]==[0x5f]*3+[0x5b]*3
+    old=s.data[at:at+size];b=bytearray(old);pos=u32(b,0x2c)+insert*96
+    # Table entries use record indexes including the per-script base (0x40).
+    lookup=[u32(b,u32(b,0x3c)+i*4) for i in range(u32(b,0x38))]
+    assert max(lookup)<insert+u32(b,0x20)
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8b,0x8c):
+            for j in ([6,7] if r[0]==0x8b else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j],(i,j)
+    b[pos:pos]=struct.pack('<24I',*command(0x5a,0x600))
+    for off in (4,0x6c):struct.pack_into('<I',b,off,u32(b,off)+96)
+    struct.pack_into('<I',b,0x28,len(rs)+1)
+    for off in (0x34,0x3c,0x44,0x4c,0x54,0x5c):
+        assert u32(b,off)>=pos;struct.pack_into('<I',b,off,u32(b,off)+96)
+    assert len(b)<=s.logos[n+1][0]-at and not any(s.data[at+size:at+len(b)])
+    restored=bytearray(b);del restored[pos:pos+96];restored[:0x70]=old[:0x70];assert restored==old
+    edits=[(MAP+at,s.data[at:at+len(b)],bytes(b)),
+           (MAP+0x557f800+12+n*8,struct.pack('<I',size),struct.pack('<I',len(b)))]
+    from validate_hidden_rewards import validate_mumei_fallback
+    checks=validate_mumei_fallback(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,a,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(a))==a;h.update(new);cursor+=len(a)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='OG2 episode 6 clear missing-Mumei fallback, native duplicate check; episode 5 grant preserved',
+        checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/mumei_fallback_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:
+                    f.seek(off);assert f.read(len(a))==a;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+            assert validate_mumei_fallback([],applied=True)==checks
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:f.seek(off);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--dump',type=int,nargs='+');p.add_argument('--find',type=str);p.add_argument('--plan',action='store_true');p.add_argument('--apply',action='store_true')
     p.add_argument('--grant-mumei',action='store_true')
+    p.add_argument('--mumei-fallback',action='store_true')
     p.add_argument('--ouka-survival',action='store_true')
     p.add_argument('--episode6-bonus',action='store_true')
     p.add_argument('--daizengar-durability',action='store_true')
@@ -1666,6 +1728,7 @@ if __name__=='__main__':
     p.add_argument('--daizengar-upgrade-cost',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.mumei_fallback:mumei_fallback(a.apply);sys.exit()
     if a.enemy_strength:enemy_strength(a.apply);sys.exit()
     if a.battle_rewards:battle_rewards(a.apply);sys.exit()
     if a.seolla_spirits:seolla_spirits(a.apply);sys.exit()

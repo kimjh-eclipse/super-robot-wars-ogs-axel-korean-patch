@@ -109,7 +109,7 @@ def main() -> None:
 
 
 
-def build_options():
+def build_options(common_fix=False):
     """Build independent optional deltas, hash every one of the 32 profiles.
 
     Existing v20261026 base and upgrade range packs are preserved byte-for-byte.
@@ -117,7 +117,7 @@ def build_options():
     """
     import json,concurrent.futures
     current_hash=file_hash(TARGET)
-    assert current_hash=='AA4AAA2FA4AB136EBA8904E7270C6623A3B0B22147C0BD96BE5630C33CC0DC77',current_hash
+    assert current_hash==('8DE813EC3C5C75E65DD1E2B1C3B4D358B141457F1CA10754365CC0AB7634F24C' if common_fix else 'AA4AAA2FA4AB136EBA8904E7270C6623A3B0B22147C0BD96BE5630C33CC0DC77'),current_hash
     meta=json.loads((ROOT/'runtime/release_build_metadata.json').read_text(encoding='utf-8'))
     def option(name):
         with (HERE/name).open('rb') as f:
@@ -190,11 +190,32 @@ def build_options():
             progress=int(done*100/TARGET.stat().st_size)//10
             if progress!=last:print('32 option hashes: %d%%'%(progress*10),flush=True);last=progress
     hashes=[h.hexdigest().upper() for h in hs]
-    assert hashes[:4]==expected,(hashes[:4],expected)
+    if not common_fix:assert hashes[:4]==expected,(hashes[:4],expected)
     assert hashes[31]==current_hash and len(set(hashes))==32
     def write_edits(f,es):
         f.write(struct.pack('<I',len(es)))
         for at,a,b in sorted(es):f.write(struct.pack('<QI',at,len(a)));f.write(a);f.write(b)
+    if common_fix:
+        previous=json.loads((ROOT/'runtime/optional_features_profiles.json').read_text(encoding='utf-8'))
+        m=json.loads((ROOT/'runtime/mumei_fallback_manifest.json').read_text(encoding='utf-8'))
+        assert m['applied'] and m['target_sha256'].upper()==current_hash
+        assert m['source_sha256'].upper()==previous['hashes'][31]
+        fixes=journal('mumei_fallback_manifest.json')
+        with TARGET.open('rb') as f:
+            for at,a,b in fixes:
+                f.seek(at);assert f.read(len(b))==b
+        dest=HERE/'OGS_common_fix.bin';tmp=dest.with_suffix('.tmp')
+        with tmp.open('wb') as f:
+            f.write(b'OGSFIX01');f.write(struct.pack('<Q',TARGET.stat().st_size));f.write(struct.pack('<I',32))
+            for mask in range(32):
+                f.write(struct.pack('<I',mask));f.write(bytes.fromhex(previous['hashes'][mask]));f.write(bytes.fromhex(hashes[mask]))
+            write_edits(f,fixes);f.flush();os.fsync(f.fileno())
+        tmp.replace(dest)
+        report=dict(previous,version='v20261027.1',iso_unchanged_sha256=current_hash,hashes=hashes,
+            previous_hashes=previous['hashes'],common_file_sha256=file_hash(dest))
+        (ROOT/'runtime/common_fix_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+        print('Built common fix; 32 new hashes verified',flush=True)
+        return
     dest=HERE/'OGS_optional_features.bin';tmp=dest.with_suffix('.tmp')
     with tmp.open('wb') as f:
         f.write(b'OGSOPT02');f.write(struct.pack('<Q',TARGET.stat().st_size));f.write(bytes.fromhex(expected[0]))
@@ -218,21 +239,25 @@ def build_options():
 def package_options():
     import json,zipfile
     report=json.loads((ROOT/'runtime/optional_features_patcher_e2e.json').read_text(encoding='utf-8'))
-    profiles=json.loads((ROOT/'runtime/optional_features_profiles.json').read_text(encoding='utf-8'))
+    profiles=json.loads((ROOT/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
     assert report['passed'] and len(report['real_iso_transitions'])==32
+    assert report['production_composition_selftest']==2048
     assert report['current_gameplay_iso_unchanged']==profiles['iso_unchanged_sha256']
     assert file_hash(TARGET)==profiles['iso_unchanged_sha256'],'Gameplay ISO changed during patcher build'
     assert file_hash(HERE/'OGS_optional_features.bin')==profiles['features_file_sha256']
+    assert file_hash(HERE/'OGS_common_fix.bin')==profiles['common_file_sha256']
     required=['OGS_AxelSwap_QuickPatch.exe','OGS_ISO_ranges.bin','OGS_hidden_rewards.bin',
-        'OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin','OGS_optional_features.bin']
+        'OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin','OGS_optional_features.bin','OGS_common_fix.bin']
     files=[HERE/name for name in required]+sorted(HERE.glob('OGS_ISO_ranges_upgrade*.bin'))
     assert all(p.exists() for p in files)
-    text="""슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261027
+    text="""슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261027.1
 
 OGs 한글패치 v1.4.3s1 적용 ISO 또는 이전 액셀 패치 적용 ISO를 선택합니다.
 OGS_AxelSwap_QuickPatch.exe를 실행하고 원하는 옵션을 체크한 뒤 [패치 적용]을 누르세요.
 기준 ISO: 4,518,150,144바이트
 기준 SHA256: 9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C
+
+무명 획득 보충: 5화 지급을 유지하며, 무명이 없는 경우 6화 종료 후 지급합니다. 이미 보유했다면 중복 지급하지 않습니다. 이 보충 처리는 옵션과 관계없이 적용됩니다.
 
 선택 옵션 (모두 기본 해제)
 1. 숨겨진 요소 자동 습득 (OG2): 기존 숨겨진 보상 자동 획득 옵션.
@@ -259,7 +284,7 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
 패치 후 에뮬레이터를 새로 실행하고 게임 내 메모리카드 세이브로 불러오세요.
 이전 세이브 스테이트는 이전 코드와 데이터를 복원하므로 사용하지 마세요.
 
-검증: 전체 32개 조합의 ISO SHA256, 패처 내 전환 1,024가지,
+검증: 전체 32개 조합의 ISO SHA256, 패처 내 전환 2,048가지,
 실제 ISO 32개 조합 적용 및 대표 조합 백업 복원 검증 통과.
 게임 플레이 전체를 새로 검증한 것은 아닙니다.
 
@@ -269,15 +294,15 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
     readme=HERE/'읽어주세요.txt';readme.write_text(text,encoding='utf-8-sig');files.append(readme)
     sums=HERE/'SHA256SUMS.txt'
     sums.write_text(''.join(file_hash(p)+'  '+p.name+'\n' for p in files),encoding='utf-8-sig');files.append(sums)
-    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261027.zip';out.parent.mkdir(exist_ok=True)
+    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261027.1.zip';out.parent.mkdir(exist_ok=True)
     tmp=out.with_suffix('.tmp')
     with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
-        for p in files:z.write(p,'OGS_AxelSwap_QuickPatch_v20261027/'+p.name)
+        for p in files:z.write(p,'OGS_AxelSwap_QuickPatch_v20261027.1/'+p.name)
     tmp.replace(out)
     with zipfile.ZipFile(out) as z:
         assert z.testzip() is None
         for p in files:
-            assert hashlib.sha256(z.read('OGS_AxelSwap_QuickPatch_v20261027/'+p.name)).hexdigest().upper()==file_hash(p)
+            assert hashlib.sha256(z.read('OGS_AxelSwap_QuickPatch_v20261027.1/'+p.name)).hexdigest().upper()==file_hash(p)
     result=dict(zip=str(out),sha256=file_hash(out),files=len(files),size=out.stat().st_size)
     (ROOT/'runtime/optional_features_package.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2))
@@ -285,5 +310,6 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
 if __name__ == "__main__":
     import sys
     if "--package-options" in sys.argv:package_options()
+    elif "--common-fix" in sys.argv:build_options(common_fix=True)
     elif "--options" in sys.argv:build_options()
     else:main()

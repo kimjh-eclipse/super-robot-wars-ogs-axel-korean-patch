@@ -1372,7 +1372,7 @@ def validate_optional_patcher():
     """Real executable, full-size disposable ISO; visit all 32 option profiles."""
     import subprocess,shutil,time
     qp=ROOT/'iso_quickpatch';exe=qp/'OGS_AxelSwap_QuickPatch.exe'
-    meta=json.loads((ROOT/'runtime/optional_features_profiles.json').read_text(encoding='utf-8'))
+    meta=json.loads((ROOT/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
     expected=meta['hashes'];test=qp/'TEST.iso';bak=Path(str(test)+'.ogsbak')
     assert not test.exists() and not bak.exists(),'Existing test artifacts require inspection'
     before=sha(ISO).upper();assert before==expected[31]
@@ -1404,11 +1404,87 @@ def validate_optional_patcher():
         assert sha(test).upper()==expected[31]
         call(test,'--restore');assert sha(test)==sha(base)
         print('PASS baseline -> all five options -> exact baseline restore',flush=True)
+        # The report came from v20261025.1. Exercise its real xdelta default
+        # through the unchanged legacy upgrade pack plus the common fix.
+        test.unlink();bak.unlink(missing_ok=True)
+        subprocess.run([str(ROOT.parent/'xdelta.exe'),'-d','-f','-s',str(base),str(ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261025.1.xdelta'),str(test)],check=True)
+        legacy=sha(test).upper()
+        call(test,'--cli');assert sha(test).upper()==expected[0]
+        call(test,'--restore');assert sha(test).upper()==legacy
+        # Prior public all-on ISO: undo only the new fallback on a test copy.
+        test.unlink();bak.unlink(missing_ok=True);shutil.copyfile(ISO,test)
+        fix=json.loads((ROOT/'runtime/mumei_fallback_manifest.json').read_text(encoding='utf-8'))
+        with test.open('r+b') as f:
+            for e in fix['edits']:
+                at=e['offset'];a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
+                f.seek(at);assert f.read(len(b))==b;f.seek(at);f.write(a)
+        assert sha(test).upper()==meta['previous_hashes'][31]
+        call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
+        call(test,'--restore');assert sha(test).upper()==meta['previous_hashes'][31]
+        print('PASS v20261025.1 and v20261027 upgrades/restores',flush=True)
+
         report=dict(passed=True,profile_count=32,real_iso_transitions=results,
-            baseline_apply_restore=True,backup_restore_profiles=[0,4,8,16,31],
-            idempotency_profiles=[0,31],production_composition_selftest=1024,
+            baseline_apply_restore=True,legacy_v20261025_1=True,previous_v20261027=True,backup_restore_profiles=[0,4,8,16,31],
+            idempotency_profiles=[0,31],production_composition_selftest=2048,
             current_gameplay_iso_unchanged=before)
         (ROOT/'runtime/optional_features_patcher_e2e.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         return report
     finally:
         test.unlink(missing_ok=True);bak.unlink(missing_ok=True)
+
+
+def validate_mumei_fallback(edits,applied=False):
+    s=Scripts();at,size=s.logos[74];rs=s.records(74)
+    if applied:
+        assert len(rs)==536 and rs[532][1][:3]==(0x5a,DEAD,0x600)
+        assert rs[533][1][:4]==(0x9c,DEAD,2,0)
+    else:
+        assert len(rs)==535 and rs[532][1][:4]==(0x9c,DEAD,2,0)
+        changed=next(new for off,old,new in edits if off==MAP+at)
+        co=u32(changed,0x2c)
+        assert struct.unpack_from('<24I',changed,co+532*96)[:3]==(0x5a,DEAD,0x600)
+        assert u32(changed,0x28)==536
+    assert s.records(138)[626][1][:3]==(0x5a,DEAD,0x600),'Original episode5 grant changed'
+    rewards=[r for a,r in rs[526:532]]
+    def setup(owned):
+        vm=VM();c=vm.cpu
+        with ISO.open('rb') as f:
+            f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        assert c.mem[0xb6da0c:0xb6da10]==b'UTbl'
+        c.write(0xb6da0c+12+0x600*2,0x15c,2)
+        c.write(0xb6ea18+12+0x15c*100+0x22,0xffff,2)
+        if owned:vm.op(command(0x5a,0x600))
+        return vm
+    for owned in (False,True):
+        before,after=setup(owned),setup(owned)
+        weapon_records=[]
+        for vm in (before,after):
+            for r in rewards:
+                vm.cpu.writes.clear();vm.op(r)
+                if vm is after and r[0]==0x5f:
+                    targets={a for a,n,pc in vm.cpu.writes if pc==0x33513c and n==2 and vm.cpu.read(a,2)==r[2]}
+                    assert len(targets)==1;weapon_records.append(targets.pop())
+        c=after.cpu;save=c.read(0x59d364,4)
+        oldpilot=bytes(c.mem[save+0x25cfc:save+0x25cfc+512*0x5c])
+        after.op(command(0x5a,0x600))
+        slot=c.run(0x1abc50,[save,0x600,0,0]);assert slot>=0
+        assert c.run(0x1a9b70,[save,slot,1])==1
+        assert c.run(0x1b1300,[save,slot,0])==-1
+        assert c.run(0x311200,[save,slot,1],limit=10000000)>0
+        assert c.mem[save+0x25cfc:save+0x25cfc+512*0x5c]==oldpilot
+        stable=bytes(c.mem[save:save+0x3b400])
+        after.op(command(0x5a,0x600));assert c.mem[save:save+0x3b400]==stable
+        if owned:
+            assert before.cpu.mem[save:save+0x3b400]==stable
+        else:
+            for i in range(512):
+                if i!=slot:
+                    p=save+0x6efc+i*0xd8;assert before.cpu.mem[p:p+0xd8]==c.mem[p:p+0xd8]
+        for p in weapon_records:
+            assert before.cpu.mem[p:p+8]==c.mem[p:p+8]
+        glob=c.read(0x59d36c,4)
+        for key in (0x1f,0x20,0x21):
+            for off in (0x103c,0x1264):assert before.cpu.read(glob+off+key,1)==c.read(glob+off+key,1)
+    return dict(missing_unit_granted_owned_visible_boardable=True,already_owned_no_duplicate=True,
+        repeated_grant_idempotent=True,original_six_rewards_preserved=True,original_episode5_grant_preserved=True,
+        pilot_records_unchanged=True,rendered_playthrough=False)
