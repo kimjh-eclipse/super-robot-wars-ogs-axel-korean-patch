@@ -1389,6 +1389,258 @@ def daizengar_arsenal_balance(apply=False):
         journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+def axel_spirits(apply=False):
+    """Axel only: Iron Wall 20, twin Soul 50, Awakening 50."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='c3a1525f4754ec88dd5812cb52e3c563a30558ee50e6b43a212b881e94924753',before
+    edits=[]
+    for base in (0x5DA000,0x83F000):
+        with ISO.open('rb') as f:
+            f.seek(base);blob=f.read(0x190000)
+        assert blob[0x13B484:0x13B488]==b'Plot'
+        for idx in (53,54):
+            p=0x13B490+idx*0x94;r=blob[p:p+0x94]
+            assert struct.unpack_from('<H',r,0x48)[0]==0x14
+            assert r[0x6C:0x80]==bytes([7,4,17,2,21,10,10,10,45,40,15,55,1,1,8,20,23,31,35,40])
+            for rel,old,new in ((0x6D,4,5),(0x73,10,20),(0x77,55,50),(0x7E,35,37),(0x7F,40,50)):
+                edits.append((base+p+rel,bytes([old]),bytes([new])))
+    from validate_hidden_rewards import validate_axel_spirits
+    checks=validate_axel_spirits(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Axel Iron Wall SP20, twin Soul SP50, Awakening SP50; levels unchanged',
+        checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/axel_spirits_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+            assert validate_axel_spirits([],applied=True)==checks
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def seolla_spirits(apply=False):
+    """Seolla: Snipe -> Flash (10), Iron Wall -> Accel (10)."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='91ba9d6b623a2e74eae3a4bbbc4754c34e0ce6e973a05b7be4327fcc6d24389e',before
+    edits=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);blob=f.read(0x190000)
+            assert blob[0x13B484:0x13B488]==b'Plot'
+            for idx in (159,160,370):
+                p=0x13B490+idx*0x94;r=blob[p:p+0x94]
+                assert r[0x6C:0x80]==bytes([6,5,7,20,2,24,15,30,10,10,35,60,1,1,7,12,23,35,32,40])
+                for rel,old,new in ((0x6D,5,9),(0x6F,20,3),(0x73,30,10)):
+                    edits.append((base+p+rel,bytes([old]),bytes([new])))
+    from validate_hidden_rewards import validate_seolla_spirits
+    checks=validate_seolla_spirits(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Seolla Snipe -> Flash SP10, Iron Wall -> Accel SP10; levels and skills unchanged',
+        checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/seolla_spirits_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+            assert validate_seolla_spirits([],applied=True)==checks
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+def battle_rewards(apply=False):
+    """Final defeat rewards: PP x2 per recipient, funds x6/5 after bonuses."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='9548f41307d8d3af6cceeabafe672d905b77c0055ddc04dbc3141e8982b9b218',before
+    def elf(pc):return 0x94880+pc-0x100000
+    # Retired refit-label cave is zero and has no remaining references.
+    cave=0x499D38
+    code=struct.pack('<13I',0x00101040,0x00501021,0x00021040,0x24030005,
+        0x0043001B,0x00008012,0x8FA2011C,0x10400003,0,
+        0x08000000|(0x31D7E4>>2),0,0x08000000|(0x31D7F8>>2),0)
+    edits=[(elf(cave),bytes(len(code)),code),
+        (elf(0x31D7D8),struct.pack('<2I',0x8FA2011C,0x10400006),struct.pack('<2I',0x08000000|(cave>>2),0)),
+        # Load accumulator in the branch delay; double only the finalized PP
+        # amount after all split/skill/minimum rules, before adding to totals.
+        (elf(0x31DA6C),bytes(4),struct.pack('<I',0x8E030244)),
+        (elf(0x31DA78),struct.pack('<I',0x8E030244),struct.pack('<I',0x00118840))]
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            f.seek(off);assert f.read(len(old))==old,hex(off)
+    from validate_hidden_rewards import validate_battle_rewards
+    checks=validate_battle_rewards(edits)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Defeat reward PP x2, funds x1.2; after native bonuses/splits; event grants unchanged',
+        checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/battle_rewards_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+            assert validate_battle_rewards([],applied=True)==checks
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
+def enemy_strength_plan():
+    """Enemy combat totals +5; enemy UNTD body/weapon base upgrades +1.
+
+    Repack twelve redundant callback descriptor initializations into an
+    equivalent loop. Helpers occupy only the reclaimed instruction bytes.
+    No text, master pilot record, save or scenario record is rewritten.
+    """
+    def elf(pc):return 0x94880+pc-0x100000
+    def I(op,rs,rt,imm):return op<<26|rs<<21|rt<<16|(imm&0xffff)
+    def R(rs,rt,rd,fn):return rs<<21|rt<<16|rd<<11|fn
+    def J(pc,link=False):return (3 if link else 2)<<26|pc>>2
+    start,end=0x2002A8,0x2003C4
+    # t0/t1/t2 already equal 0x540000. Preserve all original final GPR/FPR
+    # values and the exact twelve x three descriptor stores.
+    init=[I(9,8,10,-0x73ac),I(9,0,9,12),
+          I(0x39,10,2,0),I(0x39,10,1,4),I(0x39,10,0,8),
+          I(9,10,10,16),I(9,9,9,-1),I(7,9,0,-6),0,
+          I(15,0,10,0x54),I(15,0,9,0x54),I(15,0,5,0x54),J(end),0]
+    pilot=start+len(init)*4
+    # Same relation bit as native 1FADD0 -> 191540: enemy to player side 0.
+    # s2 is the displaced move s2,a1, the callee's input stat accumulator.
+    stats=[I(0x23,4,2,0x10),R(5,0,18,0x2d),I(4,2,0,9),I(0x24,4,3,0x74),
+           I(12,3,3,7),R(2,3,2,0x21),I(15,0,3,0x17),R(2,3,2,0x21),
+           I(0x24,2,2,0x608c),I(12,2,2,1),I(0x15,2,0,1),I(9,18,18,5),
+           0x03e00008,0]
+    spawn=pilot+len(stats)*4
+    # Default hostile factions are 2/3/4 (native 18F9E0 defaults). Modify
+    # only the copied UNTD six difficulty fields, before native cap/store.
+    upgrades=[I(0x23,29,3,0xa8),I(9,3,2,-2),I(11,2,2,3),I(4,2,0,8),
+              I(9,29,4,0xd8),I(9,0,5,6),I(0x23,4,2,0),I(9,2,2,1),
+              I(0x2b,4,2,0),I(9,5,5,-1),I(7,5,0,-5),I(9,4,4,4),
+              0x03e00008,I(10,3,1,6)]
+    code=struct.pack('<%dI'%(len(init)+len(stats)+len(upgrades)),*(init+stats+upgrades))
+    assert start+len(code)<=end
+    code+=bytes(end-start-len(code))
+    with ISO.open('rb') as f:
+        f.seek(elf(start));old=f.read(end-start)
+        # Fail closed: all replaced instructions must have the known store/
+        # address-only shape. Native init equivalence is checked separately.
+        assert u32(old,0)==0xE5428C54 and u32(old,len(old)-4)==0xE5008D0C
+        edits=[(elf(start),old,code)]
+        for fn in [0x1F8850,0x1F86C0,0x1F8530,0x1F83A0,0x1F8210,0x1F8080]:
+            f.seek(elf(fn+0x18));a=f.read(8)
+            assert a==struct.pack('<2I',0x00A0902D,0x7FB00000),(hex(fn),a.hex())
+            edits.append((elf(fn+0x18),a[:4],struct.pack('<I',J(pilot,True))))
+        f.seek(elf(0x1D5A08));a=f.read(8)
+        assert a==struct.pack('<2I',0x8FA300A8,0x28610006),a.hex()
+        edits.append((elf(0x1D5A08),a,struct.pack('<2I',J(spawn,True),0)))
+    return edits,dict(pilot_helper=pilot,spawn_helper=spawn,initializer_start=start,initializer_end=end)
+
+
+def enemy_strength(apply=False):
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='4b79877f3dd05cdcc89fddd8e916691cb2026f81393b1c3455569de92a4e69a1',before
+    edits,layout=enemy_strength_plan()
+    from validate_hidden_rewards import validate_enemy_strength
+    checks=validate_enemy_strength(edits,layout)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,old,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Hostile pilot six combat totals +5; spawn enemy body/weapon upgrades +1 at each difficulty; native caps retained',
+        layout=layout,checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/enemy_strength_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:
+                    f.seek(off);assert f.read(len(old))==old;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+            assert validate_enemy_strength([],layout,applied=True)==checks
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,old,new in edits:f.seek(off);f.write(old)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--dump',type=int,nargs='+');p.add_argument('--find',type=str);p.add_argument('--plan',action='store_true');p.add_argument('--apply',action='store_true')
     p.add_argument('--grant-mumei',action='store_true')
@@ -1400,6 +1652,10 @@ if __name__=='__main__':
     p.add_argument('--daizengar-unified',action='store_true')
     p.add_argument('--daizengar-animation-links',action='store_true')
     p.add_argument('--daizengar-arsenal-balance',action='store_true')
+    p.add_argument('--axel-spirits',action='store_true')
+    p.add_argument('--seolla-spirits',action='store_true')
+    p.add_argument('--battle-rewards',action='store_true')
+    p.add_argument('--enemy-strength',action='store_true')
     p.add_argument('--melee-range-two',action='store_true')
     p.add_argument('--weapon-balance',action='store_true')
     p.add_argument('--grant-sladegelmir',action='store_true')
@@ -1410,6 +1666,10 @@ if __name__=='__main__':
     p.add_argument('--daizengar-upgrade-cost',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.enemy_strength:enemy_strength(a.apply);sys.exit()
+    if a.battle_rewards:battle_rewards(a.apply);sys.exit()
+    if a.seolla_spirits:seolla_spirits(a.apply);sys.exit()
+    if a.axel_spirits:axel_spirits(a.apply);sys.exit()
     if a.daizengar_arsenal_balance:daizengar_arsenal_balance(a.apply);sys.exit()
     if a.daizengar_animation_links:daizengar_animation_links(a.apply);sys.exit()
     if a.daizengar_unified:daizengar_unified(a.apply);sys.exit()

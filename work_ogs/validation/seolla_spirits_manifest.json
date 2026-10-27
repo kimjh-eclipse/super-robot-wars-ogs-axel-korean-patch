@@ -1,0 +1,131 @@
+{
+  "source_sha256": "91ba9d6b623a2e74eae3a4bbbc4754c34e0ce6e973a05b7be4327fcc6d24389e",
+  "target_sha256": "9548f41307d8d3af6cceeabafe672d905b77c0055ddc04dbc3141e8982b9b218",
+  "applied": true,
+  "feature": "Seolla Snipe -> Flash SP10, Iron Wall -> Accel SP10; levels and skills unchanged",
+  "checks": {
+    "native_getters_verified": true,
+    "all_three_seolla_variants_verified": true,
+    "spirit_names": [
+      "집중",
+      "가속",
+      "필중",
+      "번뜩임",
+      "열혈",
+      "사랑"
+    ],
+    "sp_costs": [
+      15,
+      10,
+      10,
+      10,
+      35,
+      60
+    ],
+    "levels": [
+      1,
+      1,
+      7,
+      12,
+      23,
+      35
+    ],
+    "twin_spirit": "인연",
+    "twin_sp_cost": 40,
+    "skills_and_all_other_master_bytes_preserved": true,
+    "previous_axel_spirit_changes_preserved": true,
+    "live_menu_verified": false
+  },
+  "edits": [
+    {
+      "offset": 7450857,
+      "before": "05",
+      "after": "09"
+    },
+    {
+      "offset": 7450859,
+      "before": "14",
+      "after": "03"
+    },
+    {
+      "offset": 7450863,
+      "before": "1e",
+      "after": "0a"
+    },
+    {
+      "offset": 7451005,
+      "before": "05",
+      "after": "09"
+    },
+    {
+      "offset": 7451007,
+      "before": "14",
+      "after": "03"
+    },
+    {
+      "offset": 7451011,
+      "before": "1e",
+      "after": "0a"
+    },
+    {
+      "offset": 7482085,
+      "before": "05",
+      "after": "09"
+    },
+    {
+      "offset": 7482087,
+      "before": "14",
+      "after": "03"
+    },
+    {
+      "offset": 7482091,
+      "before": "1e",
+      "after": "0a"
+    },
+    {
+      "offset": 9961705,
+      "before": "05",
+      "after": "09"
+    },
+    {
+      "offset": 9961707,
+      "before": "14",
+      "after": "03"
+    },
+    {
+      "offset": 9961711,
+      "before": "1e",
+      "after": "0a"
+    },
+    {
+      "offset": 9961853,
+      "before": "05",
+      "after": "09"
+    },
+    {
+      "offset": 9961855,
+      "before": "14",
+      "after": "03"
+    },
+    {
+      "offset": 9961859,
+      "before": "1e",
+      "after": "0a"
+    },
+    {
+      "offset": 9992933,
+      "before": "05",
+      "after": "09"
+    },
+    {
+      "offset": 9992935,
+      "before": "14",
+      "after": "03"
+    },
+    {
+      "offset": 9992939,
+      "before": "1e",
+      "after": "0a"
+    }
+  ]
+}

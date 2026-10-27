@@ -1056,4 +1056,359 @@ def main():
     report=dict(passed=True,iso_applied=applied,checks=checks,live_playthrough=False)
     (ROOT/'runtime/hidden_rewards_validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
+def validate_axel_spirits(edits,applied=False):
+    """Execute unmodified native spirit ID/cost/level getters on current tables."""
+    vm=VM();c=vm.cpu;master=c.read(0x59D360,4)
+    with ISO.open('rb') as f:
+        f.seek(0x94880);c.mem[0x100000:0x49A778]=f.read(0x49A778-0x100000)
+        f.seek(0x5DA000);original=f.read(0x190000)
+        f.seek(0x83F000);im=f.read(0x190000)
+    blob=bytearray(original);im=bytearray(im)
+    for off,old,new in edits:
+        target=blob if off<0x83F000 else im
+        rel=off-(0x5DA000 if off<0x83F000 else 0x83F000)
+        assert target[rel:rel+len(old)]==old
+        target[rel:rel+len(old)]=new
+    # Independent desired-record check against the released data: every other
+    # Plot byte (skills, levels, enemy Lamia, voices and masks) must be exact.
+    changes={0x6D:(4,5),0x73:(10,20),0x77:(55,50),0x7E:(35,37),0x7F:(40,50)}
+    journal=ROOT/'runtime/axel_spirits_manifest.json'
+    if applied:
+        m=json.loads(journal.read_text(encoding='utf-8'))
+        restored=bytearray(blob)
+        for e in m['edits']:
+            rel=e['offset']-0x5DA000
+            if 0<=rel<len(restored):restored[rel:rel+1]=bytes.fromhex(e['before'])
+        original=bytes(restored)
+    # Other existing Plot records need not match across SHARED/IM. Check only
+    # Axel's two targeted records; do not normalize unrelated archive data.
+    for idx in (53,54):
+        p=0x13B490+idx*0x94
+        assert blob[p:p+0x94]==im[p:p+0x94]
+    for idx in range((0x14988C-0x13B490)//0x94):
+        p=0x13B490+idx*0x94;expected=bytearray(original[p:p+0x94])
+        if idx in (53,54):
+            for rel,(old,new) in changes.items():
+                assert expected[rel]==old
+                expected[rel]=new
+        assert blob[p:p+0x94]==expected,idx
+    def name(sid):
+        p=0x155BFC+u32(blob,0x155C08+sid*4)
+        return decode(blob[p:blob.index(0,p)])
+    assert [name(i) for i in (7,5,17,2,21,10,37)]==['필중','철벽','기백','열혈','직격','각성','혼']
+    for obj,start,end in ((0x88,0x13A478,0x13B484),(0xA0,0x13B484,0x14988C)):
+        dest=c.read(master+obj,4)
+        assert c.mem[dest:dest+4]==blob[start:start+4]
+        c.mem[dest:dest+end-start]=blob[start:end]
+    mapped=[key for key in range(4096) if struct.unpack_from('<H',blob,0x13A484+key*2)[0] in (53,54)]
+    assert mapped==[0x3F4,0x4A4,0x4A5,0x521]
+    ptable=c.read(master+0x88,4)
+    # Exercise spare Plot54 too without modifying the real ISO's PTbl.
+    for key,plot in [(key,53) for key in mapped]+[(0x4A5,54)]:
+        if plot==54:c.write(ptable+12+key*2,54,2)
+        ids=[c.run(0x1A3680,[master,key,i]) for i in range(6)]
+        assert ids==[7,5,17,2,21,10],(hex(key),ids)
+        assert [c.run(0x1A35C0,[master,key,i]) for i in range(6)]==[10,20,45,40,15,50]
+        assert [c.run(0x1A3500,[master,key,i]) for i in range(6)]==[1,1,8,20,23,31]
+        assert c.run(0x1A3480,[master,key])==37
+        assert c.run(0x1A3400,[master,key])==50
+    return dict(native_getters_verified=True,all_four_allied_raw_keys_verified=True,
+        spare_plot54_verified=True,spirit_ids=[7,5,17,2,21,10],sp_costs=[10,20,45,40,15,50],
+        levels=[1,1,8,20,23,31],twin_spirit='혼',twin_sp_cost=50,
+        other_pilot_records_and_all_other_plot_bytes_preserved=True,
+        target_records_identical_in_both_master_copies=True,live_menu_verified=False)
+
+def validate_seolla_spirits(edits,applied=False):
+    """Native getters verify all three Seolla variants and preserve all else."""
+    vm=VM();c=vm.cpu;master=c.read(0x59D360,4)
+    with ISO.open('rb') as f:
+        f.seek(0x94880);c.mem[0x100000:0x49A778]=f.read(0x49A778-0x100000)
+        archives={}
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);archives[base]=f.read(0x190000)
+    proposed={base:bytearray(blob) for base,blob in archives.items()}
+    for off,old,new in edits:
+        base=0x5DA000 if off<0x83F000 else 0x83F000;rel=off-base
+        assert proposed[base][rel:rel+len(old)]==old
+        proposed[base][rel:rel+len(old)]=new
+    if applied:
+        journal=json.loads((ROOT/'runtime/seolla_spirits_manifest.json').read_text(encoding='utf-8'))
+        archives={base:bytearray(blob) for base,blob in archives.items()}
+        for e in journal['edits']:
+            base=0x5DA000 if e['offset']<0x83F000 else 0x83F000;rel=e['offset']-base
+            archives[base][rel:rel+1]=bytes.fromhex(e['before'])
+    changes={0x6D:(5,9),0x6F:(20,3),0x73:(30,10)}
+    for base,original in archives.items():
+        expected=bytearray(original)
+        for idx in (159,160,370):
+            p=0x13B490+idx*0x94
+            assert struct.unpack_from('<H',expected,p+0x48)[0] in (84,215)
+            for rel,(old,new) in changes.items():
+                assert expected[p+rel]==old;expected[p+rel]=new
+        assert proposed[base]==expected
+    blob=proposed[0x5DA000]
+    def name(sid):
+        p=0x155BFC+u32(blob,0x155C08+sid*4)
+        return decode(blob[p:blob.index(0,p)])
+    assert [name(i) for i in (6,9,7,3,2,24,32)]==['집중','가속','필중','번뜩임','열혈','사랑','인연']
+    for obj,start,end in ((0x88,0x13A478,0x13B484),(0xA0,0x13B484,0x14988C)):
+        dest=c.read(master+obj,4);assert c.mem[dest:dest+4]==blob[start:start+4]
+        c.mem[dest:dest+end-start]=blob[start:end]
+    mapped=[key for key in range(4096) if struct.unpack_from('<H',blob,0x13A484+key*2)[0] in (159,160,370)]
+    assert mapped==[0x466,0x467,0x516]
+    for key in mapped:
+        assert [c.run(0x1A3680,[master,key,i]) for i in range(6)]==[6,9,7,3,2,24]
+        assert [c.run(0x1A35C0,[master,key,i]) for i in range(6)]==[15,10,10,10,35,60]
+        assert [c.run(0x1A3500,[master,key,i]) for i in range(6)]==[1,1,7,12,23,35]
+        assert c.run(0x1A3480,[master,key])==32 and c.run(0x1A3400,[master,key])==40
+    # Earlier requested Axel changes must survive this update unchanged.
+    assert [c.run(0x1A3680,[master,0x4A5,i]) for i in range(6)]==[7,5,17,2,21,10]
+    assert [c.run(0x1A35C0,[master,0x4A5,i]) for i in range(6)]==[10,20,45,40,15,50]
+    assert c.run(0x1A3480,[master,0x4A5])==37 and c.run(0x1A3400,[master,0x4A5])==50
+    return dict(native_getters_verified=True,all_three_seolla_variants_verified=True,
+        spirit_names=['집중','가속','필중','번뜩임','열혈','사랑'],sp_costs=[15,10,10,10,35,60],
+        levels=[1,1,7,12,23,35],twin_spirit='인연',twin_sp_cost=40,
+        skills_and_all_other_master_bytes_preserved=True,previous_axel_spirit_changes_preserved=True,
+        live_menu_verified=False)
+
+def validate_battle_rewards(edits,applied=False):
+    """Run the original reward routine against controlled property fixtures.
+
+    Property lookup/difficulty dependencies supply inputs; all arithmetic,
+    eligibility, split, minimum and accumulation code executes from the ISO.
+    This is not a rendered battle or a full native property integration test.
+    """
+    with ISO.open('rb') as f:
+        f.seek(0x94880);current=f.read(0x49A778-0x100000)
+    original=bytearray(current);patched=bytearray(current)
+    if applied:
+        journal=json.loads((ROOT/'runtime/battle_rewards_manifest.json').read_text(encoding='utf-8'))
+        for e in journal['edits']:
+            rel=e['offset']-0x94880
+            assert original[rel:rel+len(bytes.fromhex(e['after']))]==bytes.fromhex(e['after'])
+            original[rel:rel+len(bytes.fromhex(e['before']))]=bytes.fromhex(e['before'])
+    else:
+        for off,old,new in edits:
+            rel=off-0x94880;assert patched[rel:rel+len(old)]==old
+            patched[rel:rel+len(old)]=new
+    # No calls/jumps or pointer records referenced the retired label cave.
+    cave=0x499D38
+    assert original[cave-0x100000:cave-0x100000+52]==bytes(52)
+    for needle in (cave,(2<<26)|(cave>>2),(3<<26)|(cave>>2)):
+        assert not any(u32(original,i)==needle for i in range(0,len(original)-3,4))
+    B=0x1800000
+    class RewardCPU(CPU):
+        def step(self):
+            pc=self.pc;v=None
+            if pc==0x1FE9D0:
+                attr=self.r[5]&0xFFFFFFFF
+                values={0x130:1,0x1A2:1,0x1A0:0,0x6D:self.cfg['funds'],
+                    0x119:self.cfg.get('funds_extra',0),0x17B:self.cfg.get('luck',0),
+                    0xCF:50 if self.cfg.get('ace') else 0,
+                    0x10D:0 if self.cfg.get('ace_percent') else -1,
+                    0x6F:self.cfg['pp'],0x11B:self.cfg.get('pp_extra',0),
+                    0x196:self.cfg.get('training',0),0x1A6:0 if self.cfg.get('map_half') else -1,
+                    0x9C:self.cfg.get('map_half',0),0xBE:self.cfg.get('copilot_half',0),0x189:0}
+                if attr==0x1B8:
+                    v=2 if self.cfg.get('money_skill' if self.r[7]==0x18 else 'full_sub_pp') else 0
+                else:
+                    assert attr in values,hex(attr);v=values[attr]
+            elif pc==0x19A830:v=self.cfg.get('difficulty',2)
+            elif pc==0x1A0D90:v=self.cfg.get('ace_percent',0)
+            elif pc==0x1EF2D0:v=int(self.r[5]>=self.cfg.get('pilots',1))
+            if v is not None:
+                self.visits[pc]+=1;self.count+=1;self.put(2,v);self.pc=self.r[31]&0xFFFFFFFF;self.pending=None
+            else:super().step()
+    cpus=[]
+    for code in (original,patched):
+        c=RewardCPU(ram);c.mem[0x100000:0x49A778]=code;cpus.append(c)
+    cases=[]
+    for side in (0,1):
+        for value in (0,1,2,5,7,100,65535):
+            cases.append(dict(side=side,funds=value,pp=value if value<256 else 255))
+        for extras in ({'luck':1},{'ace':1},{'money_skill':1},{'ace_percent':17},
+                {'luck':1,'ace':1,'money_skill':1,'ace_percent':23,'training':1},
+                {'training':1},{'map_half':1},{'copilot_half':1},
+                {'participants':4,'pilots':4},{'participants':4,'pilots':4,'training':1,'map_half':1},
+                {'participants':4,'full_sub_pp':1},{'dead':False},
+                {'funds_extra':173,'pp_extra':3}):
+            cases.append(dict(side=side,funds=1237,pp=7,**extras))
+        for mode in (0,1):cases.append(dict(side=side,funds=531,pp=5,difficulty=mode,ace=True))
+    for cfg in cases:
+        initial=bytearray(0x3000)
+        struct.pack_into('<I',initial,0,B+0x12A0)
+        for group in (0x12A0,0x1920):
+            for i in range(4):struct.pack_into('<i',initial,group+i*0x1A0+0x18,-1)
+        allies=0x1920 if cfg['side'] else 0x12A0
+        targets=0x12A0 if cfg['side'] else 0x1920
+        for i in range(cfg.get('participants',1)):
+            struct.pack_into('<i',initial,allies+i*0x1A0+0x18,0)
+        if cfg.get('participants',1)==4:
+            struct.pack_into('<I',initial,0x1FB4,1)
+            for i in (2,3):initial[(0x950 if cfg['side'] else 0)+i*0x254+0x2D]=1
+        struct.pack_into('<i',initial,targets+0x18,0)
+        enemy_result=0 if cfg['side'] else 0x950
+        struct.pack_into('<i',initial,enemy_result+4,0 if cfg.get('dead',True) else 1)
+        pp_positions=[(0x950 if cfg['side'] else 0)+i*0x254+0x244+j*4 for i in range(4) for j in range(4)]
+        for p in pp_positions:struct.pack_into('<I',initial,p,11)
+        for p in (0x1FEC,0x1FF0):struct.pack_into('<I',initial,p,137)
+        results=[]
+        for c in cpus:
+            c.mem[B:B+len(initial)]=initial;c.cfg=cfg;c.writes.clear();c.visits.clear()
+            c.run(0x31D4E0,[B,cfg['side']])
+            results.append(bytes(c.mem[B:B+len(initial)]))
+        old,new=results
+        if cfg.get('participants')==4 and cfg.get('pilots')==4:
+            assert all(u32(old,p)>11 for p in pp_positions),'All 16 recipients must actually receive PP'
+        for p in pp_positions:
+            assert u32(new,p)-11==2*(u32(old,p)-11),(cfg,hex(p),u32(old,p),u32(new,p))
+        for p in (0x1FEC,0x1FF0):
+            assert u32(new,p)-137==(u32(old,p)-137)*6//5,(cfg,hex(p),u32(old,p),u32(new,p))
+        a=bytearray(old);b=bytearray(new)
+        for p in pp_positions+[0x1FEC,0x1FF0]:a[p:p+4]=b[p:p+4]
+        assert a==b,('Unrelated battle context changed',cfg)
+    # Scripted grants and every master table remain outside these code edits.
+    return dict(native_reward_arithmetic_verified=True,controlled_property_fixtures=True,
+        full_native_property_integration_verified=False,scenarios=len(cases),
+        pp_multiplier=2,funds_numerator=6,funds_denominator=5,rounding='truncate',
+        both_battle_sides_and_all_16_recipient_slots_tested=True,
+        luck_ace_difficulty_training_splits_and_minimum_pp_tested=True,
+        existing_accumulated_rewards_not_multiplied=True,no_reward_without_defeat=True,
+        all_unrelated_battle_context_bytes_preserved=True,script_grants_and_master_data_unchanged=True,
+        live_battle_verified=False)
+
 if __name__=='__main__':main()
+
+
+def validate_enemy_strength(edits,layout,applied=False):
+    """Execute both complete native getter and UNTD loader; no call stubs."""
+    with ISO.open('rb') as f:
+        f.seek(0x94880);current=f.read(0x482980)
+    old=bytearray(current);new=bytearray(current)
+    if applied:
+        es=json.loads((ROOT/'runtime/enemy_strength_manifest.json').read_text(encoding='utf-8'))['edits']
+        for e in es:
+            at=e['offset']-0x94880;a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
+            assert old[at:at+len(b)]==b;old[at:at+len(a)]=a
+    else:
+        for off,a,b in edits:
+            at=off-0x94880;assert new[at:at+len(a)]==a;new[at:at+len(b)]=b
+    def machine(code):
+        c=CPU(ram);c.mem[0x100000:0x582980]=code;return c
+    # Prove the compact initialization has identical final registers, FPRs
+    # and complete memory, including untouched descriptor attribute numbers.
+    cs=[machine(code) for code in (old,new)]
+    for c in cs:
+        c.r=[0x123000+i for i in range(32)];c.r[0]=0
+        for i in (8,9,10):c.r[i]=0x540000
+        c.fpr=[0x13570000+i for i in range(32)]
+        c.run(layout['initializer_start'],stop=layout['initializer_end'])
+    assert cs[0].r==cs[1].r and cs[0].fpr==cs[1].fpr
+    # The code itself intentionally differs; data writes must be identical.
+    assert {(a,n) for a,n,pc in cs[0].writes}=={(a,n) for a,n,pc in cs[1].writes}
+    for a,n,pc in cs[0].writes:assert cs[0].mem[a:a+n]==cs[1].mem[a:a+n]
+    # Native getter integration on an actual save unit with an assigned pilot.
+    obj=0x1800000;stage=0x1400000
+    cs=[machine(code) for code in (old,new)]
+    save=cs[0].read(0x59D364,4)
+    for c in cs:
+        c.write(obj+4,save,4);c.write(obj+0x18,0,4);c.write(obj+0x10,stage,4);c.write(obj+0x74,0,1)
+        for i,v in enumerate([0x1c,0x1c,0x1b,0x17,0x1f,0]):c.write(stage+0x17608c+i,v,1)
+        c.write(0x5879F0-0x4ed0,0,1)
+        assert c.run(0x1FE9D0,[obj,0x130,0,0,0])==0
+    assert cs[0].mem[0x537ea0:0x539c00]==cs[1].mem[0x537ea0:0x539c00]
+    stats=0
+    for side in range(6):
+        for hostile in (False,True):
+            for c in cs:
+                c.write(obj+0x74,side,1)
+                c.write(stage+0x17608c+side,int(hostile),1)
+            for attr in range(0xd4,0xda):
+                a,b=[c.run(0x1FE9D0,[obj,attr,0,0,0]) for c in cs]
+                assert b==a+(5 if hostile else 0),(side,hostile,hex(attr),a,b)
+                stats+=1
+    # A missing map context must leave the input unchanged.
+    for c in cs:c.write(obj+0x10,0,4)
+    for attr in range(0xd4,0xda):
+        assert cs[0].run(0x1FE9D0,[obj,attr,0,0,0])==cs[1].run(0x1FE9D0,[obj,attr,0,0,0])
+    # Complete native UNTD initialization, allocation, clamps and weapon loop.
+    s=Scripts();wp=0x5071000;at=wp+u32(s.data,wp+8+66*8)
+    template=bytearray(s.data[at+44:at+44+336]);assert u32(template,0)==0x23
+    spawn_cases=0;body_cases=0;weapon_cases=0
+    for difficulty in range(3):
+        for side in range(6):
+            for base in (0,5,15):
+                rec=bytearray(template);struct.pack_into('<I',rec,8,side)
+                for j in range(14,20):struct.pack_into('<I',rec,j*4,base)
+                outcomes=[]
+                for code in (old,new):
+                    c=machine(code);save=c.read(0x59D364,4)
+                    ctx=0x1600000;src=0x1700000
+                    c.write(ctx+0x28,0x59b240,4);c.write(ctx+0x346d4,src,4);c.mem[src:src+336]=rec
+                    diff=c.read(0x59D36C,4);c.write(diff+0xf60,0,4);c.write(diff+0xf68,difficulty,4)
+                    before=bytes(c.mem[save+0x6efc:save+0x6efc+512*0xd8])
+                    assert c.run(0x1D5970,[ctx,0])==1
+                    changed=[i for i in range(512) if c.mem[save+0x6efc+i*0xd8:save+0x6efc+(i+1)*0xd8]!=before[i*0xd8:(i+1)*0xd8]]
+                    assert len(changed)==1,changed
+                    slot=changed[0]
+                    body=[c.run(0x1AF860,[save,a,slot,0]) for a in range(0xd,0x11)]
+                    arg=0x1780000;c.write(arg,0,4)
+                    weapon=c.run(0x1AF860,[save,0xc,slot,arg])
+                    outcomes.append((body,weapon,bytes(c.mem[src:src+336])))
+                add=int(side in (2,3,4))
+                for a,b in zip(outcomes[0][0],outcomes[1][0]):
+                    assert b==min(a+add,15),(difficulty,side,base,a,b);body_cases+=1
+                assert outcomes[1][1]==min(outcomes[0][1]+add,15),(difficulty,side,base,outcomes)
+                weapon_cases+=1
+                assert outcomes[0][2]==outcomes[1][2]==bytes(rec)
+                spawn_cases+=1
+    return dict(initializer_descriptor_equivalence=True,native_getter_cases=stats,
+        missing_context_cases=6,native_spawn_cases=spawn_cases,body_upgrade_assertions=body_cases,
+        weapon_upgrade_assertions=weapon_cases,all_three_difficulties=True,original_caps_retained=True,
+        source_records_unchanged=True,rendered_playthrough=False)
+
+
+def validate_optional_patcher():
+    """Real executable, full-size disposable ISO; visit all 32 option profiles."""
+    import subprocess,shutil,time
+    qp=ROOT/'iso_quickpatch';exe=qp/'OGS_AxelSwap_QuickPatch.exe'
+    meta=json.loads((ROOT/'runtime/optional_features_profiles.json').read_text(encoding='utf-8'))
+    expected=meta['hashes'];test=qp/'TEST.iso';bak=Path(str(test)+'.ogsbak')
+    assert not test.exists() and not bak.exists(),'Existing test artifacts require inspection'
+    before=sha(ISO).upper();assert before==expected[31]
+    results=[]
+    def flags(mask):return [flag for bit,flag in [(1,'--hidden'),(2,'--bundle'),(4,'--rewards'),(8,'--enemy'),(16,'--spirits')] if mask&bit]
+    def call(*args):
+        result=subprocess.run([str(exe),*map(str,args)],capture_output=True)
+        assert result.returncode==0,(args,result.stdout.decode('utf-8',errors='replace'),result.stderr)
+        return result
+    try:
+        shutil.copyfile(ISO,test)
+        previous=31
+        for i in range(32):
+            mask=i^(i>>1)
+            call(test,'--cli',*flags(mask))
+            # The production patcher itself verifies the complete destination
+            # SHA256 before returning success. Verify no-op leaves backup intact.
+            if mask in (0,31):
+                backup=sha(bak);call(test,'--cli',*flags(mask));assert sha(bak)==backup
+            if mask in (0,4,8,16,31) and mask!=previous:
+                call(test,'--restore');assert sha(test).upper()==expected[previous]
+                call(test,'--cli',*flags(mask))
+            results.append(dict(source=previous,target=mask));previous=mask
+            print('PASS real ISO option profile %02d/32, mask=%d'%(i+1,mask),flush=True)
+        assert sha(test).upper()==expected[previous]
+        test.unlink();bak.unlink(missing_ok=True)
+        base=ROOT/'baseline/srwogs-v1.4.3s1.iso';shutil.copyfile(base,test)
+        call(test,'--cli','--hidden','--bundle','--rewards','--enemy','--spirits')
+        assert sha(test).upper()==expected[31]
+        call(test,'--restore');assert sha(test)==sha(base)
+        print('PASS baseline -> all five options -> exact baseline restore',flush=True)
+        report=dict(passed=True,profile_count=32,real_iso_transitions=results,
+            baseline_apply_restore=True,backup_restore_profiles=[0,4,8,16,31],
+            idempotency_profiles=[0,31],production_composition_selftest=1024,
+            current_gameplay_iso_unchanged=before)
+        (ROOT/'runtime/optional_features_patcher_e2e.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+        return report
+    finally:
+        test.unlink(missing_ok=True);bak.unlink(missing_ok=True)

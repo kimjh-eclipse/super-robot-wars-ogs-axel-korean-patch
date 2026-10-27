@@ -1,0 +1,66 @@
+{
+  "source_sha256": "4b79877f3dd05cdcc89fddd8e916691cb2026f81393b1c3455569de92a4e69a1",
+  "target_sha256": "aa4aaa2fa4ab136eba8904e7270c6623a3b0b22147c0bd96be5630c33cc0dc77",
+  "applied": true,
+  "feature": "Hostile pilot six combat totals +5; spawn enemy body/weapon upgrades +1 at each difficulty; native caps retained",
+  "layout": {
+    "pilot_helper": 2097888,
+    "spawn_helper": 2097944,
+    "initializer_start": 2097832,
+    "initializer_end": 2098116
+  },
+  "checks": {
+    "initializer_descriptor_equivalence": true,
+    "native_getter_cases": 72,
+    "missing_context_cases": 6,
+    "native_spawn_cases": 54,
+    "body_upgrade_assertions": 216,
+    "weapon_upgrade_assertions": 54,
+    "all_three_difficulties": true,
+    "original_caps_retained": true,
+    "source_records_unchanged": true,
+    "rendered_playthrough": false
+  },
+  "edits": [
+    {
+      "offset": 1483400,
+      "before": "a800a38f06006128",
+      "after": "c600080c00000000"
+    },
+    {
+      "offset": 1624344,
+      "before": "2d90a000",
+      "after": "b800080c"
+    },
+    {
+      "offset": 1624744,
+      "before": "2d90a000",
+      "after": "b800080c"
+    },
+    {
+      "offset": 1625144,
+      "before": "2d90a000",
+      "after": "b800080c"
+    },
+    {
+      "offset": 1625544,
+      "before": "2d90a000",
+      "after": "b800080c"
+    },
+    {
+      "offset": 1625944,
+      "before": "2d90a000",
+      "after": "b800080c"
+    },
+    {
+      "offset": 1626344,
+      "before": "2d90a000",
+      "after": "b800080c"
+    },
+    {
+      "offset": 1657640,
+      "before": "548c42e55400053c588c21e554000a3c5c8c00e55400093c5400083c648c42e5688c21e554000a3c6c8c00e55400093c5400083c748c42e5788c21e554000a3c7c8c00e55400093c5400083c848c42e5888c21e554000a3c8c8c00e55400093c5400083c948c42e5988c21e554000a3c9c8c00e55400093c5400083ca48c42e5a88c21e554000a3cac8c00e55400093c5400083cb48c42e5b88c21e554000a3cbc8c00e55400093c5400083cc48c42e5c88c21e554000a3ccc8c00e55400093c5400083cd48c42e5d88c21e554000a3cdc8c00e55400093c5400083ce48c42e5e88c21e554000a3cec8c00e55400093c5400083cf48c42e5f88c21e554000a3cfc8c00e55400093c5400083c048d42e5088d21e554000a3c0c8d00e5",
+      "after": "548c0a250c000924000042e5040041e5080040e510004a25ffff2925faff201d0000000054000a3c5400093c5400053cf1000808000000001000828c2d90a000090040107400839007006330211043001700033c211043008c6042900100423001004054050052260800e00300000000a800a38ffeff62240300422c08004010d800a427060005240000828c01004224000082acffffa524fbffa01c040084240800e003060061280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

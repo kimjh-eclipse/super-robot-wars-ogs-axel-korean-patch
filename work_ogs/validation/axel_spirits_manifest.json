@@ -1,0 +1,142 @@
+{
+  "source_sha256": "c3a1525f4754ec88dd5812cb52e3c563a30558ee50e6b43a212b881e94924753",
+  "target_sha256": "91ba9d6b623a2e74eae3a4bbbc4754c34e0ce6e973a05b7be4327fcc6d24389e",
+  "applied": true,
+  "feature": "Axel Iron Wall SP20, twin Soul SP50, Awakening SP50; levels unchanged",
+  "checks": {
+    "native_getters_verified": true,
+    "all_four_allied_raw_keys_verified": true,
+    "spare_plot54_verified": true,
+    "spirit_ids": [
+      7,
+      5,
+      17,
+      2,
+      21,
+      10
+    ],
+    "sp_costs": [
+      10,
+      20,
+      45,
+      40,
+      15,
+      50
+    ],
+    "levels": [
+      1,
+      1,
+      8,
+      20,
+      23,
+      31
+    ],
+    "twin_spirit": "혼",
+    "twin_sp_cost": 50,
+    "other_pilot_records_and_all_other_plot_bytes_preserved": true,
+    "target_records_identical_in_both_master_copies": true,
+    "live_menu_verified": false
+  },
+  "edits": [
+    {
+      "offset": 7435169,
+      "before": "04",
+      "after": "05"
+    },
+    {
+      "offset": 7435175,
+      "before": "0a",
+      "after": "14"
+    },
+    {
+      "offset": 7435179,
+      "before": "37",
+      "after": "32"
+    },
+    {
+      "offset": 7435186,
+      "before": "23",
+      "after": "25"
+    },
+    {
+      "offset": 7435187,
+      "before": "28",
+      "after": "32"
+    },
+    {
+      "offset": 7435317,
+      "before": "04",
+      "after": "05"
+    },
+    {
+      "offset": 7435323,
+      "before": "0a",
+      "after": "14"
+    },
+    {
+      "offset": 7435327,
+      "before": "37",
+      "after": "32"
+    },
+    {
+      "offset": 7435334,
+      "before": "23",
+      "after": "25"
+    },
+    {
+      "offset": 7435335,
+      "before": "28",
+      "after": "32"
+    },
+    {
+      "offset": 9946017,
+      "before": "04",
+      "after": "05"
+    },
+    {
+      "offset": 9946023,
+      "before": "0a",
+      "after": "14"
+    },
+    {
+      "offset": 9946027,
+      "before": "37",
+      "after": "32"
+    },
+    {
+      "offset": 9946034,
+      "before": "23",
+      "after": "25"
+    },
+    {
+      "offset": 9946035,
+      "before": "28",
+      "after": "32"
+    },
+    {
+      "offset": 9946165,
+      "before": "04",
+      "after": "05"
+    },
+    {
+      "offset": 9946171,
+      "before": "0a",
+      "after": "14"
+    },
+    {
+      "offset": 9946175,
+      "before": "37",
+      "after": "32"
+    },
+    {
+      "offset": 9946182,
+      "before": "23",
+      "after": "25"
+    },
+    {
+      "offset": 9946183,
+      "before": "28",
+      "after": "32"
+    }
+  ]
+}

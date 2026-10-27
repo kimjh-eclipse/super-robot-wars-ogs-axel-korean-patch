@@ -1,0 +1,45 @@
+{
+  "source_sha256": "9548f41307d8d3af6cceeabafe672d905b77c0055ddc04dbc3141e8982b9b218",
+  "target_sha256": "4b79877f3dd05cdcc89fddd8e916691cb2026f81393b1c3455569de92a4e69a1",
+  "applied": true,
+  "feature": "Defeat reward PP x2, funds x1.2; after native bonuses/splits; event grants unchanged",
+  "checks": {
+    "native_reward_arithmetic_verified": true,
+    "controlled_property_fixtures": true,
+    "full_native_property_integration_verified": false,
+    "scenarios": 44,
+    "pp_multiplier": 2,
+    "funds_numerator": 6,
+    "funds_denominator": 5,
+    "rounding": "truncate",
+    "both_battle_sides_and_all_16_recipient_slots_tested": true,
+    "luck_ace_difficulty_training_splits_and_minimum_pp_tested": true,
+    "existing_accumulated_rewards_not_multiplied": true,
+    "no_reward_without_defeat": true,
+    "all_unrelated_battle_context_bytes_preserved": true,
+    "script_grants_and_master_data_unchanged": true,
+    "live_battle_verified": false
+  },
+  "edits": [
+    {
+      "offset": 2826328,
+      "before": "1c01a28f06004010",
+      "after": "4e67120800000000"
+    },
+    {
+      "offset": 2826988,
+      "before": "00000000",
+      "after": "4402038e"
+    },
+    {
+      "offset": 2827000,
+      "before": "4402038e",
+      "after": "40881100"
+    },
+    {
+      "offset": 4384184,
+      "before": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "after": "401010002110500040100200050003241b004300128000001c01a28f0300401000000000f9750c0800000000fe750c0800000000"
+    }
+  ]
+}
