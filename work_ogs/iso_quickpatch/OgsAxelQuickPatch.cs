@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261027.1";
+    private const string VersionText = "v20261028";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";
@@ -278,15 +278,16 @@ internal static class OgsAxelQuickPatch
 
     private sealed class CommonFix
     {
-        public byte[][] Hashes = new byte[32][];
-        public List<PatchRange> On, Off;
+        public byte[][] Hashes = new byte[32][], PriorHashes = new byte[32][];
+        public List<PatchRange>[] On = new List<PatchRange>[32], Off = new List<PatchRange>[32];
+        public List<PatchRange> PriorOn, PriorOff;
     }
     private static CommonFix LoadCommonFix(Pack full, FeatureOptions features)
     {
         using (Stream stream = OpenPatchData("OGS_common_fix.bin", true))
         using (BinaryReader r = new BinaryReader(stream, Encoding.UTF8))
         {
-            if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSFIX01" || r.ReadInt64() != full.IsoSize || r.ReadInt32() != 32)
+            if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSFIX02" || r.ReadInt64() != full.IsoSize || r.ReadInt32() != 32)
                 throw new InvalidDataException("공통 수정 데이터 형식 오류");
             CommonFix fix = new CommonFix(); HashSet<string> hashes = new HashSet<string>();
             for (int i = 0; i < 32; i++)
@@ -295,16 +296,25 @@ internal static class OgsAxelQuickPatch
                 if (mask != i || Hex(old) != Hex(features.Hashes[i]) || target.Length != 32 || !hashes.Add(Hex(target)))
                     throw new InvalidDataException("공통 수정 버전 불일치");
                 fix.Hashes[i] = target;
+                List<PatchRange>[] ranges = ReadFeatureRanges(r, full.IsoSize); fix.Off[i] = ranges[0]; fix.On[i] = ranges[1];
             }
-            List<PatchRange>[] ranges = ReadFeatureRanges(r, full.IsoSize); fix.Off = ranges[0]; fix.On = ranges[1];
+            for (int i = 0; i < 32; i++)
+            {
+                fix.PriorHashes[i] = r.ReadBytes(32);
+                if (fix.PriorHashes[i].Length != 32) throw new EndOfStreamException();
+            }
+            List<PatchRange>[] prior = ReadFeatureRanges(r, full.IsoSize);fix.PriorOff = prior[0];fix.PriorOn = prior[1];
             if (stream.Position != stream.Length) throw new InvalidDataException("공통 수정 길이 오류");
             return fix;
         }
     }
     private static Pack FixPack(Pack full, CommonFix fix, byte[] source, byte[] target, bool on)
     {
-        Pack pack = new Pack { Title = on ? "무명 6화 보충 지급" : "공통 수정 전환", IsoSize = full.IsoSize,
-            SourceHash = source, TargetHash = target, Ranges = on ? fix.On : fix.Off };
+        int mask = -1;
+        for (int i = 0; i < 32; i++) if (Hex(on ? target : source) == Hex(fix.Hashes[i])) { mask = i; break; }
+        if (mask < 0) throw new InvalidDataException("공통 수정 조합 해시 오류");
+        Pack pack = new Pack { Title = on ? "워단 생존·삼식 지급·무명 보충" : "공통 수정 전환", IsoSize = full.IsoSize,
+            SourceHash = source, TargetHash = target, Ranges = on ? fix.On[mask] : fix.Off[mask] };
         foreach (PatchRange range in pack.Ranges) pack.PayloadBytes += range.Data.Length;
         return pack;
     }
@@ -315,6 +325,15 @@ internal static class OgsAxelQuickPatch
         for (int i = 0; i < 32; i++)
             if (current == Hex(fix.Hashes[i]))
             { prefix = FixPack(packs[0], fix, fix.Hashes[i], features.Hashes[i], false); current = Hex(features.Hashes[i]); break; }
+        if (prefix == null)
+            for (int i = 0; i < 32; i++)
+                if (current == Hex(fix.PriorHashes[i]))
+                {
+                    prefix = new Pack { Title = "v20261027.1 업데이트", IsoSize = packs[0].IsoSize,
+                        SourceHash = fix.PriorHashes[i], TargetHash = features.Hashes[i], Ranges = fix.PriorOff };
+                    foreach (PatchRange range in prefix.Ranges) prefix.PayloadBytes += range.Data.Length;
+                    current = Hex(features.Hashes[i]); break;
+                }
         Pack plan = SelectPlan(packs, option, oukaBase, oukaHidden, features, current, selected);
         if (plan == null) return null;
         if (prefix != null) plan = Combine(prefix, plan);
@@ -412,7 +431,7 @@ internal static class OgsAxelQuickPatch
         SortedDictionary<long, byte> defaults = new SortedDictionary<long, byte>();
         List<PatchRange> off = new List<PatchRange>(hidden[1].Ranges); off.AddRange(bundle[1].Ranges);
         foreach (Feature feature in features.Features) off.AddRange(feature.Off);
-        off.AddRange(fix.Off);
+
         foreach (PatchRange range in off)
             for (int i = 0; i < range.Data.Length; i++)
             {
@@ -421,6 +440,10 @@ internal static class OgsAxelQuickPatch
                     throw new InvalidDataException("기본 옵션 바이트 충돌");
                 defaults[range.Offset + i] = range.Data[i];
             }
+        for (int mask = 0; mask < 32; mask++)
+            foreach (PatchRange range in fix.Off[mask])
+                for (int i = 0; i < range.Data.Length; i++)
+                    if (!defaults.ContainsKey(range.Offset + i)) defaults[range.Offset + i] = range.Data[i];
         Dictionary<long, int> index = new Dictionary<long, int>();
         byte[] initial = new byte[defaults.Count]; int pos = 0;
         foreach (KeyValuePair<long, byte> item in defaults) { index[item.Key] = pos; initial[pos++] = item.Value; }
@@ -438,21 +461,27 @@ internal static class OgsAxelQuickPatch
             fixedStates[mask] = (byte[])states[mask].Clone();
             ApplyState(FixPack(full, fix, features.Hashes[mask], fix.Hashes[mask], true), index, fixedStates[mask]);
         }
+        byte[][] priorStates = new byte[32][];
+        for (int mask = 0; mask < 32; mask++)
+        {
+            priorStates[mask] = (byte[])states[mask].Clone();
+            Pack priorOn = new Pack { Ranges = fix.PriorOn }; ApplyState(priorOn, index, priorStates[mask]);
+        }
         int cases = 0;
-        for (int generation = 0; generation < 2; generation++)
+        for (int generation = 0; generation < 3; generation++)
             for (int source = 0; source < 32; source++)
                 for (int target = 0; target < 32; target++)
                 {
-                    byte[] sourceHash = generation == 0 ? features.Hashes[source] : fix.Hashes[source];
+                    byte[] sourceHash = generation == 0 ? features.Hashes[source] : (generation == 1 ? fix.PriorHashes[source] : fix.Hashes[source]);
                     Pack plan = SelectFixedPlan(packs, hidden, bundle, both, features, fix, Hex(sourceHash), target);
                     if (plan == null || Hex(plan.SourceHash) != Hex(sourceHash) || Hex(plan.TargetHash) != Hex(fix.Hashes[target]))
                         throw new InvalidDataException("옵션 연결 해시 오류");
-                    byte[] state = (byte[])(generation == 0 ? states[source] : fixedStates[source]).Clone(); ApplyState(plan, index, state);
+                    byte[] state = (byte[])(generation == 0 ? states[source] : (generation == 1 ? priorStates[source] : fixedStates[source])).Clone(); ApplyState(plan, index, state);
                     for (int i = 0; i < state.Length; i++)
                         if (state[i] != fixedStates[target][i]) throw new InvalidDataException("옵션 전환 바이트 오류: " + source + " -> " + target);
                     cases++;
                 }
-        Console.WriteLine("PASS: " + cases + " option transitions; missing-Mumei fallback always enabled.");
+        Console.WriteLine("PASS: " + cases + " option transitions; Wodan/Type3/Mumei common story fixes preserved.");
     }
     private static void ApplyState(Pack pack, Dictionary<long, int> index, byte[] state)
     {
@@ -477,7 +506,7 @@ internal static class OgsAxelQuickPatch
         int selected = (hidden ? 1 : 0) | (ouka ? 2 : 0) | (rewards ? 4 : 0) | (enemy ? 8 : 0) | (spirits ? 16 : 0);
         CommonFix fix = LoadCommonFix(full, features);
         string desiredHash = Hex(fix.Hashes[selected]);
-        log("무명 미획득 시 6화 종료 보충 지급: 기본 적용");
+        log("워단 생존·37화 삼식 지급·무명 보충: 기본 적용");
         log("자금 +20% · PP 2배: " + (rewards ? "선택" : "선택 안 함"));
         log("적 강화: " + (enemy ? "선택" : "선택 안 함"));
         log("액셀·제오라 정신기 변경: " + (spirits ? "선택" : "선택 안 함"));
@@ -753,7 +782,7 @@ internal static class OgsAxelQuickPatch
             spiritsCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             spiritsCheck.SetBounds(18, 94, 800, 28); options.Controls.Add(spiritsCheck);
             Label optionInfo = new Label();
-            optionInfo.Text = "무명 미획득 시 6화 종료 보충 지급은 기본 적용입니다. 다섯 옵션은 각각 선택할 수 있습니다.\n이미 받은 보유품·보상은 유지됩니다. 적 개조는 다음 시나리오의 적 생성 시부터 적용됩니다.";
+            optionInfo.Text = "워단 생존·37화 삼식 지급·무명 보충은 기본 적용입니다. 다섯 옵션은 각각 선택할 수 있습니다.\n이미 받은 보유품·보상은 유지됩니다. 적 개조는 다음 시나리오의 적 생성 시부터 적용됩니다.";
             optionInfo.SetBounds(20, 132, 820, 42); options.Controls.Add(optionInfo);
 
             Label info = new Label();

@@ -1,0 +1,202 @@
+[
+  {
+    "profile": 0,
+    "wodan": {
+      "initializer_equivalence": true,
+      "ordinary_recruitment_byte_identical": true,
+      "native_recruitment_cases": [
+        {
+          "existing_robot": false,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": true,
+          "slot": 47,
+          "pilot": 39
+        }
+      ],
+      "original_robot_reused": true,
+      "other_pilots_preserved": true,
+      "upgrades_preserved": true,
+      "duplicate_pair_prevented": true,
+      "native_reboarding_verified": true,
+      "duel_and_sophia_rescue_preserved": true,
+      "ouka_option_commands_preserved": true,
+      "changed_dialogue": 11,
+      "unmodified_dialogue_and_commands_preserved": true,
+      "rendered_playthrough": false
+    },
+    "type3": {
+      "episode37_clear": true,
+      "sanger_original_type3_variant": true,
+      "robot_only": true,
+      "owned_visible_and_boardable": true,
+      "existing_type3_and_other_roster_preserved": true,
+      "duplicate_grant_idempotent": true,
+      "sanger_boarding_and_daizengar_return": true,
+      "wodan_recruitment_regression_passed": true,
+      "ordinary_grants_unchanged": true,
+      "original_stats_weapons_and_dialogue_preserved": true,
+      "rendered_playthrough": false
+    }
+  },
+  {
+    "profile": 1,
+    "wodan": {
+      "initializer_equivalence": true,
+      "ordinary_recruitment_byte_identical": true,
+      "native_recruitment_cases": [
+        {
+          "existing_robot": false,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": true,
+          "slot": 47,
+          "pilot": 39
+        }
+      ],
+      "original_robot_reused": true,
+      "other_pilots_preserved": true,
+      "upgrades_preserved": true,
+      "duplicate_pair_prevented": true,
+      "native_reboarding_verified": true,
+      "duel_and_sophia_rescue_preserved": true,
+      "ouka_option_commands_preserved": true,
+      "changed_dialogue": 11,
+      "unmodified_dialogue_and_commands_preserved": true,
+      "rendered_playthrough": false
+    },
+    "type3": {
+      "episode37_clear": true,
+      "sanger_original_type3_variant": true,
+      "robot_only": true,
+      "owned_visible_and_boardable": true,
+      "existing_type3_and_other_roster_preserved": true,
+      "duplicate_grant_idempotent": true,
+      "sanger_boarding_and_daizengar_return": true,
+      "wodan_recruitment_regression_passed": true,
+      "ordinary_grants_unchanged": true,
+      "original_stats_weapons_and_dialogue_preserved": true,
+      "rendered_playthrough": false
+    }
+  },
+  {
+    "profile": 2,
+    "wodan": {
+      "initializer_equivalence": true,
+      "ordinary_recruitment_byte_identical": true,
+      "native_recruitment_cases": [
+        {
+          "existing_robot": false,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": true,
+          "slot": 47,
+          "pilot": 39
+        }
+      ],
+      "original_robot_reused": true,
+      "other_pilots_preserved": true,
+      "upgrades_preserved": true,
+      "duplicate_pair_prevented": true,
+      "native_reboarding_verified": true,
+      "duel_and_sophia_rescue_preserved": true,
+      "ouka_option_commands_preserved": true,
+      "changed_dialogue": 11,
+      "unmodified_dialogue_and_commands_preserved": true,
+      "rendered_playthrough": false
+    },
+    "type3": {
+      "episode37_clear": true,
+      "sanger_original_type3_variant": true,
+      "robot_only": true,
+      "owned_visible_and_boardable": true,
+      "existing_type3_and_other_roster_preserved": true,
+      "duplicate_grant_idempotent": true,
+      "sanger_boarding_and_daizengar_return": true,
+      "wodan_recruitment_regression_passed": true,
+      "ordinary_grants_unchanged": true,
+      "original_stats_weapons_and_dialogue_preserved": true,
+      "rendered_playthrough": false
+    }
+  },
+  {
+    "profile": 3,
+    "wodan": {
+      "initializer_equivalence": true,
+      "ordinary_recruitment_byte_identical": true,
+      "native_recruitment_cases": [
+        {
+          "existing_robot": false,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": false,
+          "slot": 47,
+          "pilot": 38
+        },
+        {
+          "existing_robot": true,
+          "occupied": true,
+          "slot": 47,
+          "pilot": 39
+        }
+      ],
+      "original_robot_reused": true,
+      "other_pilots_preserved": true,
+      "upgrades_preserved": true,
+      "duplicate_pair_prevented": true,
+      "native_reboarding_verified": true,
+      "duel_and_sophia_rescue_preserved": true,
+      "ouka_option_commands_preserved": true,
+      "changed_dialogue": 11,
+      "unmodified_dialogue_and_commands_preserved": true,
+      "rendered_playthrough": false
+    },
+    "type3": {
+      "episode37_clear": true,
+      "sanger_original_type3_variant": true,
+      "robot_only": true,
+      "owned_visible_and_boardable": true,
+      "existing_type3_and_other_roster_preserved": true,
+      "duplicate_grant_idempotent": true,
+      "sanger_boarding_and_daizengar_return": true,
+      "wodan_recruitment_regression_passed": true,
+      "ordinary_grants_unchanged": true,
+      "original_stats_weapons_and_dialogue_preserved": true,
+      "rendered_playthrough": false
+    }
+  }
+]

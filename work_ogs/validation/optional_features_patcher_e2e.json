@@ -134,6 +134,7 @@
   "baseline_apply_restore": true,
   "legacy_v20261025_1": true,
   "previous_v20261027": true,
+  "previous_v20261027_1": true,
   "backup_restore_profiles": [
     0,
     4,
@@ -145,6 +146,6 @@
     0,
     31
   ],
-  "production_composition_selftest": 2048,
-  "current_gameplay_iso_unchanged": "8DE813EC3C5C75E65DD1E2B1C3B4D358B141457F1CA10754365CC0AB7634F24C"
+  "production_composition_selftest": 3072,
+  "current_gameplay_iso_unchanged": "25CA7578DE0A2B8647B08AEB64992D404D7D304D02285BA4EDF2A87919013056"
 }

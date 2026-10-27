@@ -1413,7 +1413,7 @@ def validate_optional_patcher():
         call(test,'--restore');assert sha(test).upper()==legacy
         # Prior public all-on ISO: undo only the new fallback on a test copy.
         test.unlink();bak.unlink(missing_ok=True);shutil.copyfile(ISO,test)
-        fix=json.loads((ROOT/'runtime/mumei_fallback_manifest.json').read_text(encoding='utf-8'))
+        fix=dict(edits=json.loads((ROOT/'runtime/story_common_edits.json').read_text(encoding='utf-8'))['3'])
         with test.open('r+b') as f:
             for e in fix['edits']:
                 at=e['offset'];a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
@@ -1421,11 +1421,20 @@ def validate_optional_patcher():
         assert sha(test).upper()==meta['previous_hashes'][31]
         call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
         call(test,'--restore');assert sha(test).upper()==meta['previous_hashes'][31]
-        print('PASS v20261025.1 and v20261027 upgrades/restores',flush=True)
+        # Also exercise the immediately preceding v20261027.1 public build.
+        mumei=json.loads((ROOT/'runtime/mumei_fallback_manifest.json').read_text(encoding='utf-8'))
+        with test.open('r+b') as f:
+            for e in mumei['edits']:
+                at=e['offset'];a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
+                f.seek(at);assert f.read(len(a))==a;f.seek(at);f.write(b)
+        assert sha(test).upper()==meta['prior_release_hashes'][31]
+        call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
+        call(test,'--restore');assert sha(test).upper()==meta['prior_release_hashes'][31]
+        print('PASS v20261025.1, v20261027 and v20261027.1 upgrades/restores',flush=True)
 
         report=dict(passed=True,profile_count=32,real_iso_transitions=results,
-            baseline_apply_restore=True,legacy_v20261025_1=True,previous_v20261027=True,backup_restore_profiles=[0,4,8,16,31],
-            idempotency_profiles=[0,31],production_composition_selftest=2048,
+            baseline_apply_restore=True,legacy_v20261025_1=True,previous_v20261027=True,previous_v20261027_1=True,backup_restore_profiles=[0,4,8,16,31],
+            idempotency_profiles=[0,31],production_composition_selftest=3072,
             current_gameplay_iso_unchanged=before)
         (ROOT/'runtime/optional_features_patcher_e2e.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         return report
@@ -1488,3 +1497,209 @@ def validate_mumei_fallback(edits,applied=False):
     return dict(missing_unit_granted_owned_visible_boardable=True,already_owned_no_duplicate=True,
         repeated_grant_idempotent=True,original_six_rewards_preserved=True,original_episode5_grant_preserved=True,
         pilot_records_unchanged=True,rendered_playthrough=False)
+
+
+def validate_wodan_survival(edits,row,blobs,source=ISO):
+    from ogs_korean_codec import encode
+    script=Scripts(source);master_data=None
+    with source.open('rb') as f:f.seek(0x5da000);master_data=bytearray(f.read(0x190000))
+    original_master=bytes(master_data)
+    for off,a,b in edits:
+        rel=off-0x5da000
+        if 0<=rel<len(master_data):assert master_data[rel:rel+len(a)]==a;master_data[rel:rel+len(b)]=b
+    def setup(existing=False,occupied=False):
+        vm=VM();c=vm.cpu
+        with source.open('rb') as f:f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        for off,old,new in edits:
+            rel=off-0x94880
+            if 0<=rel<0x482980:
+                assert c.mem[0x100000+rel:0x100000+rel+len(old)]==old
+                c.mem[0x100000+rel:0x100000+rel+len(new)]=new
+        for tag in (b'Plot',b'Unit',b'PTbl',b'UTbl'):
+            src=master_data.find(tag);dst=c.mem.find(tag,0xb00000)
+            assert src>=0 and dst>=0
+            # Count/stride are authoritative; PTbl's historical length field
+            # includes later tables, so copy the actual contiguous master span.
+            size={b'Plot':12+382*148,b'Unit':12+u32(master_data,src+8)*100,b'PTbl':12+2048*2,b'UTbl':12+2048*2}[tag]
+            c.mem[dst:dst+size]=master_data[src:src+size]
+        save=c.read(0x59d364,4);previous=-1
+        if existing:
+            vm.op(command(0x5a,0x601));slot=c.run(0x1abc50,[save,0x601,0,0]);assert slot>=0
+            for attr,value in [(0xd,7),(0xe,6),(0xf,5),(0x10,4)]:c.run(0x1af000,[save,attr,slot,value,0])
+            if occupied:
+                previous=c.run(0x1b1fd0,[save,0x469,0]);assert previous>=0
+                c.write(save+0x25cfc+previous*92+2,1,1)
+                c.run(0x1b13d0,[save,previous,slot,0])
+        ctx=0x1700000;bundle=0x1780000;data=0x1790000
+        c.write(ctx+40,bundle,4)
+        for off,g in [(0x2120,0x59d360),(0x2124,0x59d364),(0x212c,0x59d36c)]:c.write(bundle+off,c.read(g,4),4)
+        c.write(ctx+0x346d4,data,4);c.write(ctx+0x346d0,1,4);c.mem[data:data+336]=row
+        c.write(CTX+0x310c,ctx-0x40e00,4)
+        return vm,save,previous
+    # The reclaimed initializer must reproduce all original data writes and
+    # register/FPR results; helper code occupies only instructions now skipped.
+    originals=[]
+    for patched in (False,True):
+        c=CPU(ram)
+        with source.open('rb') as f:f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        if patched:
+            for off,old,new in edits:
+                rel=off-0x94880
+                if 0<=rel<0x482980:c.mem[0x100000+rel:0x100000+rel+len(new)]=new
+        c.r=[0x123000+i for i in range(32)];c.r[0]=0
+        for i in (8,9,10):c.r[i]=0x540000
+        c.fpr=[0x13570000+i for i in range(32)]
+        c.run(0x2003f4,stop=0x200514);originals.append(c)
+    x,y=originals;assert x.r==y.r and x.fpr==y.fpr
+    assert {(a,n) for a,n,pc in x.writes}=={(a,n) for a,n,pc in y.writes}
+    for at,n,pc in x.writes:assert x.mem[at:at+n]==y.mem[at:at+n]
+    # Ordinary (non-alias) recruitment must be byte-identical to original code.
+    saves=[]
+    for patched in (False,True):
+        vm,sv,previous=setup();c=vm.cpu
+        if not patched:
+            for off,old,new in edits:
+                rel=off-0x94880
+                if 0<=rel<0x482980:c.mem[0x100000+rel:0x100000+rel+len(old)]=old
+        other=bytearray(row);struct.pack_into('<I',other,0,0x4e4);struct.pack_into('<I',other,0x20,0x43a)
+        c.mem[0x1790000:0x1790000+336]=other
+        vm.op(command(0x5e,0x25));saves.append(bytes(c.mem[sv:sv+0x3b400]))
+    assert saves[0]==saves[1]
+    cases=[]
+    for existing,occupied in [(False,False),(True,False),(True,True)]:
+        vm,save,previous=setup(existing,occupied);c=vm.cpu
+        units=bytes(c.mem[save+0x6efc:save+0x6efc+512*216]);pilots=bytes(c.mem[save+0x25cfc:save+0x25cfc+512*92])
+        vm.op(command(0x5e,0x25))
+        assert c.visits[0x1d5970]>0
+        slot=c.run(0x1abc50,[save,0x601,0,0]);assert slot>=0
+        pilot=c.run(0x1b1300,[save,slot,0]);assert pilot>=0
+        assert c.read(save+0x25cfc+pilot*92,2)==0x602
+        assert c.run(0x1ab6f0,[save,0x602,1])==pilot
+        assert c.run(0x1a9b70,[save,slot,1])==1
+        assert c.run(0x1ac800,[save,0xf2,pilot])==1
+        for flag in (0x37,0x38,0x39):assert c.run(0x1aca50,[save,flag,slot])==0
+        assert c.run(0x1aca50,[save,0x59,slot])!=0
+        if existing:
+            assert [c.run(0x1af860,[save,a,slot,0]) for a in range(0xd,0x11)]==[7,6,5,4]
+        if previous>=0:
+            assert c.run(0x1ab6f0,[save,0x469,1])==previous
+            assert c.run(0x1b12a0,[save,previous])==-1
+        for i in range(512):
+            if i!=slot:
+                at=save+0x6efc+i*216;assert c.mem[at:at+216]==units[i*216:(i+1)*216]
+            if i!=pilot:
+                at=save+0x25cfc+i*92;assert c.mem[at:at+92]==pilots[i*92:(i+1)*92]
+        stable=bytes(c.mem[save:save+0x3b400])
+        vm.op(command(0x5e,0x25))
+        assert c.mem[save:save+0x3b400]==stable,'Repeat recruitment reset a record'
+        assert c.run(0x1abc50,[save,0x601,0,0])==slot and c.run(0x1b1300,[save,slot,0])==pilot
+        # Detach/reboard through the game's actual association functions.
+        c.run(0x1b1370,[save,slot,0]);assert c.run(0x311200,[save,slot,1],limit=10000000)>0
+        c.run(0x1b13d0,[save,pilot,slot,0]);assert c.run(0x1b1300,[save,slot,0])==pilot
+        cases.append(dict(existing_robot=existing,occupied=occupied,slot=slot,pilot=pilot))
+    for n,b in blobs.items():
+        old=script.records(n);co=u32(b,0x2c)
+        insert=next((i for i,(at,r) in enumerate(old) if i>2500 and r[:4]==(0x9c,DEAD,0x22,0)),None) if n==109 else None
+        assert len(old)+(n==109)==u32(b,0x28)
+        for i,(_,r) in enumerate(old):
+            target=i+int(insert is not None and i>=insert)
+            if n!=109 or i not in (2300,):assert struct.unpack_from('<24I',b,co+target*96)==r
+        if n==109:
+            assert struct.unpack_from('<24I',b,co+insert*96)==tuple(command(0x5e,0x25))
+            assert u32(b,co+2300*96)==0x4f and struct.unpack_from('<24I',b,co+2303*96)==old[2303][1]
+            # Ouka survival and Pehp/Uruz removals remain untouched.
+            for i in (2147,2148,2149,2154,2163,2164,2165,2296):assert struct.unpack_from('<24I',b,co+i*96)==old[i][1]
+        ts=script.texts(n)
+        for i,(at,text) in enumerate(ts):
+            pos=u32(b,0x4c)+u32(b,u32(b,0x54)+i*4)
+            terminated=bytes(b)+b'\0';actual=decode(terminated[pos:terminated.index(0,pos)])
+            assert actual==WODAN_SURVIVAL_TEXT.get(n,{}).get(i,text),(n,i,actual)
+    # Other pilot master fields, all unit/weapon/voice tables are unchanged.
+    for i,(a,b) in enumerate(zip(original_master,master_data)):
+        if a!=b:assert i in range(0x13a484+0x602*2,0x13a484+0x602*2+2) or i in range(0x13b490+80*148+18,0x13b490+80*148+20)
+    return dict(initializer_equivalence=True,ordinary_recruitment_byte_identical=True,native_recruitment_cases=cases,original_robot_reused=True,other_pilots_preserved=True,
+        upgrades_preserved=True,duplicate_pair_prevented=True,native_reboarding_verified=True,
+        duel_and_sophia_rescue_preserved=True,ouka_option_commands_preserved=True,
+        changed_dialogue=sum(map(len,WODAN_SURVIVAL_TEXT.values())),unmodified_dialogue_and_commands_preserved=True,
+        rendered_playthrough=False)
+
+
+def validate_grungust_type3_grant(edits,source=ISO):
+    s=Scripts(source);at,size=s.logos[103];old=s.data[at:at+size]
+    b=next(new for off,a,new in edits if off==MAP+at)
+    co=u32(b,0x2c);assert u32(b,0x28)==1468
+    assert struct.unpack_from('<24I',b,co+1463*96)==tuple(command(0x5a,0x601))
+    assert struct.unpack_from('<24I',b,co+1464*96)==tuple(command(0x5a,0x602))
+    restored=bytearray(b);del restored[co+1464*96:co+1465*96];restored[:0x70]=old[:0x70];assert restored==old
+    with source.open('rb') as f:f.seek(0x5da000);base=bytearray(f.read(0x190000))
+    master=bytearray(base)
+    for off,a,new in edits:
+        rel=off-0x5da000
+        if 0<=rel<len(master):assert master[rel:rel+len(a)]==a;master[rel:rel+len(new)]=new
+    def setup(patched=True):
+        vm=VM();c=vm.cpu
+        with source.open('rb') as f:f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        if patched:
+            for off,a,new in edits:
+                rel=off-0x94880
+                if 0<=rel<0x482980:
+                    assert c.mem[0x100000+rel:0x100000+rel+len(a)]==a;c.mem[0x100000+rel:0x100000+rel+len(new)]=new
+        data=master if patched else base
+        for tag,stride in [(b'UTbl',2),(b'PTbl',2),(b'Unit',100),(b'Plot',148)]:
+            src=data.find(tag);dst=c.mem.find(tag,0xb00000);assert src>=0 and dst>=0
+            length=12+u32(data,src+8)*stride;c.mem[dst:dst+length]=data[src:src+length]
+        return vm,c.read(0x59d364,4)
+    vm,save=setup();c=vm.cpu
+    # Preserve a separately owned existing Type3 and all its record data.
+    vm.op(command(0x5a,0x530));other=c.run(0x1abc50,[save,0x530,0,0]);assert other>=0
+    other_before=bytes(c.mem[save+0x6efc+other*216:save+0x6efc+(other+1)*216])
+    pilots=bytes(c.mem[save+0x25cfc:save+0x25cfc+512*92])
+    vm.op(command(0x5a,0x601));slade=c.run(0x1abc50,[save,0x601,0,0]);assert slade>=0
+    units=bytes(c.mem[save+0x6efc:save+0x6efc+512*216])
+    vm.op(command(0x5a,0x602));slot=c.run(0x1abc50,[save,0x602,0,0]);assert slot>=0 and slot not in (slade,other)
+    assert c.run(0x1a9b70,[save,slot,1])==1
+    assert c.run(0x1b1300,[save,slot,0])==-1
+    assert c.run(0x1b01d0,[save,0x34,slot])==0x8801
+    for flag in (0x37,0x38,0x39):assert c.run(0x1aca50,[save,flag,slot])==0,hex(flag)
+    assert c.run(0x1aca50,[save,0x59,slot])!=0
+    assert c.run(0x311200,[save,slot,1],limit=10000000)>0
+    assert c.mem[save+0x25cfc:save+0x25cfc+512*92]==pilots
+    for i in range(512):
+        if i!=slot:
+            p=save+0x6efc+i*216;assert c.mem[p:p+216]==units[i*216:(i+1)*216]
+    assert c.mem[save+0x6efc+other*216:save+0x6efc+(other+1)*216]==other_before
+    fixed=[c.run(0x1ac9d0,[save,0x75,slot,i]) for i in range(16)]
+    assert fixed[:5]==[0x97c,0x97d,0x97e,0x97f,0x980] and fixed[5:]==[-1]*11
+    stable=bytes(c.mem[save:save+0x3b400]);vm.op(command(0x5a,0x602));assert c.mem[save:save+0x3b400]==stable
+    # Sanger can board the restored Type3 and return to Daizengar.
+    pilot=c.run(0x1b1fd0,[save,0x469,0]);assert pilot>=0
+    c.write(save+0x25cfc+pilot*92+2,1,1)
+    assert c.run(0x1ac800,[save,0xf2,pilot])==0x8000
+    c.run(0x1b13d0,[save,pilot,slot,0]);assert c.run(0x1b1300,[save,slot,0])==pilot
+    vm.op(command(0x5a,0x499));dai=c.run(0x1abc50,[save,0x499,0,0]);assert dai>=0
+    c.run(0x1af000,[save,2,dai,1,0]);c.run(0x1b1370,[save,slot,0])
+    assert c.run(0x311200,[save,dai,1],limit=10000000)>0
+    c.run(0x1b13d0,[save,pilot,dai,0]);assert c.run(0x1b1300,[save,dai,0])==pilot
+    # Pilot602 (Wodan) is a different namespace from unit602 (Type3).
+    wp=0x5071000;p=wp+u32(s.data,wp+8+110*8);count=u32(s.data,p+40)
+    row=s.data[p+44+(count-1)*336:p+44+count*336]
+    assert (u32(row,0),u32(row,4),u32(row,32))==(0x601,0x25,0x602)
+    ctx=0x1700000;bundle=0x1780000;data=0x1790000
+    c.write(ctx+40,bundle,4)
+    for off,g in [(0x2120,0x59d360),(0x2124,0x59d364),(0x212c,0x59d36c)]:c.write(bundle+off,c.read(g,4),4)
+    c.write(ctx+0x346d4,data,4);c.write(ctx+0x346d0,1,4);c.mem[data:data+336]=row;c.write(CTX+0x310c,ctx-0x40e00,4)
+    vm.op(command(0x5e,0x25));wodan=c.run(0x1ab6f0,[save,0x602,1]);assert wodan>=0
+    assert c.run(0x1abc50,[save,0x602,0,0])==slot
+    assert c.run(0x1b1300,[save,slade,0])==wodan
+    assert c.run(0x1b1300,[save,dai,0])==pilot
+    # Ordinary grants have identical save effects through the extended wrapper.
+    for key in (0x600,0x601,0x559):
+        samples=[]
+        for patched in (False,True):
+            q,sv=setup(patched);q.op(command(0x5a,key));samples.append(bytes(q.cpu.mem[sv:sv+0x3b400]))
+        assert samples[0]==samples[1],hex(key)
+    return dict(episode37_clear=True,sanger_original_type3_variant=True,robot_only=True,
+        owned_visible_and_boardable=True,existing_type3_and_other_roster_preserved=True,
+        duplicate_grant_idempotent=True,sanger_boarding_and_daizengar_return=True,
+        wodan_recruitment_regression_passed=True,ordinary_grants_unchanged=True,
+        original_stats_weapons_and_dialogue_preserved=True,rendered_playthrough=False)

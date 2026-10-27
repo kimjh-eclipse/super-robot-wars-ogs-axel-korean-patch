@@ -2,9 +2,9 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261027.1**
+현재 버전: **v20261028**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261027.1/SRWOGS_AxelRoleSwap_kr_v20261027.1.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261027.1) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261028/SRWOGS_AxelRoleSwap_kr_v20261028.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261028) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 ## 적용 방법
 
@@ -23,10 +23,12 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 
 같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.
 
-기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027 공개 적용본을 지원합니다. v20261026의 네 조합과 새 32개 조합 사이에서도 전환할 수 있습니다.
+기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 32개 조합 사이에서도 전환할 수 있습니다.
 
 ## 기본 적용 사항
 
+- **44화 마지막 결전 후 워단(W15)이 생환하여 슬레이드겔미르에 합류**합니다. 기존 기체와 개조값을 재사용하며 다른 탑승 파일럿 기록은 유지합니다. 오우카 생존 옵션과 별개로 기본 적용됩니다.
+- **37화 클리어 후 그룬거스트 삼식**(젠가의 참식참함도 장착형)을 기체만 추가 지급합니다. 기존 다른 삼식은 유지하고 젠가 갈아타기를 지원합니다.
 - OG2 5화 클리어 후 **가리온 커스텀 무명** 입수. 무라타 없이 기체만 지급합니다. 5화에서 받지 못했다면 **6화 종료 시 미보유한 경우만 보충 지급**합니다.
 - OG2 6화 클리어 후 **부스트 해머·시시오 블레이드·G 임팩트 스테이크·강철의 혼·용자의 증표·고성능 전자두뇌** 각각 1개 추가.
 - OG2 37화 클리어 후 **슬레이드겔미르** 기체만 지급. 젠가 갈아타기 지원.
@@ -38,15 +40,15 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261027.1.xdelta`는 기준 한글판 전용이며 다섯 옵션이 모두 꺼진 결과를 만듭니다. 무명 6화 보충 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261028.xdelta`는 기준 한글판 전용이며 다섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 보충은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261027.1.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261028.xdelta" "출력.iso"
 ```
 
 ## 검증
 
-32개 결과 ISO 전체 해시, 2,048개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
+32개 결과 ISO 전체 해시, 3,072개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
 
 모든 조합의 ISO 크기는 4,518,150,144바이트입니다. 각 결과 해시는 ZIP의 `옵션별_ISO_SHA256.json`에 있습니다.
 

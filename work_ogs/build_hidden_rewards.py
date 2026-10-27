@@ -1702,10 +1702,238 @@ def mumei_fallback(apply=False):
         report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+
+WODAN_SURVIVAL_TEXT={
+    109:{
+        682:'워단：아직　움직일　수　있다、@메이거스……！',
+        687:'워단：이제는……@Ｗ１５가　아닌……@워단・유밀로서　살겠다……',
+        825:'워단：나의　모든　것을　걸고、@이　일격으로　길을　연다！！',
+        827:'워단：젠가……소피아를　구해라！@이　싸움에서　살아남는다면、@나의　검을　너희에게　맡기겠다……！',
+        830:'젠가：워단！！@네놈의　검은　아직　필요하다！@함께　돌아가는　거다！！',
+        874:'젠가：살아있습니다。@슬레이드게르밀과　함께　회수해@지금은　함내에서　회복　중입니다。',
+        876:'젠가：그　남자는　당신을　지켰습니다。@자신의　의지로……',
+        878:'젠가：그는　우리와　함께　싸우며@앞으로도　당신을　지키겠다고　했습니다。',
+        879:'소피아：그렇군요……。@부디、그를　잘　부탁드립니다。',
+    },
+    113:{38:'레몬：Ｗ１５도　Ｗ１６도……@내가　바라던　존재로　변해갔지。@워단은　자기　길을　찾았고……'},
+    114:{216:'젠가：자신의　의지와　싸울　이유를@빼앗긴　존재를……두　번　다시는！'},
+}
+
+
+def wodan_survival_plan(source=ISO):
+    """Last duel unchanged; rescue Wodan and grant him on existing alias 601."""
+    from ogs_korean_codec import encode
+    import re
+    s=Scripts(source);edits=[];blobs={};dialogue=[]
+    for n,changes in WODAN_SURVIVAL_TEXT.items():
+        assert not set(changes)&set(OUKA_SURVIVAL_TEXT.get(n,{})),('Ouka dialogue overlap',n)
+        at,size=s.logos[n];b=bytearray(s.data[at:at+size]);ts=s.texts(n)
+        for i,text in changes.items():
+            p,old=ts[i];a=encode(old);new=encode(text)
+            assert text.split('：')[0]==old.split('：')[0]
+            assert decode(new)==text and text.count('@')<=2
+            assert all(len(encode(line))<=54 for line in text.split('@')),(n,i,text)
+            assert not any(ord(c)<128 and c!='@' for c in text)
+            assert not re.search('[\u3040-\u30fa\u4e00-\u9fff]',text)
+            assert b[p-at:p-at+len(a)]==a
+            if len(new)<=len(a):b[p-at:p-at+len(a)]=new.ljust(len(a),b'\0')
+            else:
+                if b[-1]!=0:b.append(0)
+                struct.pack_into('<I',b,u32(b,0x54)+i*4,len(b)-u32(b,0x4c))
+                b.extend(new+b'\0')
+            dialogue.append(dict(script=n,text=i,before=old,after=text))
+        blobs[n]=b
+    b=blobs[109];rs=s.records(109);co=u32(b,0x2c)
+    assert rs[2300][1][:5]==(0x81,DEAD,0x100a5,0x42d,0xc9)
+    assert rs[2303][1][:3]==(0x63,DEAD,0xd)
+    # Reuse this scene's asynchronous retreat movement. No later command
+    # reads Wodan's map position; preserve the original event-selector command
+    # and all subsequent dialogue/waits while the retreat runs.
+    move=list(rs[2111][1]);assert move[4]==0x43a and move[9]==0x415
+    move[4]=0x42d;move[9]=0x471
+    struct.pack_into('<24I',b,co+2300*96,*move)
+    # A fresh ally alias prevents original enemy-actor cleanup from deleting
+    # the recruit. Reuse the existing owned robot, without resetting upgrades.
+    insert=next(i for i,(a,r) in enumerate(rs) if i>2500 and r[:4]==(0x9c,DEAD,0x22,0))
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8b,0x8c):
+            for j in ([6,7] if r[0]==0x8b else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j]
+    assert max(u32(b,u32(b,0x3c)+i*4) for i in range(u32(b,0x38)))<insert+u32(b,0x20)
+    pos=co+insert*96;b[pos:pos]=struct.pack('<24I',*command(0x5e,0x25))
+    struct.pack_into('<I',b,0x28,u32(b,0x28)+1)
+    for off in (0x34,0x3c,0x44,0x4c,0x54,0x5c):struct.pack_into('<I',b,off,u32(b,off)+96)
+    for n,b in blobs.items():
+        at,size=s.logos[n];cap=s.logos[n+1][0]-at
+        assert len(b)<=cap and not any(s.data[at+size:at+len(b)]),(n,len(b),cap)
+        for off in (4,0x6c):struct.pack_into('<I',b,off,len(b))
+        edits.extend([(MAP+at,s.data[at:at+len(b)],bytes(b)),
+            (MAP+0x557f800+12+n*8,struct.pack('<I',size),struct.pack('<I',len(b)))])
+    wp=0x5071000;dp=wp+8+110*8;off,size=struct.unpack_from('<II',s.data,dp);at=wp+off
+    count=u32(s.data,at+40);assert count in (202,203) and size==44+count*336
+    original=s.data[at:at+size];row=bytearray(original[44+138*336:44+139*336])
+    assert struct.unpack_from('<3I',row)==(0x491,0x11,0) and u32(row,0x20)==0x42d
+    assert all(u32(original,44+j*336+4)!=0x25 for j in range(count))
+    for index,value in [(0,0x601),(1,0x25),(4,0),(5,0),(6,0),(7,1),(8,0x602)]:struct.pack_into('<I',row,index*4,value)
+    ub=bytearray(original);struct.pack_into('<I',ub,40,count+1);ub.extend(row)
+    assert len(ub)<=wp+u32(s.data,dp+8)-at and not any(s.data[at+size:at+len(ub)])
+    edits.extend([(MAP+at,s.data[at:at+len(ub)],bytes(ub)),(MAP+dp+4,struct.pack('<I',size),struct.pack('<I',len(ub)))])
+    for base in (0x5da000,0x83f000):
+        with source.open('rb') as f:f.seek(base);master=f.read(0x190000)
+        assert struct.unpack_from('<H',master,0x13a484+0x42d*2)[0]==80
+        assert struct.unpack_from('<H',master,0x11e898+0x601*2)[0]==0xc8
+        assert struct.unpack_from('<H',master,0x13a484+0x602*2)[0]==0xffff
+        assert master[0x13b490+80*148+18:0x13b490+80*148+20]==b'\0\0'
+        edits.extend([(base+0x13a484+0x602*2,b'\xff\xff',struct.pack('<H',80)),
+            (base+0x13b490+80*148+18,b'\0\0',b'\1\0')])
+    # Reclaim a separate descriptor-initialization block, outside the enemy
+    # option's code range. Narrow wrappers reuse ONLY our owned unit/pilot keys.
+    # Every ordinary unit and pilot allocation tails to the original routine.
+    def I(op,rs,rt,imm):return op<<26|rs<<21|rt<<16|(imm&0xffff)
+    def J(pc,link=False):return (3 if link else 2)<<26|pc>>2
+    start,end=0x2003f4,0x200514
+    init=[I(9,8,10,-0x72cc),I(9,0,9,12),I(0x39,10,2,0),I(0x39,10,1,4),I(0x39,10,0,8),
+          I(9,10,10,16),I(9,9,9,-1),I(7,9,0,-6),0,I(15,0,10,0x54),I(15,0,9,0x54),I(15,0,8,0x54),J(end),0]
+    unit=start+len(init)*4
+    def wrapper(key,lookup,original,pilot=False):
+        return [I(9,0,2,key),I(5,5,2,14),0,I(9,29,29,-0x20),I(0x3f,29,31,0x10),I(0x3f,29,4,0),
+            J(lookup,True),I(9,0,6,1) if pilot else I(9,0,7,0),
+            I(1,2,1,4),I(0x37,29,4,0),I(9,0,5,key),J(original,True),I(9,0,6,0),
+            I(0x37,29,31,0x10),0x03e00008,I(9,29,29,0x20),J(original),0]
+    # Reusing a unit must detach its prior occupant through the native
+    # association API before the group initializer assigns Wodan.
+    uw=[I(9,0,2,0x601),I(5,5,2,21),0,I(9,29,29,-0x20),I(0x3f,29,31,0x10),I(0x3f,29,4,0),
+        J(0x1abc50,True),I(9,0,7,0),I(1,2,0,8),I(0x37,29,4,0),I(0x3f,29,2,8),0x0040282d,
+        J(0x1b1370,True),I(9,0,6,0),I(0x37,29,2,8),I(4,0,0,4),0,I(9,0,5,0x601),
+        J(0x1b2070,True),I(9,0,6,0),I(0x37,29,31,0x10),0x03e00008,I(9,29,29,0x20),J(0x1b2070),0]
+    pilot=unit+len(uw)*4;pw=wrapper(0x602,0x1ab6f0,0x1b1fd0,True)
+    code=struct.pack('<%dI'%(len(init)+len(uw)+len(pw)),*(init+uw+pw)).ljust(end-start,b'\0')
+    elf=lambda pc:0x94880+pc-0x100000
+    with source.open('rb') as f:
+        f.seek(elf(start));oldcode=f.read(end-start)
+        assert u32(oldcode,0)==0x3c090054 and u32(oldcode,len(oldcode)-4)==0xe5008dec
+        edits.append((elf(start),oldcode,code))
+        for pc,target,original in [(0x1d5a3c,unit,0x1b2070),(0x1d5d98,pilot,0x1b1fd0)]:
+            f.seek(elf(pc));before=f.read(4);assert before==struct.pack('<I',J(original,True))
+            edits.append((elf(pc),before,struct.pack('<I',J(target,True))))
+    edits=[e for e in edits if e[1]!=e[2]];edits.sort()
+    for x,y in zip(edits,edits[1:]):assert x[0]+len(x[1])<=y[0]
+    return edits,bytes(row),blobs,dialogue
+
+
+def wodan_survival(apply=False):
+    import os,subprocess
+    before=sha(ISO);assert before=='8de813ec3c5c75e65dd1e2b1c3b4d358b141457f1ca10754365cc0ab7634f24c',before
+    edits,row,blobs,dialogue=wodan_survival_plan()
+    from validate_hidden_rewards import validate_wodan_survival
+    checks=validate_wodan_survival(edits,row,blobs)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,a,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(a))==a;h.update(new);cursor+=len(a)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Wodan survives final duel and joins existing Sladegelmir after OG2 episode44; episode37 robot retained',
+        checks=checks,dialogue=dialogue,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/wodan_survival_manifest.json';journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:
+                    f.seek(off);assert f.read(len(a))==a;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:f.seek(off);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k not in ('edits','dialogue')},ensure_ascii=False,indent=2))
+
+
+def grungust_type3_grant_plan(source=ISO):
+    s=Scripts(source);n=103;at,size=s.logos[n];rs=s.records(n);insert=1464
+    assert len(rs)==1467 and rs[1463][1][:3]==(0x5a,DEAD,0x601)
+    assert rs[insert][1][:4]==(0x9c,DEAD,0x1d,0)
+    original=s.data[at:at+size];b=bytearray(original);pos=u32(b,0x2c)+insert*96
+    assert max(u32(b,u32(b,0x3c)+i*4) for i in range(u32(b,0x38)))<insert+u32(b,0x20)
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8b,0x8c):
+            for j in ([6,7] if r[0]==0x8b else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j]
+    b[pos:pos]=struct.pack('<24I',*command(0x5a,0x602))
+    struct.pack_into('<I',b,0x28,len(rs)+1)
+    for off in (0x34,0x3c,0x44,0x4c,0x54,0x5c):struct.pack_into('<I',b,off,u32(b,off)+96)
+    for off in (4,0x6c):struct.pack_into('<I',b,off,len(b))
+    assert len(b)<=s.logos[n+1][0]-at and not any(s.data[at+size:at+len(b)])
+    restored=bytearray(b);del restored[pos:pos+96];restored[:0x70]=original[:0x70];assert restored==original
+    edits=[(MAP+at,s.data[at:at+len(b)],bytes(b)),
+        (MAP+0x557f800+12+n*8,struct.pack('<I',size),struct.pack('<I',len(b)))]
+    for base in (0x5da000,0x83f000):
+        with source.open('rb') as f:f.seek(base);master=f.read(0x190000)
+        assert struct.unpack_from('<H',master,0x11e898+0x45e*2)[0]==0x8a
+        assert struct.unpack_from('<H',master,0x11e898+0x602*2)[0]==0xffff
+        assert master[0x11f8a4+0x8a*100+0x22:0x11f8a4+0x8a*100+0x24]==b'\0\x08'
+        edits.extend([(base+0x11e898+0x602*2,b'\xff\xff',struct.pack('<H',0x8a)),
+            (base+0x11f8a4+0x8a*100+0x22,b'\0\x08',b'\1\x88')])
+    # This wrapper handles UNIT keys only. The new unit key602 is unrelated
+    # to Wodan's pilot key602 in the separate PTbl/pilot record namespace.
+    edits.append((0x94880+0x114f90-0x100000,struct.pack('<I',0x2d080002),struct.pack('<I',0x2d080003)))
+    with source.open('rb') as f:
+        for off,a,b in edits:f.seek(off);assert f.read(len(a))==a,hex(off)
+    return sorted(edits)
+
+
+def grungust_type3_grant(apply=False):
+    import os,subprocess
+    before=sha(ISO);assert before=='4e4a25348d227539bdca20793d02a5a55aa74759127efe1ffa9001e083ee28bd',before
+    edits=grungust_type3_grant_plan()
+    from validate_hidden_rewards import validate_grungust_type3_grant
+    checks=validate_grungust_type3_grant(edits)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,a,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(a))==a;h.update(new);cursor+=len(a)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='OG2 episode37 clear Grungust Type3 (Sanger fixed Type3 Zankanto variant), robot only; old units preserved',
+        checks=checks,edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/grungust_type3_grant_manifest.json';journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:f.seek(off);assert f.read(len(a))==a;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:f.seek(off);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--dump',type=int,nargs='+');p.add_argument('--find',type=str);p.add_argument('--plan',action='store_true');p.add_argument('--apply',action='store_true')
     p.add_argument('--grant-mumei',action='store_true')
     p.add_argument('--mumei-fallback',action='store_true')
+    p.add_argument('--wodan-survival',action='store_true')
+    p.add_argument('--grungust-type3-grant',action='store_true')
     p.add_argument('--ouka-survival',action='store_true')
     p.add_argument('--episode6-bonus',action='store_true')
     p.add_argument('--daizengar-durability',action='store_true')
@@ -1728,6 +1956,8 @@ if __name__=='__main__':
     p.add_argument('--daizengar-upgrade-cost',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.grungust_type3_grant:grungust_type3_grant(a.apply);sys.exit()
+    if a.wodan_survival:wodan_survival(a.apply);sys.exit()
     if a.mumei_fallback:mumei_fallback(a.apply);sys.exit()
     if a.enemy_strength:enemy_strength(a.apply);sys.exit()
     if a.battle_rewards:battle_rewards(a.apply);sys.exit()
