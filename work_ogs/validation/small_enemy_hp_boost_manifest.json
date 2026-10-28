@@ -1,0 +1,21 @@
+{
+  "source_sha256": "b7a13214dcc6feb0f9c8f7fee91047b1f0b9eadcbac60b282f07152a27cb83a1",
+  "target_sha256": "0223afbcc85d13d8f0ae36eb55b269f9a2de7ef61babcd292aa52b0f199cceae",
+  "applied": true,
+  "feature": "Hostile actors only: base HP 1..19999 gains floor(base HP / 10), upgrades and difficulty additions unchanged",
+  "helper": "0x2001b4",
+  "checks": {
+    "native_HP_cases": 168,
+    "native_full_HP_dispatcher_cases": 8,
+    "startup_initializer_equivalent": true,
+    "strictly_below_20000": true,
+    "base_HP_threshold_not_upgraded_HP": true,
+    "ally_and_neutral_unchanged": true,
+    "hostility_relation_used": true,
+    "missing_map_context_unchanged": true,
+    "HP_upgrade_and_difficulty_additions_unchanged": true,
+    "masters_and_saves_not_modified": true,
+    "helper_bytes": 188,
+    "live_battle_test": false
+  }
+}

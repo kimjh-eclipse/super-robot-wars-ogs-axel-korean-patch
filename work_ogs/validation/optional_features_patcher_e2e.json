@@ -146,6 +146,10 @@
     0,
     31
   ],
-  "production_composition_selftest": 3072,
-  "current_gameplay_iso_unchanged": "25CA7578DE0A2B8647B08AEB64992D404D7D304D02285BA4EDF2A87919013056"
+  "production_composition_selftest": 4096,
+  "previous_v20261028": true,
+  "current_gameplay_iso_unchanged": "3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29",
+  "patcher_sha256": "96BE5FAB8C24D012BD6A1CAAFBDD109131538DE6ED64E7A5C4D0B9A72E0A8E65",
+  "common_pack_sha256": "E2369C704199418D9A45B764C0BAF46C44F450040A1B73D291841C53848CFD71",
+  "composition_validation_evidence": "Actual --self-test-options executable output: PASS: 4096 option transitions (exec session69170, exit0)"
 }

@@ -1,0 +1,65 @@
+{
+  "source_sha256": "0223afbcc85d13d8f0ae36eb55b269f9a2de7ef61babcd292aa52b0f199cceae",
+  "target_sha256": "3f7285fc75c92c282eea7820bf4688a23aca0cfe10de247ad8c31b190780eb29",
+  "applied": true,
+  "checks": {
+    "native_group_grant_and_boarding_passed": true,
+    "repeated_grant_reuses_pair": true,
+    "alternate44_clear_grant": true,
+    "common45_dialogue_lines": 8,
+    "all_other_commands_and_dialogue_preserved": true,
+    "text_lookup_unchanged": true,
+    "original44_route_preserved": true,
+    "live_chapter_test": false
+  },
+  "dialogue": [
+    {
+      "script": 110,
+      "text": 41,
+      "before": "브릿트：그래……너희들의　누나는……",
+      "after": "브릿트：그래……너희들의　누나는@무사히　돌아왔구나。"
+    },
+    {
+      "script": 110,
+      "text": 42,
+      "before": "라투니：……",
+      "after": "라투니：응……。@지금은　치료를　받고　있어。"
+    },
+    {
+      "script": 110,
+      "text": 43,
+      "before": "쿠스하：그런……",
+      "after": "쿠스하：정말　다행이야……。"
+    },
+    {
+      "script": 110,
+      "text": 44,
+      "before": "아라드：하지만……언제까지고@슬퍼하고　있을　순　없어요",
+      "after": "아라드：하지만……@방심하고　있을　순　없어요。"
+    },
+    {
+      "script": 110,
+      "text": 45,
+      "before": "아라드：누나를　잊지　않기　위해서도、@앞으로의　싸움에서　살아남지　않으면……",
+      "after": "아라드：누나와　함께　살아가기　위해서도、@앞으로의　싸움에서　살아남아야죠。"
+    },
+    {
+      "script": 110,
+      "text": 46,
+      "before": "제오라：그리고……@언니　몫까지　살아가자고　결심했어요",
+      "after": "제오라：언니가　회복하면、@다시　함께　싸울　수　있을　거예요。"
+    },
+    {
+      "script": 110,
+      "text": 47,
+      "before": "아이비스：그래、제오라……",
+      "after": "아이비스：그래、제오라……。"
+    },
+    {
+      "script": 110,
+      "text": 48,
+      "before": "아이비스：그렇게　하면……@제오라들의　마음속에　그　사람은@살아갈　수　있어……",
+      "after": "아이비스：이제　다시는@소중한　사람을　잃지　않도록@모두　함께　힘내자。"
+    }
+  ]
+}

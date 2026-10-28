@@ -401,7 +401,7 @@ def publish():
 
 
 def build_common_xdelta():
-    version='v20261028';repo=ROOT/'ogs-repo'
+    version='v20261029';repo=ROOT/'ogs-repo'
     profiles=json.loads((W/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
     cache=W/'runtime/story_xdelta_validation.json'
     delta=DIST/f'SRWOGS_AxelRoleSwap_kr_{version}.xdelta'
@@ -436,17 +436,17 @@ def build_common_xdelta():
 def prepare_options_release():
     """Package the five-option release without changing the gameplay ISO."""
     import zipfile
-    version='v20261028';repo=ROOT/'ogs-repo';rel=W/('release_'+version)
+    version='v20261029';repo=ROOT/'ogs-repo';rel=W/('release_'+version)
     profiles=json.loads((W/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
     e2e=json.loads((W/'runtime/optional_features_patcher_e2e.json').read_text(encoding='utf-8'))
-    need(e2e['passed'] and len(e2e['real_iso_transitions'])==32 and e2e['current_gameplay_iso_unchanged']==profiles['iso_unchanged_sha256'] and e2e['production_composition_selftest']==3072,'Five-option E2E incomplete')
+    need(e2e['passed'] and len(e2e['real_iso_transitions'])==32 and e2e['current_gameplay_iso_unchanged']==profiles['iso_unchanged_sha256'] and e2e['production_composition_selftest']==4096,'Five-option E2E incomplete')
     need(sha(ISO)==profiles['hashes'][31],'Gameplay ISO changed')
     need(sha(BASE)==BASE_SHA,'Baseline changed')
     # Ensure staged data still matches the exact files tested/packaged locally.
     sums=(QP/'SHA256SUMS.txt').read_text(encoding='utf-8-sig')
     for line in sums.splitlines():
         h,name=line.split('  ',1);need(sha(QP/name)==h,'Patcher file changed: '+name)
-    run(QP/'OGS_AxelSwap_QuickPatch.exe','--self-test-options')
+    need(e2e['patcher_sha256']==sha(QP/'OGS_AxelSwap_QuickPatch.exe') and e2e['common_pack_sha256']==sha(QP/'OGS_common_fix.bin'),'Patcher changed after completed E2E')
     if rel.exists():remove_build_tree(rel)
     (rel/'patcher').mkdir(parents=True)
     for line in sums.splitlines():
@@ -464,7 +464,7 @@ def prepare_options_release():
     ends=[text.index(x) for x in ('■ 제작·검증 정보','■ xdelta 적용','■ 배포 파일','■ 검증 및 다운로드') if x in text]
     text=text[:min(ends)] if ends else text
     download=f'https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/{version}/SRWOGS_AxelRoleSwap_kr_{version}.zip'
-    text+='■ xdelta 적용\n\n기준 한글패치 v1.4.3s1 적용본에만 사용합니다. 다섯 선택 옵션이 모두 꺼진 결과를 만듭니다. 옵션을 사용하려면 빠른 패처를 이용해 주세요.\n\nxdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261028.xdelta" "출력.iso"\n\n워단 생존·삼식 추가 지급·무명 보충은 모든 옵션 조합과 xdelta에 기본 적용됩니다. 이전 버전과 결과 ISO가 다릅니다.\n\n■ 검증 및 다운로드\n\n32개 조합의 전체 ISO 해시, 패처 내부 3,072개 전환, 실제 ISO의 32개 조합 적용 및 대표 조합 백업 복원을 확인했습니다. 모든 시나리오와 전투 연출의 실플레이를 새로 완료한 것은 아닙니다.\n\n'
+    text+='■ xdelta 적용\n\n기준 한글패치 v1.4.3s1 적용본에만 사용합니다. 다섯 선택 옵션이 모두 꺼진 결과를 만듭니다. 옵션을 사용하려면 빠른 패처를 이용해 주세요.\n\nxdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261029.xdelta" "출력.iso"\n\n워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합과 xdelta에 기본 적용됩니다. 이전 버전과 결과 ISO가 다릅니다.\n\n■ 검증 및 다운로드\n\n32개 조합의 전체 ISO 해시, 패처 내부 4,096개 전환, 실제 ISO의 32개 조합 적용 및 대표 조합 백업 복원을 확인했습니다. 모든 시나리오와 전투 연출의 실플레이를 새로 완료한 것은 아닙니다.\n\n'
     text+=download+'\n\n게임 ISO는 배포하지 않습니다.\n'
     (rel/'읽어주세요.txt').write_text(text,encoding='utf-8-sig')
     def markdown(t):
@@ -494,28 +494,28 @@ def prepare_options_release():
     long_notes=notes[notes.index('## 이번 추가'):]
     old_changelog=(repo/'CHANGELOG.md').read_text(encoding='utf-8')
     need('## '+version+' ' not in old_changelog,'Release notes already staged; inspect before rerun')
-    (repo/'CHANGELOG.md').write_text('# 변경 내역\n\n## '+version+' (2026-10-28)\n\n'+long_notes+'\n'+old_changelog.removeprefix('# 변경 내역').lstrip(),encoding='utf-8')
-    overview='# Super Robot Wars OGs — 액셀 알마 역할 교체 패치\n\nPS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.\n\n현재 버전: **v20261028**\n\n[패처 ZIP 다운로드](DOWNLOAD) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261028) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)\n\n## 적용 방법\n\n1. ZIP을 폴더째 풉니다.\n2. `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO를 선택합니다.\n3. 원하는 옵션을 체크하고 [패치 적용]을 누릅니다. **다섯 옵션의 기본값은 모두 꺼짐**입니다.\n4. 에뮬레이터를 완전히 다시 실행하고 **게임 내 메모리카드 세이브**로 불러옵니다. 이전 세이브 스테이트는 사용하지 마세요.\n\n| 독립 선택 옵션 | 내용 |\n|---|---|\n| 숨겨진 요소 자동 습득 (OG2) | 원래 획득 시점의 조건 해제 |\n| 오우카 생존 + 젠가 밸런스 | 44화 오우카 생존·합류, 다이젠가 강화·8무장 통합 |\n| 자금 +20% · PP 2배 | 적 격추 보상 증가 |\n| 적 강화 | 적 파일럿 6개 능력치 +5, 기체·무기 기본 개조 +1단 |\n| 액셀·제오라 정신기 변경 | 액셀 철벽·혼·각성 SP 조정, 제오라 번뜩임·가속 |\n\n같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.\n\n기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 32개 조합 사이에서도 전환할 수 있습니다.\n\n## 기본 적용 사항\n\n- **44화 마지막 결전 후 워단(W15)이 생환하여 슬레이드겔미르에 합류**합니다. 기존 기체와 개조값을 재사용하며 다른 탑승 파일럿 기록은 유지합니다. 오우카 생존 옵션과 별개로 기본 적용됩니다.\n- **37화 클리어 후 그룬거스트 삼식**(젠가의 참식참함도 장착형)을 기체만 추가 지급합니다. 기존 다른 삼식은 유지하고 젠가 갈아타기를 지원합니다.\n- OG2 5화 클리어 후 **가리온 커스텀 무명** 입수. 무라타 없이 기체만 지급합니다. 5화에서 받지 못했다면 **6화 종료 시 미보유한 경우만 보충 지급**합니다.\n- OG2 6화 클리어 후 **부스트 해머·시시오 블레이드·G 임팩트 스테이크·강철의 혼·용자의 증표·고성능 전자두뇌** 각각 1개 추가.\n- OG2 37화 클리어 후 **슬레이드겔미르** 기체만 지급. 젠가 갈아타기 지원.\n- 기존 소울게인·바이사가·아슈세이버 획득 및 갈아타기 조정 유지.\n- 소울게인·바이사가 무장별 대사·음성 연결 수정, 시나리오 대사·호칭·문자 깨짐 교정, 적 라미아·안쥬르그 조정 유지.\n- 아우센자이터 무장 공격력 +200 및 배리어 관통, 알트아이젠 리제 배리어 관통, 공용 시시오 블레이드·암검살·스태그 비틀 크래셔 사거리 조정 등 유지.\n\n전체 수치와 획득 시점은 아래 누적 릴리즈 노트에 정리했습니다. **지나간 화의 보상은 소급 지급하지 않습니다.** 오우카 생존은 44화 결말 이전부터 진행해야 합니다. 적 기본 개조는 적이 생성될 때 적용됩니다.\n\n## xdelta\n\n`SRWOGS_AxelRoleSwap_kr_v20261028.xdelta`는 기준 한글판 전용이며 다섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 보충은 모든 옵션 조합에 기본 적용됩니다.\n\n```text\nxdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261028.xdelta" "출력.iso"\n```\n\n## 검증\n\n32개 결과 ISO 전체 해시, 3,072개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.\n\n모든 조합의 ISO 크기는 4,518,150,144바이트입니다. 각 결과 해시는 ZIP의 `옵션별_ISO_SHA256.json`에 있습니다.\n\n게임 ISO와 세이브는 배포하지 않습니다.\n\n'
+    (repo/'CHANGELOG.md').write_text('# 변경 내역\n\n## '+version+' (2026-10-29)\n\n'+long_notes+'\n'+old_changelog.removeprefix('# 변경 내역').lstrip(),encoding='utf-8')
+    overview='# Super Robot Wars OGs — 액셀 알마 역할 교체 패치\n\nPS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.\n\n현재 버전: **v20261029**\n\n[패처 ZIP 다운로드](DOWNLOAD) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261029) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)\n\n## 적용 방법\n\n1. ZIP을 폴더째 풉니다.\n2. `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO를 선택합니다.\n3. 원하는 옵션을 체크하고 [패치 적용]을 누릅니다. **다섯 옵션의 기본값은 모두 꺼짐**입니다.\n4. 에뮬레이터를 완전히 다시 실행하고 **게임 내 메모리카드 세이브**로 불러옵니다. 이전 세이브 스테이트는 사용하지 마세요.\n\n| 독립 선택 옵션 | 내용 |\n|---|---|\n| 숨겨진 요소 자동 습득 (OG2) | 원래 획득 시점의 조건 해제 |\n| 오우카 생존 + 젠가 밸런스 | 44화 양쪽 루트 오우카 합류·45화 후속 대사, 다이젠가 강화·8무장 통합 |\n| 자금 +20% · PP 2배 | 적 격추 보상 증가 |\n| 적 강화 | 적 파일럿 6개 능력치 +5, 기체·무기 기본 개조 +1단, 기본 HP 20,000 미만 적 HP +10% |\n| 액셀·제오라 정신기 변경 | 액셀 철벽·혼·각성 SP 조정, 제오라 번뜩임·가속 |\n\n같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.\n\n기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 32개 조합 사이에서도 전환할 수 있습니다.\n\n## 기본 적용 사항\n\n- **44화 마지막 결전 후 워단(W15)이 생환하여 슬레이드겔미르에 합류**합니다. 기존 기체와 개조값을 재사용하며 다른 탑승 파일럿 기록은 유지합니다. 오우카 생존 옵션과 별개로 기본 적용됩니다.\n- **37화 클리어 후 그룬거스트 삼식**(젠가의 참식참함도 장착형)을 기체만 추가 지급합니다. 기존 다른 삼식은 유지하고 젠가 갈아타기를 지원합니다.\n- OG2 5화 클리어 후 **가리온 커스텀 무명** 입수. 무라타 없이 기체만 지급합니다. 5화에서 받지 못했다면 **6화 종료 시 미보유한 경우만 보충 지급**합니다.\n- OG2 6화 클리어 후 **부스트 해머·시시오 블레이드·G 임팩트 스테이크·강철의 혼·용자의 증표·고성능 전자두뇌** 각각 1개 추가.\n- OG2 37화 클리어 후 **슬레이드겔미르** 기체만 지급. 젠가 갈아타기 지원.\n- 기존 소울게인·바이사가·아슈세이버 획득 및 갈아타기 조정 유지.\n- 소울게인·바이사가 무장별 대사·음성 연결 수정, 시나리오 대사·호칭·문자 깨짐 교정, 적 라미아·안쥬르그 조정 유지.\n- 아우센자이터 무장 공격력 +200 및 배리어 관통, 알트아이젠 리제 배리어 관통, 공용 시시오 블레이드·암검살·스태그 비틀 크래셔 사거리 조정 등 유지.\n\n전체 수치와 획득 시점은 아래 누적 릴리즈 노트에 정리했습니다. **지나간 화의 보상은 소급 지급하지 않습니다.** 오우카 생존은 44화 결말 이전부터 진행해야 합니다. 적 기본 개조는 적이 생성될 때 적용됩니다.\n\n## xdelta\n\n`SRWOGS_AxelRoleSwap_kr_v20261029.xdelta`는 기준 한글판 전용이며 다섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.\n\n```text\nxdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261029.xdelta" "출력.iso"\n```\n\n## 검증\n\n32개 결과 ISO 전체 해시, 4,096개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.\n\n모든 조합의 ISO 크기는 4,518,150,144바이트입니다. 각 결과 해시는 ZIP의 `옵션별_ISO_SHA256.json`에 있습니다.\n\n게임 ISO와 세이브는 배포하지 않습니다.\n\n'
     overview=overview.replace('DOWNLOAD',download)
     (repo/'README.md').write_text(overview.rstrip()+'\n',encoding='utf-8')
     (repo/'docs/home.md').write_text(overview.rstrip()+'\n',encoding='utf-8')
     (repo/'docs/patch-notes.md').write_text(notes,encoding='utf-8')
-    sidebar=(repo/'docs/_sidebar.md').read_text(encoding='utf-8').replace('v20261027.1.zip','v20261028.zip')
+    sidebar=(repo/'docs/_sidebar.md').read_text(encoding='utf-8').replace('v20261028.zip','v20261029.zip')
     (repo/'docs/_sidebar.md').write_text(sidebar,encoding='utf-8')
     shutil.copyfile(delta,repo/'patch'/delta.name)
     info=json.loads((repo/'patch/PATCH_INFO.json').read_text(encoding='utf-8'))
-    info.update(version=version,built='2026-10-28',status='RELEASED')
+    info.update(version=version,built='2026-10-29',status='RELEASED')
 
-    info['previous']='v20261027.1'
-    info['changes']=['44화 워단 생존·슬레이드겔미르 합류, 37화 그룬거스트 삼식 기체 추가 지급', '무명 6화 보충 지급 유지', '자금+20%·PP2배 / 적 강화 / 액셀·제오라 정신기 변경을 독립 선택 옵션으로 추가',
+    info['previous']='v20261028'
+    info['changes']=['5화 무명 지급 삽입 제거, 6화 종료 무명 지급으로 통일', '아군 무명 HP6300, 시시오 블레이드4600, 무명2도인기참5600; 적 무라타 유지', '무기 개조비용 최저등급 유지, 나머지20% 인하', '오우카 생존 옵션: 다른44화 루트 합류와45화 후속대사 수정', '적 강화 옵션: 기본HP20000미만 적HP10% 추가', '베어울프 테스트 제외', '자금+20%·PP2배 / 적 강화 / 액셀·제오라 정신기 변경을 독립 선택 옵션으로 추가',
         '기존 숨겨진 요소·오우카 생존+젠가 밸런스 옵션 유지; 모두 기본 OFF',
-        '32개 옵션 조합 및 3072개 전환 검증',
+        '32개 옵션 조합 및 4096개 전환 검증',
         '무명·슬레이드겔미르 획득, 6화 추가 보상 및 기존 무장·대사 조정을 누적 릴리즈 노트에 정리']
 
     info['result_iso'].update(sha256=profiles['hashes'][0],md5=default_md5)
     info['patch'].update(file=delta.name,size=delta.stat().st_size,sha256=sha(delta),md5=md5(delta))
     info['quickpatch']['exe_sha256']=sha(QP/'OGS_AxelSwap_QuickPatch.exe')
-    info['quickpatch']['verified']='32 full ISO profiles, 3072 composition transitions, real ISO patch/restore checks passed'
+    info['quickpatch']['verified']='32 full ISO profiles, 4096 composition transitions, real ISO patch/restore checks passed'
     info['quickpatch']['core_pack_default_sha256']=profiles['previous_hashes'][0]
     info['quickpatch']['optional_hidden_rewards']['result_iso_sha256']=profiles['hashes'][1]
     info['quickpatch']['optional_ouka_zengar']['result_iso_sha256']=profiles['hashes'][2]
@@ -536,7 +536,7 @@ def prepare_options_release():
 
 def publish_options_release():
     """Publish the guarded v20261027 assets; retain older releases."""
-    version='v20261028';repo=ROOT/'ogs-repo'
+    version='v20261029';repo=ROOT/'ogs-repo'
     metadata=json.loads((W/'runtime/optional_features_release.json').read_text(encoding='utf-8'))
     files=[Path(metadata['zip']),Path(metadata['delta'])]
     need(sha(files[0])==metadata['zip_sha256'] and sha(files[1])==metadata['delta_sha256'],'Release assets changed')
@@ -560,7 +560,7 @@ def publish_options_release():
     except urllib.error.HTTPError as e:
         if e.code!=404:raise
         rel=api('POST',api_root+'/releases',json.dumps(dict(tag_name=version,target_commitish=head,
-            name='OGs 액셀 역할 교체 패치 '+version+' — 워단 생존 합류·그룬거스트 삼식 지급',
+            name='OGs 액셀 역할 교체 패치 '+version+' — 5화 진행·무명·오우카 루트 수정',
             body=body,draft=True,prerelease=False),ensure_ascii=False).encode())
     for file in files:
         matches=[a for a in rel.get('assets',[]) if a['name']==file.name]

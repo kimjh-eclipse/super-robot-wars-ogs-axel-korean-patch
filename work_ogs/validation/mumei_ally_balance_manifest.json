@@ -1,0 +1,20 @@
+{
+  "source_sha256": "ac45e787b9e31e61ae3a87cda75673c78f5f48d3fffa12777ebde8de8263a4f6",
+  "target_sha256": "fd33867136341030272832d5591164d65180bca71355e7f1cc8639410988d3b6",
+  "applied": true,
+  "checks": {
+    "existing_save_resolves_new_weapons": true,
+    "ally_hp": 6300,
+    "shishio_power": 4600,
+    "finisher_power": 5600,
+    "enemy_hp": 63000,
+    "enemy_shishio_power": 3700,
+    "enemy_finisher_power": 4700,
+    "original_bank_and_motion_ids_preserved": true,
+    "save_bytes_unchanged": true,
+    "repeated_grant_idempotent": true,
+    "all_original_master_records_preserved": true,
+    "live_playthrough_verified": false
+  },
+  "feature": "Ally Mumei independent body and weapons: HP6300, Shishio4600, finisher5600; enemy preserved"
+}

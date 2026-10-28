@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261028";
+    private const string VersionText = "v20261029";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";
@@ -281,6 +281,7 @@ internal static class OgsAxelQuickPatch
         public byte[][] Hashes = new byte[32][], PriorHashes = new byte[32][];
         public List<PatchRange>[] On = new List<PatchRange>[32], Off = new List<PatchRange>[32];
         public List<PatchRange> PriorOn, PriorOff;
+        public List<Pack> LegacyOff = new List<Pack>(), LegacyOn = new List<Pack>();
     }
     private static CommonFix LoadCommonFix(Pack full, FeatureOptions features)
     {
@@ -304,6 +305,21 @@ internal static class OgsAxelQuickPatch
                 if (fix.PriorHashes[i].Length != 32) throw new EndOfStreamException();
             }
             List<PatchRange>[] prior = ReadFeatureRanges(r, full.IsoSize);fix.PriorOff = prior[0];fix.PriorOn = prior[1];
+            if (stream.Position < stream.Length)
+            {
+                int aliases = r.ReadInt32();
+                if (aliases < 0 || aliases > 128) throw new InvalidDataException("이전 배포본 수 오류");
+                for (int j = 0; j < aliases; j++)
+                {
+                    int mask = r.ReadInt32(); byte[] source = r.ReadBytes(32);
+                    if (mask < 0 || mask >= 32 || source.Length != 32) throw new InvalidDataException("이전 배포본 정보 오류");
+                    List<PatchRange>[] legacy = ReadFeatureRanges(r, full.IsoSize);
+                    fix.LegacyOff.Add(new Pack { Title = "이전 공개 배포본 업데이트", IsoSize = full.IsoSize,
+                        SourceHash = source, TargetHash = features.Hashes[mask], Ranges = legacy[0] });
+                    fix.LegacyOn.Add(new Pack { IsoSize = full.IsoSize, SourceHash = features.Hashes[mask],
+                        TargetHash = source, Ranges = legacy[1] });
+                }
+            }
             if (stream.Position != stream.Length) throw new InvalidDataException("공통 수정 길이 오류");
             return fix;
         }
@@ -334,6 +350,10 @@ internal static class OgsAxelQuickPatch
                     foreach (PatchRange range in prefix.Ranges) prefix.PayloadBytes += range.Data.Length;
                     current = Hex(features.Hashes[i]); break;
                 }
+        if (prefix == null)
+            foreach (Pack legacy in fix.LegacyOff)
+                if (current == Hex(legacy.SourceHash))
+                { prefix = legacy; current = Hex(legacy.TargetHash); break; }
         Pack plan = SelectPlan(packs, option, oukaBase, oukaHidden, features, current, selected);
         if (plan == null) return null;
         if (prefix != null) plan = Combine(prefix, plan);
@@ -444,6 +464,10 @@ internal static class OgsAxelQuickPatch
             foreach (PatchRange range in fix.Off[mask])
                 for (int i = 0; i < range.Data.Length; i++)
                     if (!defaults.ContainsKey(range.Offset + i)) defaults[range.Offset + i] = range.Data[i];
+        foreach (Pack legacy in fix.LegacyOff)
+            foreach (PatchRange range in legacy.Ranges)
+                for (int i = 0; i < range.Data.Length; i++)
+                    if (!defaults.ContainsKey(range.Offset + i)) defaults[range.Offset + i] = range.Data[i];
         Dictionary<long, int> index = new Dictionary<long, int>();
         byte[] initial = new byte[defaults.Count]; int pos = 0;
         foreach (KeyValuePair<long, byte> item in defaults) { index[item.Key] = pos; initial[pos++] = item.Value; }
@@ -481,7 +505,22 @@ internal static class OgsAxelQuickPatch
                         if (state[i] != fixedStates[target][i]) throw new InvalidDataException("옵션 전환 바이트 오류: " + source + " -> " + target);
                     cases++;
                 }
-        Console.WriteLine("PASS: " + cases + " option transitions; Wodan/Type3/Mumei common story fixes preserved.");
+        for (int old = 0; old < fix.LegacyOn.Count; old++)
+        {
+            int mask = -1;
+            for (int i = 0; i < 32; i++) if (Hex(features.Hashes[i]) == Hex(fix.LegacyOn[old].SourceHash)) { mask = i; break; }
+            if (mask < 0) throw new InvalidDataException("이전 배포본 기준 조합 오류");
+            byte[] legacyState = (byte[])states[mask].Clone(); ApplyState(fix.LegacyOn[old], index, legacyState);
+            for (int target = 0; target < 32; target++)
+            {
+                Pack plan = SelectFixedPlan(packs, hidden, bundle, both, features, fix, Hex(fix.LegacyOn[old].TargetHash), target);
+                if (plan == null || Hex(plan.TargetHash) != Hex(fix.Hashes[target])) throw new InvalidDataException("이전 배포본 전환 해시 오류");
+                byte[] state = (byte[])legacyState.Clone(); ApplyState(plan, index, state);
+                for (int i = 0; i < state.Length; i++) if (state[i] != fixedStates[target][i]) throw new InvalidDataException("이전 배포본 전환 바이트 오류");
+                cases++;
+            }
+        }
+        Console.WriteLine("PASS: " + cases + " option transitions; current and legacy public profiles preserved.");
     }
     private static void ApplyState(Pack pack, Dictionary<long, int> index, byte[] state)
     {
@@ -506,7 +545,7 @@ internal static class OgsAxelQuickPatch
         int selected = (hidden ? 1 : 0) | (ouka ? 2 : 0) | (rewards ? 4 : 0) | (enemy ? 8 : 0) | (spirits ? 16 : 0);
         CommonFix fix = LoadCommonFix(full, features);
         string desiredHash = Hex(fix.Hashes[selected]);
-        log("워단 생존·37화 삼식 지급·무명 보충: 기본 적용");
+        log("무명 6화 지급·아군 전용 능력치·무기 비용 인하: 기본 적용");
         log("자금 +20% · PP 2배: " + (rewards ? "선택" : "선택 안 함"));
         log("적 강화: " + (enemy ? "선택" : "선택 안 함"));
         log("액셀·제오라 정신기 변경: " + (spirits ? "선택" : "선택 안 함"));
@@ -775,7 +814,7 @@ internal static class OgsAxelQuickPatch
             rewardsCheck.Text = "자금 +20% · PP 2배";
             rewardsCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             rewardsCheck.SetBounds(18, 60, 402, 28); options.Controls.Add(rewardsCheck);
-            enemyCheck.Text = "적 강화 (능력치 +5 · 기본 개조 +1단)";
+            enemyCheck.Text = "적 강화 (능력치 +5 · 개조 +1 · 저HP +10%)";
             enemyCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             enemyCheck.SetBounds(430, 60, 405, 28); options.Controls.Add(enemyCheck);
             spiritsCheck.Text = "액셀·제오라 정신기 변경";

@@ -1,0 +1,29 @@
+{
+  "source_sha256": "fd33867136341030272832d5591164d65180bca71355e7f1cc8639410988d3b6",
+  "target_sha256": "b7a13214dcc6feb0f9c8f7fee91047b1f0b9eadcbac60b282f07152a27cb83a1",
+  "applied": true,
+  "feature": "Weapon upgrade tiers 1..4 reduced by 20%; cheapest tier0 and all tier assignments preserved",
+  "checks": {
+    "cost_tiers": 5,
+    "levels_per_tier": 15,
+    "cheapest_tier_unchanged": true,
+    "all_60_other_prices_exactly_20_percent_lower": true,
+    "native_menu_lookup_and_cumulative_cost_passed": true,
+    "ten_stage_totals_before": [
+      110000,
+      165000,
+      275000,
+      357500,
+      412500
+    ],
+    "ten_stage_totals_after": [
+      110000,
+      132000,
+      220000,
+      286000,
+      330000
+    ],
+    "unit_upgrade_prices_and_weapon_growth_unchanged": true,
+    "live_menu_test": false
+  }
+}

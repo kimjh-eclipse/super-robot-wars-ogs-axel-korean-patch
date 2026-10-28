@@ -1,0 +1,18 @@
+{
+  "source_sha256": "25ca7578de0a2b8647b08aeb64992d404d7d304d02285ba4edf2a87919013056",
+  "target_sha256": "ac45e787b9e31e61ae3a87cda75673c78f5f48d3fffa12777ebde8de8263a4f6",
+  "applied": true,
+  "feature": "Mumei robot only at episode6 clear if not owned; episode5 original command layout restored",
+  "checks": {
+    "missing_unit_granted_owned_visible_boardable": true,
+    "already_owned_no_duplicate": true,
+    "repeated_grant_idempotent": true,
+    "original_six_rewards_preserved": true,
+    "original_episode5_grant_preserved": false,
+    "episode5_direct_grant_removed": true,
+    "pilot_records_unchanged": true,
+    "rendered_playthrough": false
+  },
+  "episode5_start_user_verified_in_diagnostic": true,
+  "production_playthrough_verified": false
+}

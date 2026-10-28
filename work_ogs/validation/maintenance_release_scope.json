@@ -1,0 +1,13 @@
+{
+  "version": "v20261029",
+  "Beowulf_excluded": true,
+  "Beowulf_test_deferred": [
+    "attack invisibility persists",
+    "copy original enemy Axel stats",
+    "name Beowulf"
+  ],
+  "production_sha256": "3f7285fc75c92c282eea7820bf4688a23aca0cfe10de247ad8c31b190780eb29",
+  "Ouka_alternate44_and45_fixed": true,
+  "weapon_discount_cheapest_exempt": true,
+  "HP_boost_in_enemy_option": true
+}

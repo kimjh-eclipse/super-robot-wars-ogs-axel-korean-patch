@@ -1,6 +1,6 @@
 {
-  "version": "v20261028",
-  "iso_unchanged_sha256": "25CA7578DE0A2B8647B08AEB64992D404D7D304D02285BA4EDF2A87919013056",
+  "version": "v20261029",
+  "iso_unchanged_sha256": "3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29",
   "bits": {
     "hidden": 1,
     "bundle": 2,
@@ -10,38 +10,38 @@
   },
   "defaults": 0,
   "hashes": [
-    "BE0E908B8D70DA60CD8C3C3EBA5484AA55A11E8FBC75EF7954BF842D1921DB3E",
-    "8122E207BEEC2493F92212C0FC1EA6B898A4A63813AA6212A8D8F2E815B6756E",
-    "95B1719C635DCE519E1F24BF0FBBBB8EF65A5B32C27E4377A88658814DD4F06E",
-    "8CB4D676ACAD8BEE7E472AB6FD8D7B778D9505B4C7EDF2734783090E91119A05",
-    "3F042FC164CEFA264502641058183F8893C6D961EA9B50D5F2CBF2046687C8F7",
-    "BFDDB41A350428A9E231B33703E8F4BF994BCCCC5E91118325FA4A0F1D537573",
-    "0845412D82E3314E9FA737D1F41511A5330A58F06DEBF6539AD61C26093459CA",
-    "50F7488F601B444045DA71407B1824175F1A8BE774D1A528934C2D1624617468",
-    "B51283A6212CA58E3421ED38035ADEECB5D5C21ABE4AFEBC433C544FF8C8795F",
-    "C86D82AFA9C0A3800B97D2FD65BCCB41C27FB18CF9048DB0610B22ECA77887B7",
-    "C65328E7F37FA930353616A046A54452454DDE8F7D62F0214D4C3298B20F36FE",
-    "F186419AD8A7CDCB0AFA7155B1A85A6B30F18E7602E7F2F98BD1E04596100202",
-    "EA1E63CA65C3FC78228C0AFD5A0C7E07FCC1B0D08FC06E39F4D61996BEC2919C",
-    "8FAF7868E9CDF5AB3A60399755A50E2EB772337D65332CAD80AE1B89FC7062FD",
-    "2450F8409E8A7BF43C9BD230CE01EC5488130C521F070AC842D69DE1974CF416",
-    "16A250B01A28AAE3FC7EB3A64867C5CD9436DABEACF7882569531BF92289C056",
-    "4A52CBBA29FF283377C02EA3E3DB9D0226682A6D7CFEF5C3A39F640EFBB43FD4",
-    "7AAFE07B811CEBDFCEC05C879E55AA4F4F1AE0CC671FB202EADDF781E05D552C",
-    "204FC73DD0B1470032FA9F49E91944E4779119B80C970BBE89964AB2A12ABBBF",
-    "90F02C86AC1B1295A650ED741E99ED0F17C09A61B86E1E47747705678F64A229",
-    "72691C8C10B4EDFCE4F4B1CBB370D7F0024AA170AC4BC5C79978AF9C16F0D8C5",
-    "2581D75B05A7A91E9970B5149C6AAE1043C7F4B769AA61D12F77CCB1B76BC5DD",
-    "F85D13911EFD63C73ACF5B1C5116EE758936BAE47C3229EB924DA6C2C87F2B7A",
-    "D0A8655DDD93897CEBEFD45F754E3CFA09B7CA70381509D016DE2DEE28F43CA6",
-    "826520C1F9BCD80F030E5C3307FD422D93DCBECF682D4217C8EF5360C1BE8160",
-    "272DD4096D5D5AC231E18E6C67685C899E2BEBCBA3F5630AF8BF2428A4ABC7DD",
-    "B533CEE45F023FB0EBE3AD4C4501E78776D206137B1E9CB33F60C070BCAD5A19",
-    "634B76B6E08EF5DCCB23F081E1370E7435FDAA8D972C9B2788F7B16A23C0A51A",
-    "478F890FF1CB2E428CA0F4E002AD41823F3E3198C963F321540DD04FCCF5C278",
-    "D25D11746A125F879E4E1B75391607306F3FCDD217F4350B7F454A7842BEC65A",
-    "E08608ED8F3B2A6E2A4736D0E810ADEC998026A63D3D01F2F86288BA18DA4C2C",
-    "25CA7578DE0A2B8647B08AEB64992D404D7D304D02285BA4EDF2A87919013056"
+    "3566CEFF5B33FAAD75D4240047E4D08807CD16AD99548450DAD55296DD206457",
+    "E895F9E5861ED60BD8E2BC88C19BE830D8F483FE73AF20CCCDC7C5A0EFE4E389",
+    "AB6E2ED2C2D99E7C3512601238445F83A37FB8C22BB0FDC80C6530957BBFDB5F",
+    "13065AB9C7C990DEC1067DEEB0B0FEAD575C64EACE0BB9DBB3AA0642D33651E4",
+    "C9C89383E0AAC0BB7CFBB69ED67996455785C4AA628936F768096AE0DA48631D",
+    "F29A7AFDBDDEBE58C101BD61A008E27996CAEA520CB266F77F185EB014DB8425",
+    "7F459DBBBAF6682382A410099A28CDF4FB4994583EA9ADA114E3919B9E729FED",
+    "4D9A12766A32B378CA844380B48A1D512EEC607A209031355D84C57266C93720",
+    "927C1A8CFFCA3DDCE2381F150F2F277D805353D5564917AE7A8D94666B18BD41",
+    "D37A67B56FB473D9DB0DD8413D2065D43F96F4B0AAD45FD5092DEF39E73AA176",
+    "E41619679A7E894E0BA1225DB4AA56E41EA0C65347D58EC0AA2B5EB4F2B48F04",
+    "820CD7C14E6A8953E67679FCF3F059F9E3F03137D4E8C69A2E0BD155A79BD775",
+    "636F26D439AC375B3D76B298D1D1F2E99F051370AC28A4F6CAF45874E3C1CA58",
+    "7848E802553590340366E9AA76A0E1C01AC585B2C9E45F05597CD9146AA9E20A",
+    "8AA2CD1E062656C89EA6B710F3FA1288E8E1D9483A40894C16340B798DB07700",
+    "E015E5313D6CDC0EA6E196989B8A7B96F0B81A92F02C029E8468F6DBE1A97B56",
+    "F6FCE419353C2346C64FDD4DE3EA5F07F12918132A3A4E1724FE9E92FA6893F1",
+    "5A6BD4144324C5BDBCD49F4EEC069CEFD7410B8FB3F86D355D15DFC2AA3C3B6D",
+    "1EE42006D1240487D8214B1FA2C6A01577141558FDCEA1B63F946BEB560DACF8",
+    "1A6A297AB9E85966407920FBFA522C57F54B5B53FAB9E129D5555760E3FBE805",
+    "4F040BCBA2A4162EE8D1D8C9608627E1B968E32C4109300B2106A3892376663C",
+    "7F889AEF481EBB7FCFDF4D48A6B2B0DCBDC600BCD31D648C28E5714CB10F32C7",
+    "449CC9633C37B1BF9959C7E0762BCC2918D30B50AE7BA75AE83F6B8839752FA5",
+    "B96BB5418C6538DEF4C253ABDBEE17DBDC7EE9799157E4671A2B6D426AECAFD6",
+    "0086E4AA07229E6E145EE123575A3F33F7EB4FAB13CEA2CC543DDE0A2C985307",
+    "E0A3308BD11F3A8BE1B587BF794BDF0E4406D6FF3C7755073EE8C369344BC408",
+    "C41EF25BC8F1E7D8443ED69E5254C9F79CFD55F81BD98706BA02C7D5AB8BB1C4",
+    "161D99361EFA3D27BA62C2439A29DBD185C239012BA98F39BA024DF609DF6D13",
+    "A9BA504C979E6BBD8D1D2242EA2F57E53FEB54A91429114DDCB7F4A077A48FAA",
+    "D53BCA97E46DD09617B2F74CAD2069ACC7473D8C0662FDF06EE1A1A9E7C41E15",
+    "40DA8EA58C44027DFAC7F4B785266B64BE0B12FDA6A4384BB9285E3B50575C29",
+    "3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29"
   ],
   "features_file_sha256": "E319A2D0407812952505D12B4C5E198E01896EE043078E1B8A745A6A3D55071F",
   "profile_count": 32,
@@ -113,5 +113,265 @@
     "6410AF539255E17AA67F5C55184BE93180CFFAE188D06FB5F77550D296DE3E5E",
     "8DE813EC3C5C75E65DD1E2B1C3B4D358B141457F1CA10754365CC0AB7634F24C"
   ],
-  "common_file_sha256": "EC998C43CDFBD4C31136BFCE2F9DC65646AEDF178149E55B943A0BF99137A89F"
+  "legacy_v20261028_hashes": [
+    "BE0E908B8D70DA60CD8C3C3EBA5484AA55A11E8FBC75EF7954BF842D1921DB3E",
+    "8122E207BEEC2493F92212C0FC1EA6B898A4A63813AA6212A8D8F2E815B6756E",
+    "95B1719C635DCE519E1F24BF0FBBBB8EF65A5B32C27E4377A88658814DD4F06E",
+    "8CB4D676ACAD8BEE7E472AB6FD8D7B778D9505B4C7EDF2734783090E91119A05",
+    "3F042FC164CEFA264502641058183F8893C6D961EA9B50D5F2CBF2046687C8F7",
+    "BFDDB41A350428A9E231B33703E8F4BF994BCCCC5E91118325FA4A0F1D537573",
+    "0845412D82E3314E9FA737D1F41511A5330A58F06DEBF6539AD61C26093459CA",
+    "50F7488F601B444045DA71407B1824175F1A8BE774D1A528934C2D1624617468",
+    "B51283A6212CA58E3421ED38035ADEECB5D5C21ABE4AFEBC433C544FF8C8795F",
+    "C86D82AFA9C0A3800B97D2FD65BCCB41C27FB18CF9048DB0610B22ECA77887B7",
+    "C65328E7F37FA930353616A046A54452454DDE8F7D62F0214D4C3298B20F36FE",
+    "F186419AD8A7CDCB0AFA7155B1A85A6B30F18E7602E7F2F98BD1E04596100202",
+    "EA1E63CA65C3FC78228C0AFD5A0C7E07FCC1B0D08FC06E39F4D61996BEC2919C",
+    "8FAF7868E9CDF5AB3A60399755A50E2EB772337D65332CAD80AE1B89FC7062FD",
+    "2450F8409E8A7BF43C9BD230CE01EC5488130C521F070AC842D69DE1974CF416",
+    "16A250B01A28AAE3FC7EB3A64867C5CD9436DABEACF7882569531BF92289C056",
+    "4A52CBBA29FF283377C02EA3E3DB9D0226682A6D7CFEF5C3A39F640EFBB43FD4",
+    "7AAFE07B811CEBDFCEC05C879E55AA4F4F1AE0CC671FB202EADDF781E05D552C",
+    "204FC73DD0B1470032FA9F49E91944E4779119B80C970BBE89964AB2A12ABBBF",
+    "90F02C86AC1B1295A650ED741E99ED0F17C09A61B86E1E47747705678F64A229",
+    "72691C8C10B4EDFCE4F4B1CBB370D7F0024AA170AC4BC5C79978AF9C16F0D8C5",
+    "2581D75B05A7A91E9970B5149C6AAE1043C7F4B769AA61D12F77CCB1B76BC5DD",
+    "F85D13911EFD63C73ACF5B1C5116EE758936BAE47C3229EB924DA6C2C87F2B7A",
+    "D0A8655DDD93897CEBEFD45F754E3CFA09B7CA70381509D016DE2DEE28F43CA6",
+    "826520C1F9BCD80F030E5C3307FD422D93DCBECF682D4217C8EF5360C1BE8160",
+    "272DD4096D5D5AC231E18E6C67685C899E2BEBCBA3F5630AF8BF2428A4ABC7DD",
+    "B533CEE45F023FB0EBE3AD4C4501E78776D206137B1E9CB33F60C070BCAD5A19",
+    "634B76B6E08EF5DCCB23F081E1370E7435FDAA8D972C9B2788F7B16A23C0A51A",
+    "478F890FF1CB2E428CA0F4E002AD41823F3E3198C963F321540DD04FCCF5C278",
+    "D25D11746A125F879E4E1B75391607306F3FCDD217F4350B7F454A7842BEC65A",
+    "E08608ED8F3B2A6E2A4736D0E810ADEC998026A63D3D01F2F86288BA18DA4C2C",
+    "25CA7578DE0A2B8647B08AEB64992D404D7D304D02285BA4EDF2A87919013056"
+  ],
+  "common_file_sha256": "E2369C704199418D9A45B764C0BAF46C44F450040A1B73D291841C53848CFD71",
+  "profile_checks": [
+    {
+      "mask": 0,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 1,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 2,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 3,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 4,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 5,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 6,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 7,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 8,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 9,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 10,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 11,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 12,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 13,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 14,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 15,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 16,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 17,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 18,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 19,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 20,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 21,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 22,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 23,
+      "enemy_HP_enabled": false,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 24,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 25,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 26,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 27,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 28,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 29,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": false,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 30,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    },
+    {
+      "mask": 31,
+      "enemy_HP_enabled": true,
+      "Ouka_route_fix_enabled": true,
+      "master_relocation_preserves_option_bytes": true,
+      "Beowulf_excluded": true
+    }
+  ]
 }

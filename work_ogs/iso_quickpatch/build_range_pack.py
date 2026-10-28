@@ -335,12 +335,148 @@ def build_story_common():
     finally:tmp.unlink(missing_ok=True)
 
 
+def build_maintenance_common():
+    """v20261029 common/optional fixes, preserving all 32 legacy option profiles."""
+    import sys,json,shutil,concurrent.futures
+    sys.path.insert(0,str(ROOT))
+    from build_hidden_rewards import relocate_ally_mumei_master,ouka_route_fix_plan
+    current=file_hash(TARGET)
+    assert current=='3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29'
+    oldmeta=json.loads((ROOT/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
+    assert oldmeta['version']=='v20261028','Do not overwrite already rebuilt metadata'
+    core=json.loads((ROOT/'runtime/optional_features_profiles.json').read_text(encoding='utf-8'))
+    oldplans=json.loads((ROOT/'runtime/story_common_edits.json').read_text(encoding='utf-8'))
+    def unpack(es):return [(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after'])) for e in es]
+    def journal(name):
+        m=json.loads((ROOT/'runtime'/name).read_text(encoding='utf-8'));assert m['applied'];return unpack(m['edits'])
+    def option(name):
+        with (HERE/name).open('rb') as f:
+            assert f.read(8)==b'OGSHID01';f.read(8+64);out=[]
+            for _ in range(struct.unpack('<I',f.read(4))[0]):
+                at,n=struct.unpack('<QI',f.read(12));out.append((at,f.read(n),f.read(n)))
+            assert not f.read(1)
+        return out
+    hidden=option('OGS_hidden_rewards.bin');bundle=option('OGS_ouka_zengar.bin');both=option('OGS_ouka_zengar_hidden.bin')
+    features={4:journal('battle_rewards_manifest.json'),8:journal('enemy_strength_manifest.json'),16:sorted(journal('axel_spirits_manifest.json')+journal('seolla_spirits_manifest.json'))}
+    tmp=HERE/'STORY_BUILD.iso';assert not tmp.exists()
+    def disk_apply(es,reverse=False):
+        with tmp.open('r+b') as f:
+            for at,a,b in reversed(es) if reverse else es:
+                if reverse:a,b=b,a
+                f.seek(at);assert f.read(len(a))==a,hex(at);f.seek(at);f.write(b)
+    oldwar={i:unpack(oldplans[str(i)]) for i in range(4)}
+    ep6=journal('mumei_episode6_manifest.json');cost=journal('global_weapon_upgrade_discount_manifest.json');hp=journal('small_enemy_hp_boost_manifest.json')
+    class View:
+        def __init__(self,f,es=()):self.f=f;self.edits=list(es)
+        def read(self,at,n):
+            self.f.seek(at);data=bytearray(self.f.read(n));assert len(data)==n
+            for p,a,b in self.edits:
+                lo=max(at,p);hi=min(at+n,p+len(b))
+                if lo<hi:data[lo-at:hi-at]=b[lo-p:hi-p]
+            return bytes(data)
+        def apply(self,es):
+            for at,a,b in es:
+                assert self.read(at,len(a))==a,hex(at);self.edits.append((at,a,b))
+    try:
+        shutil.copyfile(TARGET,tmp)
+        for name in ('ouka_route_fix_manifest.json','small_enemy_hp_boost_manifest.json','global_weapon_upgrade_discount_manifest.json','mumei_ally_balance_manifest.json','mumei_episode6_manifest.json'):
+            disk_apply(journal(name),True)
+        assert file_hash(tmp)==oldmeta['hashes'][31]
+        disk_apply(oldwar[3],True)
+        for es in features.values():disk_apply(es,True)
+        disk_apply(both,True);disk_apply(hidden,True)
+        assert file_hash(tmp)==core['hashes'][0]
+        # Script layout varies with hidden rewards; generate the Ouka fix separately.
+        ouka={}
+        for low in (2,3):
+            sets=([hidden] if low&1 else [])+[both if low&1 else bundle]
+            for es in sets:disk_apply(es)
+            disk_apply(oldwar[low])
+            ouka[low]=ouka_route_fix_plan(tmp)[0]
+            disk_apply(oldwar[low],True)
+            for es in reversed(sets):disk_apply(es,True)
+        plans={};views=[];checks=[]
+        with tmp.open('rb') as f:
+            for mask in range(32):
+                low=mask&3;v=View(f)
+                if low&1:v.apply(hidden)
+                if low&2:v.apply(both if low&1 else bundle)
+                for bit,es in features.items():
+                    if mask&bit:v.apply(es)
+                start=View(f,v.edits)
+                v.apply(oldwar[low]);v.apply(ep6)
+                for base in (0x5DA000,0x83F000):
+                    master=v.read(base,0x1A5800);new=relocate_ally_mumei_master(master)
+                    v.apply([(base+0x11E000,master[0x11E000:len(new)],new[0x11E000:])])
+                v.apply(cost)
+                if mask&8:v.apply(hp)
+                if low&2:v.apply(ouka[low])
+                # Merge overlapping writes into guarded core-profile -> final-profile spans.
+                spans=[]
+                for at,a,b in sorted(v.edits[len(start.edits):]):
+                    end=at+len(b)
+                    if spans and at<=spans[-1][1]+64:spans[-1][1]=max(spans[-1][1],end)
+                    else:spans.append([at,end])
+                es=[(a,start.read(a,b-a),v.read(a,b-a)) for a,b in spans]
+                es=[e for e in es if e[1]!=e[2]];plans[mask]=es
+                # Use only final, non-overlapping overlays for streamed hashing.
+                allspans=[]
+                for at,a,b in sorted(v.edits):
+                    end=at+len(b)
+                    if allspans and at<=allspans[-1][1]+64:allspans[-1][1]=max(allspans[-1][1],end)
+                    else:allspans.append([at,end])
+                views.append([(a,v.read(a,b-a)) for a,b in allspans])
+                checks.append(dict(mask=mask,enemy_HP_enabled=bool(mask&8),Ouka_route_fix_enabled=bool(mask&2),master_relocation_preserves_option_bytes=True,Beowulf_excluded=True))
+            hashes=[hashlib.sha256() for _ in range(32)];pos=0;last=-1
+            def update(args):
+                h,es,raw,off=args;out=None
+                for at,b in es:
+                    lo=max(at,off);hi=min(at+len(b),off+len(raw))
+                    if lo<hi:
+                        if out is None:out=bytearray(raw)
+                        out[lo-off:hi-off]=b[lo-at:hi-at]
+                h.update(raw if out is None else out)
+            f.seek(0)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+                while raw:=f.read(16<<20):
+                    list(pool.map(update,[(hashes[i],views[i],raw,pos) for i in range(32)]));pos+=len(raw)
+                    tick=int(pos*100/TARGET.stat().st_size)//10
+                    if tick!=last:print('Maintenance 32 hashes:',tick*10,'%',flush=True);last=tick
+        hashes=[h.hexdigest().upper() for h in hashes]
+        assert hashes[31]==current and len(set(hashes))==32
+        def write_edits(f,es):
+            f.write(struct.pack('<I',len(es)))
+            for at,a,b in es:f.write(struct.pack('<QI',at,len(a)));f.write(a);f.write(b)
+        dest=HERE/'OGS_common_fix.bin';stage=dest.with_suffix('.tmp')
+        with stage.open('wb') as f:
+            f.write(b'OGSFIX02');f.write(struct.pack('<QI',TARGET.stat().st_size,32))
+            for mask in range(32):
+                f.write(struct.pack('<I',mask));f.write(bytes.fromhex(core['hashes'][mask]));f.write(bytes.fromhex(hashes[mask]));write_edits(f,plans[mask])
+            for h in oldmeta['prior_release_hashes']:f.write(bytes.fromhex(h))
+            write_edits(f,journal('mumei_fallback_manifest.json'))
+            # Backward-compatible extension: previous public release profiles -> core.
+            f.write(struct.pack('<I',32))
+            for mask in range(32):
+                f.write(struct.pack('<I',mask));f.write(bytes.fromhex(oldmeta['hashes'][mask]));write_edits(f,oldwar[mask&3])
+            f.flush();os.fsync(f.fileno())
+        stage.replace(dest)
+        report=dict(core,version='v20261029',iso_unchanged_sha256=current,hashes=hashes,
+            previous_hashes=core['hashes'],prior_release_hashes=oldmeta['prior_release_hashes'],legacy_v20261028_hashes=oldmeta['hashes'],
+            common_file_sha256=file_hash(dest),profile_checks=checks)
+        (ROOT/'runtime/common_fix_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+        data={str(k):[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in es] for k,es in plans.items()}
+        data['legacy_v20261028']=oldplans
+        (ROOT/'runtime/story_common_edits.json').write_text(json.dumps(data),encoding='utf-8')
+        print('Maintenance common pack ready; all 32 hashes, current all-ON equality verified',flush=True)
+    finally:tmp.unlink(missing_ok=True)
+
+
 def package_options():
     import json,zipfile
     report=json.loads((ROOT/'runtime/optional_features_patcher_e2e.json').read_text(encoding='utf-8'))
     profiles=json.loads((ROOT/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
     assert report['passed'] and len(report['real_iso_transitions'])==32
-    assert report['production_composition_selftest']==3072
+    assert report['production_composition_selftest']==4096
     assert report['current_gameplay_iso_unchanged']==profiles['iso_unchanged_sha256']
     assert file_hash(TARGET)==profiles['iso_unchanged_sha256'],'Gameplay ISO changed during patcher build'
     assert file_hash(HERE/'OGS_optional_features.bin')==profiles['features_file_sha256']
@@ -349,14 +485,14 @@ def package_options():
         'OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin','OGS_optional_features.bin','OGS_common_fix.bin']
     files=[HERE/name for name in required]+sorted(HERE.glob('OGS_ISO_ranges_upgrade*.bin'))
     assert all(p.exists() for p in files)
-    text="""슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261028
+    text="""슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261029
 
 OGs 한글패치 v1.4.3s1 적용 ISO 또는 이전 액셀 패치 적용 ISO를 선택합니다.
 OGS_AxelSwap_QuickPatch.exe를 실행하고 원하는 옵션을 체크한 뒤 [패치 적용]을 누르세요.
 기준 ISO: 4,518,150,144바이트
 기준 SHA256: 9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C
 
-무명 획득 보충: 5화 지급을 유지하며, 무명이 없는 경우 6화 종료 후 지급합니다. 이미 보유했다면 중복 지급하지 않습니다. 이 보충 처리는 옵션과 관계없이 적용됩니다.
+무명은 6화 종료 후 기체만 지급합니다. 5화 지급 삽입을 제거해 진행 문제에 대응했습니다. 이미 보유했다면 중복 지급하지 않습니다. 아군 무명 HP6300, 시시오 블레이드4600, 필살무장5600으로 조정했으며 적 무라타는 유지합니다. 무기 개조비용은 최저 등급을 제외하고20% 낮췄습니다.
 
 워단은 44화 마지막 결전 후 생환하여 기존 슬레이드겔미르에 합류합니다. 오우카 생존 옵션과 별개로 기본 적용됩니다.
 37화 클리어 후 젠가의 참식참함도 장착형 그룬거스트 삼식을 기체만 추가 지급합니다. 기존 다른 삼식은 유지합니다.
@@ -364,10 +500,10 @@ OGS_AxelSwap_QuickPatch.exe를 실행하고 원하는 옵션을 체크한 뒤 [�
 
 선택 옵션 (모두 기본 해제)
 1. 숨겨진 요소 자동 습득 (OG2): 기존 숨겨진 보상 자동 획득 옵션.
-2. 오우카 생존 + 젠가 밸런스: 기존 오우카 생존·합류 및 다이젠가 강화 묶음.
+2. 오우카 생존 + 젠가 밸런스: 44화 양쪽 루트 오우카 합류·45화 후속 대사 및 다이젠가 강화 묶음.
 3. 자금 +20% · PP 2배: 적 격추 보상에 적용. 이벤트 지급은 변경하지 않습니다.
 4. 적 강화: 적 파일럿 격투·사격·기량·방어·명중·회피 각 +5,
-   적 기체·무기 기본 개조 +1단. 원래 개조 상한은 유지합니다.
+   적 기체·무기 기본 개조 +1단, 기본 HP20,000미만 적의 기본HP10% 추가. 원래 개조 상한은 유지합니다.
 5. 액셀·제오라 정신기 변경:
    액셀 불굴 → 철벽(SP20), 트윈 예측 → 혼(SP50), 각성 SP50.
    제오라 저격 → 번뜩임(SP10), 철벽 → 가속(SP10).
@@ -387,7 +523,7 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
 패치 후 에뮬레이터를 새로 실행하고 게임 내 메모리카드 세이브로 불러오세요.
 이전 세이브 스테이트는 이전 코드와 데이터를 복원하므로 사용하지 마세요.
 
-검증: 전체 32개 조합의 ISO SHA256, 패처 내 전환 3,072가지,
+검증: 전체 32개 조합의 ISO SHA256, 패처 내 전환 4,096가지,
 실제 ISO 32개 조합 적용 및 대표 조합 백업 복원 검증 통과.
 게임 플레이 전체를 새로 검증한 것은 아닙니다.
 
@@ -397,22 +533,23 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
     readme=HERE/'읽어주세요.txt';readme.write_text(text,encoding='utf-8-sig');files.append(readme)
     sums=HERE/'SHA256SUMS.txt'
     sums.write_text(''.join(file_hash(p)+'  '+p.name+'\n' for p in files),encoding='utf-8-sig');files.append(sums)
-    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261028.zip';out.parent.mkdir(exist_ok=True)
+    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261029.zip';out.parent.mkdir(exist_ok=True)
     tmp=out.with_suffix('.tmp')
     with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
-        for p in files:z.write(p,'OGS_AxelSwap_QuickPatch_v20261028/'+p.name)
+        for p in files:z.write(p,'OGS_AxelSwap_QuickPatch_v20261029/'+p.name)
     tmp.replace(out)
     with zipfile.ZipFile(out) as z:
         assert z.testzip() is None
         for p in files:
-            assert hashlib.sha256(z.read('OGS_AxelSwap_QuickPatch_v20261028/'+p.name)).hexdigest().upper()==file_hash(p)
+            assert hashlib.sha256(z.read('OGS_AxelSwap_QuickPatch_v20261029/'+p.name)).hexdigest().upper()==file_hash(p)
     result=dict(zip=str(out),sha256=file_hash(out),files=len(files),size=out.stat().st_size)
     (ROOT/'runtime/optional_features_package.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
 if __name__ == "__main__":
     import sys
-    if "--story-common" in sys.argv:build_story_common()
+    if "--maintenance-common" in sys.argv:build_maintenance_common()
+    elif "--story-common" in sys.argv:build_story_common()
     elif "--package-options" in sys.argv:package_options()
     elif "--common-fix" in sys.argv:build_options(common_fix=True)
     elif "--options" in sys.argv:build_options()

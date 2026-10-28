@@ -867,6 +867,254 @@ def release_preflight(apply=False):
         journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+def ouka_route_fix_plan(path=ISO):
+    from ogs_korean_codec import encode
+    s=Scripts(path);edits=[];blobs={};dialogue=[]
+    def add(at,new):
+        with Path(path).open('rb') as f:f.seek(at);old=f.read(len(new))
+        assert len(old)==len(new)
+        if old!=new:edits.append((at,old,bytes(new)))
+    n=131;at,size=s.logos[n];b=bytearray(s.data[at:at+size]);rs=s.records(n)
+    insert=next(i for i,(_,r) in enumerate(rs) if r[:4]==(0x9C,DEAD,0x22,0))
+    assert insert==1188 and len(rs)==1191
+    co=u32(b,0x2C);pos=co+insert*96
+    assert max(u32(b,u32(b,0x3C)+i*4) for i in range(u32(b,0x38)))<insert+u32(b,0x20)
+    for i,(_,r) in enumerate(rs):
+        if r[0] in (0x8B,0x8C):
+            for j in ([6,7] if r[0]==0x8B else [7]):
+                if r[j]<0x80000000:assert not i<insert<i+r[j]
+    b[pos:pos]=struct.pack('<24I',*command(0x5E,0x26))
+    struct.pack_into('<I',b,0x28,len(rs)+1)
+    for off in (0x34,0x3C,0x44,0x4C,0x54,0x5C):
+        assert u32(b,off)>=pos;struct.pack_into('<I',b,off,u32(b,off)+96)
+    blobs[n]=b
+    changes={
+        41:'브릿트：그래……너희들의　누나는@무사히　돌아왔구나。',
+        42:'라투니：응……。@지금은　치료를　받고　있어。',
+        43:'쿠스하：정말　다행이야……。',
+        44:'아라드：하지만……@방심하고　있을　순　없어요。',
+        45:'아라드：누나와　함께　살아가기　위해서도、@앞으로의　싸움에서　살아남아야죠。',
+        46:'제오라：언니가　회복하면、@다시　함께　싸울　수　있을　거예요。',
+        47:'아이비스：그래、제오라……。',
+        48:'아이비스：이제　다시는@소중한　사람을　잃지　않도록@모두　함께　힘내자。'}
+    n=110;at,size=s.logos[n];b=bytearray(s.data[at:at+size])
+    for i,new in changes.items():
+        p,old=s.texts(n)[i];raw=encode(new)
+        assert decode(raw)==new and all(len(encode(x))<=54 for x in new.split('@'))
+        assert old.split('：')[0]==new.split('：')[0]
+        if len(raw)<=len(encode(old)):b[p-at:p-at+len(encode(old))]=raw.ljust(len(encode(old)),b'\0')
+        else:
+            if b[-1]!=0:b.append(0)
+            struct.pack_into('<I',b,u32(b,0x54)+i*4,len(b)-u32(b,0x4C));b.extend(raw+b'\0')
+        dialogue.append(dict(script=n,text=i,before=old,after=new))
+    blobs[n]=b
+    for n,b in blobs.items():
+        at,size=s.logos[n];assert len(b)<=s.logos[n+1][0]-at
+        assert not any(s.data[at+size:at+len(b)])
+        for off in (4,0x6C):struct.pack_into('<I',b,off,len(b))
+        add(MAP+at,b);add(MAP+0x557F800+12+n*8,struct.pack('<I',len(b)))
+    wp=0x5071000;src=wp+u32(s.data,wp+8+110*8);count=u32(s.data,src+40)
+    rows=[s.data[src+44+i*336:src+44+(i+1)*336] for i in range(count) if u32(s.data,src+44+i*336+4)==0x24]
+    assert len(rows)==1;row=bytearray(rows[0]);struct.pack_into('<I',row,4,0x26);row=bytes(row)
+    assert (u32(row,0),u32(row,8),u32(row,32))==(0x4E4,0,0x43A)
+    dp=wp+8+127*8;at=wp+u32(s.data,dp);size=u32(s.data,dp+4)
+    count=u32(s.data,at+40);assert s.data[at+24:at+32].split(b'\0')[0]==b'01146' and count==228
+    assert all(u32(s.data,at+44+i*336+4)!=0x26 for i in range(count))
+    data=bytearray(s.data[at:at+size])+row;struct.pack_into('<I',data,40,count+1)
+    assert len(data)<=wp+u32(s.data,dp+8)-at and not any(s.data[at+size:at+len(data)])
+    add(MAP+at,data);add(MAP+dp+4,struct.pack('<I',len(data)))
+    return sorted(edits),row,blobs,dialogue
+
+
+def ouka_route_fix(apply=False):
+    import os,subprocess
+    before=sha(ISO);assert before=='0223afbcc85d13d8f0ae36eb55b269f9a2de7ef61babcd292aa52b0f199cceae',before
+    edits,row,blobs,dialogue=ouka_route_fix_plan()
+    from validate_hidden_rewards import validate_ouka_route_fix
+    checks=validate_ouka_route_fix(row,blobs)
+    h=hashlib.sha256();pos=0
+    with ISO.open('rb') as f:
+        for at,a,b in edits:
+            while pos<at:
+                raw=f.read(min(4<<20,at-pos));assert raw;h.update(raw);pos+=len(raw)
+            assert f.read(len(a))==a;h.update(b);pos+=len(a)
+        while raw:=f.read(4<<20):h.update(raw)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,dialogue=dialogue,
+        edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/ouka_route_fix_manifest.json';journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        assert subprocess.check_output(['powershell','-NoProfile','-Command',"@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True).strip()=='0'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for at,a,b in edits:f.seek(at);assert f.read(len(a))==a;f.seek(at);f.write(b)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for at,a,b in edits:f.seek(at);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k not in ('edits','dialogue')},indent=2))
+
+
+class NativeHookAsm:
+    def __init__(self,start):self.start=start;self.words=[];self.labels={};self.fix=[]
+    def emit(self,*w):self.words.extend(w)
+    def i(self,op,rs,rt,imm):self.emit(op<<26|rs<<21|rt<<16|(imm&0xffff))
+    def label(self,n):self.labels[n]=len(self.words)
+    def branch(self,op,rs,rt,label):self.fix.append((len(self.words),label));self.i(op,rs,rt,0)
+    def jump(self,pc,link=False):self.emit((3 if link else 2)<<26|pc>>2)
+    def move(self,rd,rs):self.emit(rs<<21|rd<<11|0x2d)
+    def data(self):
+        w=list(self.words)
+        for pos,label in self.fix:w[pos]|=(self.labels[label]-pos-1)&0xffff
+        return struct.pack('<%dI'%len(w),*w)
+
+
+def compact_descriptor_initializer():
+    """Equivalent startup descriptor writes; no battle/test dependencies."""
+    start,end=0x200104,0x200270
+    a=NativeHookAsm(start)
+    a.i(15,0,8,0x54);a.i(0x39,8,0,-0x74a4)
+    a.i(9,8,9,-0x744c);a.i(9,0,10,3)
+    a.label('constant_rows')
+    for fp,off in ((2,0),(1,4),(0,8)):a.i(0x39,9,fp,off)
+    a.i(9,9,9,16);a.i(9,10,10,-1);a.branch(7,10,0,'constant_rows');a.emit(0)
+    a.i(15,0,8,0x4a)
+    for fp,off in ((5,0x3410),(4,0x3414),(3,0x3418)):a.i(0x31,8,fp,off)
+    a.i(15,0,9,0x54)
+    for fp,off in ((5,-0x749c),(4,-0x7498),(3,-0x7494)):a.i(0x39,9,fp,off)
+    a.i(13,8,8,0x3420);a.i(9,9,9,-0x741c);a.i(9,0,10,5)
+    a.label('source_rows')
+    for fp,off in ((5,0),(4,4),(3,8)):a.i(0x31,8,fp,off)
+    for fp,off in ((5,0),(4,4),(3,8)):a.i(0x39,9,fp,off)
+    a.i(9,8,8,16);a.i(9,9,9,16);a.i(9,10,10,-1)
+    a.branch(7,10,0,'source_rows');a.emit(0)
+    for reg,constant in ((7,0x4a),(6,0x4a),(5,0x4a),(2,0x4a),(4,0x54),(3,0x4a),(10,0x54),(9,0x54),(8,0x54)):
+        a.i(15,0,reg,constant)
+    a.jump(end);a.emit(0)
+    return a.data(),start+len(a.words)*4
+
+
+def small_enemy_hp_boost(apply=False):
+    """Add 10% of base HP below 20000 only for map-hostile actors."""
+    import os,subprocess
+    elf=lambda pc:0x94880+pc-0x100000
+    J=lambda pc:2<<26|pc>>2
+    before=sha(ISO)
+    assert before=='b7a13214dcc6feb0f9c8f7fee91047b1f0b9eadcbac60b282f07152a27cb83a1',before
+    start,end=0x200104,0x200270
+    with ISO.open('rb') as f:
+        compact,helper=compact_descriptor_initializer()
+        # Reuse only the verified equivalent startup prefix, not its TEST retreat hook.
+        f.seek(elf(start));old=f.read(end-start)
+        a=NativeHookAsm(helper)
+        a.i(9,29,29,-0x20);a.i(0x3F,29,31,8)
+        a.i(0x2B,29,4,0);a.i(0x2B,29,5,4)
+        a.i(0x23,4,2,0x10);a.branch(4,2,0,'done');a.i(0x24,4,3,0x74)
+        a.i(12,3,3,7);a.emit(2<<21|3<<16|2<<11|0x21)
+        a.i(15,0,3,0x17);a.emit(2<<21|3<<16|2<<11|0x21)
+        a.i(0x24,2,2,0x608C);a.i(12,2,2,1)
+        a.branch(4,2,0,'done');a.i(0x23,4,6,0x18)
+        a.i(0x23,4,4,4);a.i(9,0,5,0x14)
+        a.jump(0x1B01D0,True);a.move(7,0)
+        a.branch(6,2,0,'done');a.i(10,2,3,20000)
+        a.branch(4,3,0,'done');a.i(9,0,3,10)
+        a.emit(2<<21|3<<16|0x1A);a.emit(2<<11|0x12)
+        a.i(0x23,29,5,4);a.emit(5<<21|2<<16|5<<11|0x21);a.i(0x2B,29,5,4)
+        a.label('done');a.i(0x23,29,4,0);a.i(0x23,29,5,4)
+        a.i(0x37,29,31,8);a.i(9,29,29,0x20)
+        # Replay displaced native frame setup and continue its normal modifiers/caps.
+        a.i(9,29,29,-0x30);a.i(0x3F,29,31,0x10)
+        a.jump(0x1FE868);a.emit(0)
+        assert helper+len(a.data())<=end
+        code=(compact[:helper-start]+a.data()).ljust(end-start,b'\0')
+        f.seek(elf(0x1FE860));site=f.read(8)
+        assert site==struct.pack('<2I',0x27BDFFD0,0xFFBF0010)
+    edits=[(elf(start),old,code),(elf(0x1FE860),site,struct.pack('<2I',J(helper),0))]
+    edits.sort()
+    from validate_hidden_rewards import validate_small_enemy_hp_boost
+    checks=validate_small_enemy_hp_boost(edits,helper)
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for offset,old,new in edits:
+            while cursor<offset:
+                b=f.read(min(4<<20,offset-cursor));assert b;h.update(b);cursor+=len(b)
+            assert f.read(len(old))==old;h.update(new);cursor+=len(old)
+        while b:=f.read(4<<20):h.update(b)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Hostile actors only: base HP 1..19999 gains floor(base HP / 10), upgrades and difficulty additions unchanged',
+        helper=hex(helper),checks=checks,edits=[dict(offset=o,before=x.hex(),after=y.hex()) for o,x,y in edits])
+    journal=ROOT/'runtime/small_enemy_hp_boost_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for o,x,y in edits:f.seek(o);assert f.read(len(x))==x;f.seek(o);f.write(y)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for o,x,y in edits:f.seek(o);f.write(x)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
+def global_weapon_upgrade_discount(apply=False):
+    """Reduce weapon cost tiers 1..4 to 80 percent; cheapest tier unchanged."""
+    import os,subprocess
+    before=sha(ISO)
+    assert before=='fd33867136341030272832d5591164d65180bca71355e7f1cc8639410988d3b6',before
+    offset=0x94880+0x534E30-0x100000
+    with ISO.open('rb') as f:f.seek(offset);old=f.read(5*64)
+    values=struct.unpack('<80I',old)
+    for tier,step in enumerate((2000,3000,5000,6500,7500)):
+        assert values[tier*16:(tier+1)*16]==tuple(step*i for i in range(16))
+    assert all(v%5==0 for v in values)
+    new=struct.pack('<80I',*(v if i<16 else v*4//5 for i,v in enumerate(values)))
+    from validate_hidden_rewards import validate_global_weapon_upgrade_discount
+    checks=validate_global_weapon_upgrade_discount(old,new)
+    target=hashlib.sha256()
+    with ISO.open('rb') as f:
+        remaining=offset
+        while remaining:
+            b=f.read(min(4<<20,remaining));assert b;remaining-=len(b);target.update(b)
+        assert f.read(len(old))==old;target.update(new)
+        while b:=f.read(4<<20):target.update(b)
+    report=dict(source_sha256=before,target_sha256=target.hexdigest(),applied=False,
+                feature='Weapon upgrade tiers 1..4 reduced by 20%; cheapest tier0 and all tier assignments preserved',
+                checks=checks,edits=[dict(offset=offset,before=old.hex(),after=new.hex())])
+    journal=ROOT/'runtime/global_weapon_upgrade_discount_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command',
+            "@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                f.seek(offset);assert f.read(len(old))==old;f.seek(offset);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                f.seek(offset);f.write(old);f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
 def daizengar_upgrade_cost(apply=False):
     """Raise Daizengar weapon cost tier0 to tier1; preserve attack growth."""
     before=sha(ISO)
@@ -1928,10 +2176,254 @@ def grungust_type3_grant(apply=False):
         report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+def relocate_ally_mumei_master(old):
+    """Preserve each option profile while extending ally-only Mumei tables."""
+    end=0x11e800+u32(old,0x11e00c)
+    unit,weapon=0x11f898,0x12bf7c
+    uc,wc=u32(old,unit+8),u32(old,weapon+8)
+    assert (uc,wc)==(427,1628)
+    assert struct.unpack_from('<H',old,0x11e898+0x600*2)[0]==0x15c
+    assert all(struct.unpack_from('<H',old,0x129f7c+k*2)[0]==0xffff for k in (0x851,0x852))
+    uend,wend=unit+u32(old,unit+4),weapon+u32(old,weapon+4)
+    assert (uend,wend)==(0x129f70,0x13a478)
+    ally=bytearray(old[unit+12+0x15c*100:unit+12+(0x15c+1)*100])
+    assert u32(ally,0)==63000
+    struct.pack_into('<I',ally,0,6300)
+    keys=list(struct.unpack_from('<16H',ally,0x24));assert keys[:4]==[0xd91,0xd92,0xd93,0xd94]
+    keys[2:4]=[0x851,0x852];struct.pack_into('<16H',ally,0x24,*keys)
+    weapons=[]
+    for key,power in ((0xd93,5600),(0xd94,4600)):
+        idx=struct.unpack_from('<H',old,0x129f7c+key*2)[0]
+        rec=bytearray(old[weapon+12+idx*36:weapon+12+(idx+1)*36])
+        assert struct.unpack_from('<H',rec,8)[0]==power-900
+        struct.pack_into('<H',rec,8,power);weapons.append(bytes(rec))
+    b=bytearray(old[:end]);b[wend:wend]=b''.join(weapons);b[uend:uend]=ally
+    def relocated(p):return p+(100 if p>=uend else 0)+(72 if p>=wend else 0)
+    for field in range(0x18,0x8c,4):
+        p=0x11e800+u32(old,0x11e800+field)
+        assert 0x11e800<=p<end
+        struct.pack_into('<I',b,0x11e800+field,relocated(p)-0x11e800)
+    struct.pack_into('<II',b,unit+4,u32(old,unit+4)+100,uc+1)
+    assert u32(old,0x11e890)==u32(old,unit+4)
+    struct.pack_into('<I',b,0x11e890,u32(old,0x11e890)+100)
+    struct.pack_into('<H',b,0x11e898+0x600*2,uc)
+    nw=relocated(weapon);nt=relocated(0x129f70)
+    struct.pack_into('<II',b,nw+4,u32(old,weapon+4)+72,wc+2)
+    for k,idx in ((0x851,wc),(0x852,wc+1)):struct.pack_into('<H',b,nt+12+k*2,idx)
+    struct.pack_into('<I',b,0x11e00c,u32(old,0x11e00c)+172)
+    assert len(b)==end+172<=len(old) and not any(old[end:len(b)])
+    # All existing records, including enemy Mumei and every other weapon,
+    # remain byte-identical at their new table locations.
+    assert b[unit+12:unit+12+uc*100]==old[unit+12:unit+12+uc*100]
+    assert b[nw+12:nw+12+wc*36]==old[weapon+12:weapon+12+wc*36]
+    restored=bytearray(b);del restored[wend+100:wend+172];del restored[uend:uend+100]
+    for field in range(0x18,0x8c,4):restored[0x11e800+field:0x11e804+field]=old[0x11e800+field:0x11e804+field]
+    for p,n in ((unit+4,8),(0x11e890,4),(0x11e898+0x600*2,2),(weapon+4,8),(0x11e00c,4)):
+        restored[p:p+n]=old[p:p+n]
+    for k in (0x851,0x852):restored[0x129f7c+k*2:0x129f7e+k*2]=old[0x129f7c+k*2:0x129f7e+k*2]
+    assert restored==old[:end],'Unrelated master bytes changed'
+    return bytes(b)
+
+
+def mumei_ally_balance(apply=False):
+    """Separate ally600 from enemy52A; HP6300, swords4600/5600."""
+    import os,psutil
+    before=sha(ISO)
+    assert before=='ac45e787b9e31e61ae3a87cda75673c78f5f48d3fffa12777ebde8de8263a4f6',before
+    edits=[];masters=[]
+    for base in (0x5da000,0x83f000):
+        with ISO.open('rb') as f:f.seek(base);old=f.read(0x1a5800)
+        b=relocate_ally_mumei_master(old)
+        masters.append(bytes(b));edits.append((base+0x11e000,old[0x11e000:len(b)],bytes(b[0x11e000:])))
+    from validate_hidden_rewards import validate_mumei_ally_balance
+    checks=validate_mumei_ally_balance(masters[0])
+    h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,a,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(a))==a;h.update(new);cursor+=len(a)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        feature='Ally Mumei independent body and weapons: HP6300, Shishio4600, finisher5600; enemy preserved',
+        edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/mumei_ally_balance_manifest.json';journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        target=os.path.normcase(os.path.abspath(ISO))
+        for proc in psutil.process_iter(['name']):
+            if 'pcsx2' in (proc.info['name'] or '').lower():
+                assert all(os.path.normcase(os.path.abspath(x.path))!=target for x in proc.open_files()),'Close emulator using SRWOGS_K.iso'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,a,b in edits:f.seek(off);assert f.read(len(a))==a;f.seek(off);f.write(b)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,a,b in edits:f.seek(off);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
+def episode6_granzon_test(apply=False):
+    """Diagnostic replacement only: same episode6 grant, Granzon robot body.
+
+    Use a distinct alias so existing Mumei save records are not remapped.
+    No script insertion, dialogue, stats or boarding masks are changed.
+    """
+    import os,psutil
+    before=sha(ISO)
+    assert before=='ac45e787b9e31e61ae3a87cda75673c78f5f48d3fffa12777ebde8de8263a4f6',before
+    s=Scripts();at,r=s.records(74)[532]
+    assert r[:3]==(0x5a,DEAD,0x600)
+    edits=[(MAP+at+8,struct.pack('<I',0x600),struct.pack('<I',0x603)),
+           (0x94880+0x114f90-0x100000,struct.pack('<I',0x2d080003),struct.pack('<I',0x2d080004))]
+    with ISO.open('rb') as f:
+        for base in (0x5da000,0x83f000):
+            f.seek(base);m=f.read(0x190000)
+            assert struct.unpack_from('<H',m,0x11e898+0x456*2)[0]==0x7f
+            assert struct.unpack_from('<H',m,0x11f8a4+0x7f*100+12)[0]==268
+            assert struct.unpack_from('<H',m,0x11e898+0x603*2)[0]==0xffff
+            edits.append((base+0x11e898+0x603*2,b'\xff\xff',struct.pack('<H',0x7f)))
+        for off,a,b in edits:f.seek(off);assert f.read(len(a))==a,hex(off)
+    # Execute the actual game grant with the proposed alias and owner wrapper.
+    from validate_hidden_rewards import VM
+    vm=VM();c=vm.cpu
+    with ISO.open('rb') as f:
+        f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        f.seek(0x5da000);m=bytearray(f.read(0x190000))
+    struct.pack_into('<H',m,0x11e898+0x603*2,0x7f)
+    master=c.read(0x59d360,4);save=c.read(0x59d364,4)
+    for field,rel in ((0x28,0x11e88c),(0x40,0x11f898)):
+        dst=c.read(master+field,4);size=u32(m,rel+4);c.mem[dst:dst+size]=m[rel:rel+size]
+    c.write(0x114f90,0x2d080004,4)
+    assert c.run(0x1abc50,[save,0x603,0,0])==-1
+    pilots=bytes(c.mem[save+0x25cfc:save+0x25cfc+512*92])
+    vm.op(command(0x5a,0x603));slot=c.run(0x1abc50,[save,0x603,0,0])
+    assert slot>=0 and c.run(0x1a9b70,[save,slot,1])==1
+    assert c.run(0x1b1300,[save,slot,0])==-1
+    assert c.mem[save+0x25cfc:save+0x25cfc+512*92]==pilots
+    stable=bytes(c.mem[save:save+0x3b400]);vm.op(command(0x5a,0x603));assert c.mem[save:save+0x3b400]==stable
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,a,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(a))==a;h.update(new);cursor+=len(a)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(feature='Diagnostic episode6 Granzon robot instead of Mumei; separate alias603',source_sha256=before,
+        target_sha256=h.hexdigest(),applied=False,native_owned_pilotless_idempotent=True,
+        script_layout_unchanged=True,rendered_playthrough=False,
+        edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    audit=ROOT/'runtime/scenario_skip_audit.json';data=json.loads(audit.read_text(encoding='utf-8'))
+    data['episode6_granzon_test']=report;audit.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        target=os.path.normcase(os.path.abspath(ISO))
+        for proc in psutil.process_iter(['name']):
+            if 'pcsx2' in (proc.info['name'] or '').lower():
+                assert all(os.path.normcase(os.path.abspath(x.path))!=target for x in proc.open_files()),'Close emulator using SRWOGS_K.iso'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,a,b in edits:f.seek(off);assert f.read(len(a))==a;f.seek(off);f.write(b)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,a,b in edits:f.seek(off);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            raise
+        report['applied']=True;data['episode6_granzon_test']=report
+        audit.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
+def mumei_episode6_only(apply=False):
+    """Remove the direct episode5 insertion; retain the existing episode6 grant.
+
+    The same removal was tested by the user in the isolated diagnostic ISO.
+    Do not rebuild dialogue or touch either unit master or the prototype ISO.
+    """
+    import os,psutil
+    before=sha(ISO)
+    assert before=='25ca7578de0a2b8647b08aeb64992d404d7d304d02285ba4edf2a87919013056',before
+    s=Scripts();baseline=Scripts(ROOT/'baseline/srwogs-v1.4.3s1.iso')
+    at,size=s.logos[138];old=s.data[at:at+size];b=bytearray(old)
+    co=u32(b,0x2c);insert=626;pos=co+insert*96
+    assert u32(b,0x28)==804
+    assert struct.unpack_from('<24I',b,pos)==tuple(command(0x5a,0x600))
+    del b[pos:pos+96]
+    for off in (4,0x6c,0x28,0x34,0x3c,0x44,0x4c,0x54,0x5c):
+        struct.pack_into('<I',b,off,u32(b,off)-(1 if off==0x28 else 96))
+    bp,bs=baseline.logos[138];table=u32(b,0x3c);original_table=u32(baseline.data,bp+0x3c)
+    labels=u32(b,0x38)
+    assert labels==u32(baseline.data,bp+0x38)
+    for i in range(labels):
+        v=u32(baseline.data,bp+original_table+i*4)
+        actual=u32(b,table+i*4)
+        assert actual==v+(1 if v>=709 else 0),(i,v,actual)
+        struct.pack_into('<I',b,table+i*4,v)
+    assert len(b)==bs and b[:0x70]==baseline.data[bp:bp+0x70]
+    # Every original command is retained exactly, including all dialogue args.
+    prior=[r for _,r in s.records(138)]
+    assert [struct.unpack_from('<24I',b,co+i*96) for i in range(803)]==prior[:insert]+prior[insert+1:]
+    edits=[(MAP+at,old,bytes(b)+bytes(96)),
+           (MAP+0x557f800+12+138*8,struct.pack('<I',size),struct.pack('<I',len(b)))]
+    # Guard against accidentally applying a different removal than the tested one.
+    tested=json.loads((ROOT/'runtime/scenario_skip_test_restore.json').read_text(encoding='utf-8'))
+    assert [(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after'])) for e in tested['edits']]==edits
+    from validate_hidden_rewards import validate_mumei_fallback
+    checks=validate_mumei_fallback(edits,applied=True,episode5_removed=True)
+    edits.sort();h=hashlib.sha256();cursor=0
+    with ISO.open('rb') as f:
+        for off,a,new in edits:
+            while cursor<off:
+                chunk=f.read(min(4<<20,off-cursor));assert chunk;h.update(chunk);cursor+=len(chunk)
+            assert f.read(len(a))==a;h.update(new);cursor+=len(a)
+        while chunk:=f.read(4<<20):h.update(chunk)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,
+        feature='Mumei robot only at episode6 clear if not owned; episode5 original command layout restored',
+        checks=checks,episode5_start_user_verified_in_diagnostic=True,production_playthrough_verified=False,
+        edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/mumei_episode6_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        # Other emulator sessions may use the separate TEST image. Refuse only
+        # when this exact production ISO is open, and never close user sessions.
+        target=os.path.normcase(os.path.abspath(ISO))
+        for proc in psutil.process_iter(['name']):
+            if 'pcsx2' not in (proc.info['name'] or '').lower():continue
+            for opened in proc.open_files():
+                assert os.path.normcase(os.path.abspath(opened.path))!=target,'Close the emulator using SRWOGS_K.iso'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:
+                    f.seek(off);assert f.read(len(a))==a;f.seek(off);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+            assert validate_mumei_fallback([],applied=True,episode5_removed=True)==checks
+        except Exception:
+            with ISO.open('r+b') as f:
+                for off,a,new in edits:f.seek(off);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==before
+            raise
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--dump',type=int,nargs='+');p.add_argument('--find',type=str);p.add_argument('--plan',action='store_true');p.add_argument('--apply',action='store_true')
     p.add_argument('--grant-mumei',action='store_true')
     p.add_argument('--mumei-fallback',action='store_true')
+    p.add_argument('--mumei-episode6-only',action='store_true')
+    p.add_argument('--episode6-granzon-test',action='store_true')
+    p.add_argument('--mumei-ally-balance',action='store_true')
     p.add_argument('--wodan-survival',action='store_true')
     p.add_argument('--grungust-type3-grant',action='store_true')
     p.add_argument('--ouka-survival',action='store_true')
@@ -1954,8 +2446,17 @@ if __name__=='__main__':
     p.add_argument('--weapon-consumption',action='store_true')
     p.add_argument('--release-preflight',action='store_true')
     p.add_argument('--daizengar-upgrade-cost',action='store_true')
+    p.add_argument('--global-weapon-upgrade-discount',action='store_true')
+    p.add_argument('--small-enemy-hp-boost',action='store_true')
+    p.add_argument('--ouka-route-fix',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.ouka_route_fix:ouka_route_fix(a.apply);sys.exit()
+    if a.small_enemy_hp_boost:small_enemy_hp_boost(a.apply);sys.exit()
+    if a.global_weapon_upgrade_discount:global_weapon_upgrade_discount(a.apply);sys.exit()
+    if a.mumei_ally_balance:mumei_ally_balance(a.apply);sys.exit()
+    if a.episode6_granzon_test:episode6_granzon_test(a.apply);sys.exit()
+    if a.mumei_episode6_only:mumei_episode6_only(a.apply);sys.exit()
     if a.grungust_type3_grant:grungust_type3_grant(a.apply);sys.exit()
     if a.wodan_survival:wodan_survival(a.apply);sys.exit()
     if a.mumei_fallback:mumei_fallback(a.apply);sys.exit()

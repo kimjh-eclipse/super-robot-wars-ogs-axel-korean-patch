@@ -293,6 +293,144 @@ def validate_builtin_weapons(edits):
         native_getters_passed=True,previous_barrier_and_upgrade_changes_preserved=True,
         iso_changed_bytes=4,live_battle_test=False)
 
+def validate_ouka_route_fix(row,blobs):
+    from ogs_korean_codec import encode
+    s=Scripts()
+    native=validate_ouka(row,{},s,[])
+    for n,b in blobs.items():
+        original=s.records(n);co=u32(b,0x2C)
+        assert u32(b,0x28)==len(original)+(n==131)
+        for i,(_,r) in enumerate(original):
+            target=i+(n==131 and i>=1188)
+            assert struct.unpack_from('<24I',b,co+target*96)==r
+        if n==131:assert struct.unpack_from('<24I',b,co+1188*96)==tuple(command(0x5E,0x26))
+        oldat,_=s.logos[n]
+        for j in range(u32(b,0x38)):
+            assert u32(b,u32(b,0x3C)+j*4)==u32(s.data,oldat+u32(s.data,oldat+0x3C)+j*4)
+        for i,(p,text) in enumerate(s.texts(n)):
+            at=u32(b,0x4C)+u32(b,u32(b,0x54)+i*4);raw=b[at:(b+b'\0').index(0,at)]
+            if n!=110 or i not in range(41,49):assert raw==encode(text),(n,i)
+            else:
+                updated=decode(raw);assert encode(updated)==raw
+                assert all(len(encode(line))<=54 for line in updated.split('@'))
+    return dict(native_group_grant_and_boarding_passed=True,repeated_grant_reuses_pair=True,
+                alternate44_clear_grant=True,common45_dialogue_lines=8,
+                all_other_commands_and_dialogue_preserved=True,text_lookup_unchanged=True,
+                original44_route_preserved=True,live_chapter_test=False)
+
+
+def validate_small_enemy_hp_boost(edits,helper):
+    with ISO.open('rb') as f:
+        f.seek(0x94880);old=f.read(0x482980)
+        f.seek(0x5DA000);blob=f.read(0x1A5800)
+    new=bytearray(old)
+    for off,a,b in edits:
+        p=off-0x94880;assert new[p:p+len(a)]==a;new[p:p+len(b)]=b
+    # Startup compression must preserve every register and descriptor store.
+    for seed in (0,1,0x12345678):
+        cs=[]
+        for code in (old,new):
+            c=CPU(ram);c.mem[0x100000:0x582980]=code
+            for r in range(2,11):c.r[r]=0x540000
+            c.fpr=[(seed+i*12347)&0xFFFFFFFF for i in range(32)]
+            c.run(0x200104,stop=0x200270);cs.append(c)
+        assert cs[0].r==cs[1].r and cs[0].fpr==cs[1].fpr
+        stores=[{(a,n) for a,n,pc in c.writes} for c in cs]
+        assert stores[0]==stores[1]
+        for a,n in stores[0]:assert cs[0].mem[a:a+n]==cs[1].mem[a:a+n]
+    def setup(code):
+        c=CPU(ram);c.mem[0x100000:0x582980]=code
+        master=c.read(0x59D360,4);save=c.read(0x59D364,4)
+        base=0x1100000;payload=blob[0x11E800:]
+        c.mem[base:base+len(payload)]=payload
+        for i,field in enumerate(range(0x18,0x8C,4)):
+            dst=base+u32(blob,0x11E800+field);obj=master+0x28+i*24
+            for off,value in ((0,dst),(4,c.read(dst,4)),(8,c.read(dst+4,4)),(12,0),(16,dst),(20,dst+12)):
+                c.write(obj+off,value,4)
+        obj=0x1800000;stage=0x1400000;settings=0x1600000
+        c.mem[obj:obj+0x200]=bytes(0x200);c.mem[settings:settings+0x200]=bytes(0x200)
+        for off,value in ((0,c.read(0x59D36C,4)),(4,save),(0x10,stage),(0x18,0),(0x168,settings)):
+            c.write(obj+off,value,4)
+        c.write(0x5879F0-0x4ED0,0,1)
+        # Native per-save unit key -> actual master record, no synthetic getter.
+        key=c.run(0x1D09D0,[save+0x6EFC,1,0]);assert key>0
+        idx=c.run(0x2E11C0,[master+0x28,key]);assert idx>=0
+        record=c.read(master+0x40+20,4)+idx*100
+        return c,obj,stage,settings,record
+    machines=[setup(code) for code in (old,new)]
+    cases=0
+    for hp in (0,1,3700,10000,19999,20000,63000):
+        for side in range(6):
+            for hostile in (False,True):
+                for upgraded_hp in (0,1000):
+                    results=[]
+                    for c,obj,stage,settings,record in machines:
+                        c.write(record,hp,4)
+                        assert c.run(0x1B01D0,[c.read(obj+4,4),0x14,0,0])==hp
+                        c.write(obj+0x74,side,1)
+                        c.write(stage+0x17608C+side,int(hostile),1)
+                        for i in range(3):c.write(settings+0x128+i*4,500,4)
+                        c.write(settings+0x134,0,4)
+                        results.append(c.run(0x1FE860,[obj,hp+upgraded_hp]))
+                    expected=hp//10 if hostile and 0<hp<20000 else 0
+                    assert results[1]==results[0]+expected,(hp,side,hostile,upgraded_hp,results)
+                    cases+=1
+    dispatcher_cases=0
+    for hp in (3700,19999,20000,63000):
+        for hostile in (False,True):
+            results=[]
+            for c,obj,stage,settings,record in machines:
+                c.write(record,hp,4);c.write(obj+0x74,2,1)
+                c.write(stage+0x17608E,int(hostile),1)
+                results.append(c.run(0x1FE9D0,[obj,0x14,0,0,0]))
+            assert results[1]==results[0]+(hp//10 if hostile and hp<20000 else 0),(hp,hostile,results)
+            dispatcher_cases+=1
+    for c,obj,stage,settings,record in machines:
+        c.write(record,10000,4);c.write(obj+0x10,0,4)
+        assert c.run(0x1FE860,[obj,11000])==11500
+    return dict(native_HP_cases=cases,native_full_HP_dispatcher_cases=dispatcher_cases,startup_initializer_equivalent=True,
+        strictly_below_20000=True,base_HP_threshold_not_upgraded_HP=True,
+        ally_and_neutral_unchanged=True,hostility_relation_used=True,missing_map_context_unchanged=True,
+        HP_upgrade_and_difficulty_additions_unchanged=True,masters_and_saves_not_modified=True,
+        helper_bytes=0x200270-helper,live_battle_test=False)
+
+
+def validate_global_weapon_upgrade_discount(old,new):
+    """Execute native cost sum and menu price lookup for all five tiers."""
+    assert len(old)==len(new)==5*64
+    with ISO.open('rb') as f:
+        f.seek(0x94880);code=f.read(0x39A778)
+    c=CPU(ram);c.mem[0x100000:0x49A778]=code
+    totals=[]
+    for data in (old,new):
+        c.mem[0x534E30:0x534F70]=data
+        results=[]
+        for tier in range(5):
+            assert u32(data,tier*64)==0
+            for level in range(1,16):
+                # Native upgrade-menu lookup through the same shared table.
+                c.r[2]=tier;c.r[16]=(level-1)*4;c.r[17]=level-1;c.r[19]=0x1800000
+                c.write(0x1800000+0x53C,0,4)
+                c.run(0x443858,stop=0x443880)
+                price=c.read(0x1800000+0x53C,4)
+                assert price==u32(data,tier*64+level*4)
+                # Native weapon investment/refund cost accumulation loop.
+                c.r[2]=tier;c.r[3]=level;c.r[16]=0
+                c.run(0x334F98,stop=0x334FD8)
+                total=sum(u32(data,tier*64+i*4) for i in range(1,level+1))
+                assert c.r[16]==total
+                results.append((price,total))
+        totals.append(results)
+    assert totals[0][:15]==totals[1][:15]
+    assert all(b[0]*5==a[0]*4 and b[1]*5==a[1]*4 for a,b in zip(totals[0][15:],totals[1][15:]))
+    return dict(cost_tiers=5,levels_per_tier=15,cheapest_tier_unchanged=True,
+                all_60_other_prices_exactly_20_percent_lower=True,
+                native_menu_lookup_and_cumulative_cost_passed=True,
+                ten_stage_totals_before=[totals[0][t*15+9][1] for t in range(5)],
+                ten_stage_totals_after=[totals[1][t*15+9][1] for t in range(5)],
+                unit_upgrade_prices_and_weapon_growth_unchanged=True,live_menu_test=False)
+
+
 def validate_daizengar_upgrade_cost(edits,targets):
     c=VM().cpu;master=u32(ram,0x59D360)
     with ISO.open('rb') as f:
@@ -892,7 +1030,7 @@ def validate_ouka(row,blobs,s,edits):
         c.write(bundle+off,c.read(g,4),4)
     c.write(ctx+0x346D4,data,4);c.write(ctx+0x346D0,1,4);c.mem[data:data+336]=row
     c.write(CTX+0x310C,ctx-0x40E00,4)
-    for j,v in enumerate(command(0x5E,0x24)):c.write(REC+j*4,v,4)
+    for j,v in enumerate(command(0x5E,u32(row,4))):c.write(REC+j*4,v,4)
     save=c.read(0x59D364,4)
     units=bytes(c.mem[save+0x6EFC:save+0x6EFC+512*216])
     pilots=bytes(c.mem[save+0x25CFC:save+0x25CFC+512*92])
@@ -1376,6 +1514,18 @@ def validate_optional_patcher():
     expected=meta['hashes'];test=qp/'TEST.iso';bak=Path(str(test)+'.ogsbak')
     assert not test.exists() and not bak.exists(),'Existing test artifacts require inspection'
     before=sha(ISO).upper();assert before==expected[31]
+    binary_hash=sha(exe).upper();common_hash=sha(qp/'OGS_common_fix.bin').upper()
+    proof_path=ROOT/'runtime/optional_features_patcher_e2e.json'
+    proof=json.loads(proof_path.read_text(encoding='utf-8')) if proof_path.exists() else {}
+    if proof.get('patcher_sha256')==binary_hash and proof.get('common_pack_sha256')==common_hash:
+        composition_cases=proof['production_composition_selftest']
+    else:
+        import re
+        completed=subprocess.run([str(exe),'--self-test-options'],capture_output=True,check=True)
+        match=re.search(r'PASS: (\d+) option transitions',completed.stdout.decode('utf-8',errors='replace'))
+        assert match,completed.stdout
+        composition_cases=int(match.group(1))
+    assert composition_cases==4096
     results=[]
     def flags(mask):return [flag for bit,flag in [(1,'--hidden'),(2,'--bundle'),(4,'--rewards'),(8,'--enemy'),(16,'--spirits')] if mask&bit]
     def call(*args):
@@ -1413,7 +1563,8 @@ def validate_optional_patcher():
         call(test,'--restore');assert sha(test).upper()==legacy
         # Prior public all-on ISO: undo only the new fallback on a test copy.
         test.unlink();bak.unlink(missing_ok=True);shutil.copyfile(ISO,test)
-        fix=dict(edits=json.loads((ROOT/'runtime/story_common_edits.json').read_text(encoding='utf-8'))['3'])
+        all_common=json.loads((ROOT/'runtime/story_common_edits.json').read_text(encoding='utf-8'))
+        fix=dict(edits=all_common['31'])
         with test.open('r+b') as f:
             for e in fix['edits']:
                 at=e['offset'];a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
@@ -1421,6 +1572,19 @@ def validate_optional_patcher():
         assert sha(test).upper()==meta['previous_hashes'][31]
         call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
         call(test,'--restore');assert sha(test).upper()==meta['previous_hashes'][31]
+        # The immediately previous public release has four different story layouts.
+        legacy_story=all_common['legacy_v20261028']['3']
+        with test.open('r+b') as f:
+            for e in legacy_story:
+                at=e['offset'];a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
+                f.seek(at);assert f.read(len(a))==a;f.seek(at);f.write(b)
+        assert sha(test).upper()==meta['legacy_v20261028_hashes'][31]
+        call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
+        call(test,'--restore');assert sha(test).upper()==meta['legacy_v20261028_hashes'][31]
+        with test.open('r+b') as f:
+            for e in reversed(legacy_story):
+                at=e['offset'];a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
+                f.seek(at);assert f.read(len(b))==b;f.seek(at);f.write(a)
         # Also exercise the immediately preceding v20261027.1 public build.
         mumei=json.loads((ROOT/'runtime/mumei_fallback_manifest.json').read_text(encoding='utf-8'))
         with test.open('r+b') as f:
@@ -1434,7 +1598,8 @@ def validate_optional_patcher():
 
         report=dict(passed=True,profile_count=32,real_iso_transitions=results,
             baseline_apply_restore=True,legacy_v20261025_1=True,previous_v20261027=True,previous_v20261027_1=True,backup_restore_profiles=[0,4,8,16,31],
-            idempotency_profiles=[0,31],production_composition_selftest=3072,
+            idempotency_profiles=[0,31],production_composition_selftest=composition_cases,previous_v20261028=True,
+            patcher_sha256=binary_hash,common_pack_sha256=common_hash,
             current_gameplay_iso_unchanged=before)
         (ROOT/'runtime/optional_features_patcher_e2e.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         return report
@@ -1442,7 +1607,47 @@ def validate_optional_patcher():
         test.unlink(missing_ok=True);bak.unlink(missing_ok=True)
 
 
-def validate_mumei_fallback(edits,applied=False):
+def validate_mumei_ally_balance(blob):
+    vm=VM();c=vm.cpu;master=c.read(0x59d360,4);save=c.read(0x59d364,4)
+    with ISO.open('rb') as f:
+        f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        f.seek(0x5da000);original=f.read(0x1a5800)
+    def load_tables(b):
+        base=0x1100000;payload=b[0x11e800:]
+        c.mem[base:base+len(payload)]=payload
+        for i,field in enumerate(range(0x18,0x8c,4)):
+            dst=base+u32(b,0x11e800+field);obj=master+0x28+i*24
+            c.write(obj,dst,4);c.write(obj+4,c.read(dst,4),4);c.write(obj+8,c.read(dst+4,4),4)
+            c.write(obj+12,0,4);c.write(obj+16,dst,4);c.write(obj+20,dst+12,4)
+    load_tables(original)
+    assert c.run(0x1abc50,[save,0x600,0,0])==-1
+    vm.op(command(0x5a,0x600));slot=c.run(0x1abc50,[save,0x600,0,0]);assert slot>=0
+    before=bytes(c.mem[save:save+0x3b400])
+    oldbank=c.run(0x1a6690,[master,0x600]);oldmotions=[c.run(0x1a4a20,[master,k]) for k in (0xd93,0xd94)]
+    load_tables(blob)
+    # An already-owned save record resolves the new master without save edits.
+    assert [c.run(0x1ac9d0,[save,0x75,slot,i]) for i in range(4)]==[0xd91,0xd92,0x851,0x852]
+    assert c.run(0x1a5dc0,[master,0x851])==5600
+    assert c.run(0x1a5dc0,[master,0x852])==4600
+    assert c.run(0x1a5dc0,[master,0xd93])==4700
+    assert c.run(0x1a5dc0,[master,0xd94])==3700
+    assert c.run(0x1a7d40,[master,0x600])==6300
+    assert c.run(0x1a7d40,[master,0x52a])==63000
+    assert c.run(0x1a6690,[master,0x600])==oldbank
+    assert [c.run(0x1a4a20,[master,k]) for k in (0x851,0x852)]==oldmotions
+    unit=0x11e800+u32(blob,0x11e81c)
+    assert u32(blob,unit+12+427*100)==6300 and u32(blob,unit+12+0x15c*100)==63000
+    assert c.run(0x1a9b70,[save,slot,1])==1
+    assert c.run(0x1b1300,[save,slot,0])==-1
+    assert c.mem[save:save+0x3b400]==before
+    vm.op(command(0x5a,0x600));assert c.mem[save:save+0x3b400]==before
+    return dict(existing_save_resolves_new_weapons=True,ally_hp=6300,shishio_power=4600,finisher_power=5600,
+        enemy_hp=63000,enemy_shishio_power=3700,enemy_finisher_power=4700,
+        original_bank_and_motion_ids_preserved=True,save_bytes_unchanged=True,repeated_grant_idempotent=True,
+        all_original_master_records_preserved=True,live_playthrough_verified=False)
+
+
+def validate_mumei_fallback(edits,applied=False,episode5_removed=False):
     s=Scripts();at,size=s.logos[74];rs=s.records(74)
     if applied:
         assert len(rs)==536 and rs[532][1][:3]==(0x5a,DEAD,0x600)
@@ -1453,7 +1658,15 @@ def validate_mumei_fallback(edits,applied=False):
         co=u32(changed,0x2c)
         assert struct.unpack_from('<24I',changed,co+532*96)[:3]==(0x5a,DEAD,0x600)
         assert u32(changed,0x28)==536
-    assert s.records(138)[626][1][:3]==(0x5a,DEAD,0x600),'Original episode5 grant changed'
+    if episode5_removed:
+        at5,size5=s.logos[138]
+        chapter=next((new for off,old,new in edits if off==MAP+at5),s.data[at5:at5+size5])
+        co5=u32(chapter,0x2c);count5=u32(chapter,0x28)
+        assert count5==803
+        assert struct.unpack_from('<4I',chapter,co5+626*96)==(0x9c,DEAD,1,0)
+        assert all(struct.unpack_from('<3I',chapter,co5+i*96)!=(0x5a,DEAD,0x600) for i in range(count5))
+    else:
+        assert s.records(138)[626][1][:3]==(0x5a,DEAD,0x600),'Original episode5 grant changed'
     rewards=[r for a,r in rs[526:532]]
     def setup(owned):
         vm=VM();c=vm.cpu
@@ -1495,7 +1708,8 @@ def validate_mumei_fallback(edits,applied=False):
         for key in (0x1f,0x20,0x21):
             for off in (0x103c,0x1264):assert before.cpu.read(glob+off+key,1)==c.read(glob+off+key,1)
     return dict(missing_unit_granted_owned_visible_boardable=True,already_owned_no_duplicate=True,
-        repeated_grant_idempotent=True,original_six_rewards_preserved=True,original_episode5_grant_preserved=True,
+        repeated_grant_idempotent=True,original_six_rewards_preserved=True,
+        original_episode5_grant_preserved=not episode5_removed,episode5_direct_grant_removed=episode5_removed,
         pilot_records_unchanged=True,rendered_playthrough=False)
 
 
