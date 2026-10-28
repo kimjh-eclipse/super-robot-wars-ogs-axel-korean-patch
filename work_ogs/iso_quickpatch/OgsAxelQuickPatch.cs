@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261029";
+    private const string VersionText = "v20261029.1";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";

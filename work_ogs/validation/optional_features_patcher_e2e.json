@@ -146,10 +146,10 @@
     0,
     31
   ],
-  "production_composition_selftest": 4096,
+  "production_composition_selftest": 5120,
   "previous_v20261028": true,
-  "current_gameplay_iso_unchanged": "3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29",
-  "patcher_sha256": "96BE5FAB8C24D012BD6A1CAAFBDD109131538DE6ED64E7A5C4D0B9A72E0A8E65",
-  "common_pack_sha256": "E2369C704199418D9A45B764C0BAF46C44F450040A1B73D291841C53848CFD71",
-  "composition_validation_evidence": "Actual --self-test-options executable output: PASS: 4096 option transitions (exec session69170, exit0)"
+  "previous_v20261029": true,
+  "patcher_sha256": "5CF26CA36A25B6298A91D2C7BBF53B9AE59E4DA42B7F181705B29FFAC1468A7B",
+  "common_pack_sha256": "EED777D2E578C440CE9D892DAC0DD612E5BC93C25C29283633CE50BE3397B031",
+  "current_gameplay_iso_unchanged": "98ECEB49E5928194A88F7621C91CDDBFA4AC8D48267BA82A43C07081EB23C510"
 }

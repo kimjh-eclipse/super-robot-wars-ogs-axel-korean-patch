@@ -2176,6 +2176,94 @@ def grungust_type3_grant(apply=False):
         report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+def relocate_ally_sladegelmir_master(old):
+    """Give ally601 its own body and six weapons; enemy490 stays original."""
+    header=0x11E800
+    ut,unit,wt,weapon=[header+u32(old,header+off) for off in (0x18,0x1C,0x20,0x24)]
+    end=header+u32(old,0x11E00C);uc,wc=u32(old,unit+8),u32(old,weapon+8)
+    assert (uc,wc)==(428,1630)
+    assert all(struct.unpack_from('<H',old,ut+12+k*2)[0]==0xC8 for k in (0x490,0x601))
+    keys=list(range(0x8C0,0x8C6));assert all(struct.unpack_from('<H',old,wt+12+k*2)[0]==0xFFFF for k in keys)
+    uend,wend=unit+u32(old,unit+4),weapon+u32(old,weapon+4)
+    body=bytearray(old[unit+12+0xC8*100:unit+12+(0xC8+1)*100])
+    assert u32(body,0)==160000 and struct.unpack_from('<H',body,0x1A)[0]==1800
+    oldkeys=list(struct.unpack_from('<16H',body,0x24));assert oldkeys[:6]==[0xA44,0x84E,0xA46,0xA47,0xA48,0xCD6]
+    struct.pack_into('<I',body,0,8300);struct.pack_into('<H',body,0x1A,2100)
+    struct.pack_into('<16H',body,0x24,*(keys+oldkeys[6:]))
+    weapons=[]
+    for key in oldkeys[:6]:
+        index=struct.unpack_from('<H',old,wt+12+key*2)[0]
+        record=bytearray(old[weapon+12+index*36:weapon+12+(index+1)*36])
+        power=struct.unpack_from('<H',record,8)[0];assert power>0
+        struct.pack_into('<H',record,8,power+200)
+        if key==0xCD6:
+            assert record[0x14]&4==0 and record[0x17:0x19]==b'\x01\x0A'
+            record[0x14]|=4;record[0x15]=(record[0x15]&0xCF)|0x20
+            record[0x18]=2
+        weapons.append(bytes(record))
+    b=bytearray(old[:end]);b[wend:wend]=b''.join(weapons);b[uend:uend]=body
+    def moved(at):return at+(100 if at>=uend else 0)+(216 if at>=wend else 0)
+    for field in range(0x18,0x8C,4):
+        p=header+u32(old,header+field);assert header<=p<end
+        struct.pack_into('<I',b,header+field,moved(p)-header)
+    struct.pack_into('<II',b,unit+4,u32(old,unit+4)+100,uc+1)
+    assert u32(old,ut+4)==u32(old,unit+4)
+    struct.pack_into('<I',b,ut+4,u32(old,ut+4)+100)
+    struct.pack_into('<H',b,ut+12+0x601*2,uc)
+    nw,nwt=moved(weapon),moved(wt)
+    struct.pack_into('<II',b,nw+4,u32(old,weapon+4)+216,wc+6)
+    for i,k in enumerate(keys):struct.pack_into('<H',b,nwt+12+k*2,wc+i)
+    struct.pack_into('<I',b,0x11E00C,u32(old,0x11E00C)+316)
+    assert len(b)==end+316<=len(old) and not any(old[end:len(b)])
+    assert b[unit+12:unit+12+uc*100]==old[unit+12:unit+12+uc*100]
+    assert b[nw+12:nw+12+wc*36]==old[weapon+12:weapon+12+wc*36]
+    restored=bytearray(b);del restored[wend+100:wend+316];del restored[uend:uend+100]
+    for field in range(0x18,0x8C,4):restored[header+field:header+field+4]=old[header+field:header+field+4]
+    for p,n in ((unit+4,8),(ut+4,4),(ut+12+0x601*2,2),(weapon+4,8),(0x11E00C,4)):
+        restored[p:p+n]=old[p:p+n]
+    for k in keys:restored[wt+12+k*2:wt+14+k*2]=old[wt+12+k*2:wt+14+k*2]
+    assert restored==old[:end],'Unrelated master data changed'
+    return bytes(b)
+
+
+def sladegelmir_ally_balance(apply=False):
+    import os,subprocess
+    before=sha(ISO);assert before=='3f7285fc75c92c282eea7820bf4688a23aca0cfe10de247ad8c31b190780eb29',before
+    edits=[];masters=[]
+    with ISO.open('rb') as f:
+        for base in (0x5DA000,0x83F000):
+            f.seek(base);old=f.read(0x1A5800);b=relocate_ally_sladegelmir_master(old)
+            edits.append((base+0x11E000,old[0x11E000:len(b)],b[0x11E000:]));masters.append(b)
+    from validate_hidden_rewards import validate_sladegelmir_ally_balance
+    checks=validate_sladegelmir_ally_balance(masters[0])
+    h=hashlib.sha256();pos=0
+    with ISO.open('rb') as f:
+        for at,a,b in edits:
+            while pos<at:
+                raw=f.read(min(4<<20,at-pos));assert raw;h.update(raw);pos+=len(raw)
+            assert f.read(len(a))==a;h.update(b);pos+=len(a)
+        while raw:=f.read(4<<20):h.update(raw)
+    report=dict(source_sha256=before,target_sha256=h.hexdigest(),applied=False,checks=checks,
+        feature='Ally Sladegelmir HP8300 armor2100 all six weapons+200; finisher P/range1-2/barrier penetration; enemy unchanged',
+        edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in edits])
+    journal=ROOT/'runtime/sladegelmir_ally_balance_manifest.json';journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        assert subprocess.check_output(['powershell','-NoProfile','-Command',"@(Get-Process -ErrorAction SilentlyContinue | Where-Object ProcessName -like '*pcsx*').Count"],text=True).strip()=='0','Close PCSX2 before update'
+        assert sha(ISO)==before
+        try:
+            with ISO.open('r+b') as f:
+                for at,a,b in edits:f.seek(at);assert f.read(len(a))==a;f.seek(at);f.write(b)
+                f.flush();os.fsync(f.fileno())
+            assert sha(ISO)==report['target_sha256']
+        except Exception:
+            with ISO.open('r+b') as f:
+                for at,a,b in edits:f.seek(at);f.write(a)
+                f.flush();os.fsync(f.fileno())
+            raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
+
+
 def relocate_ally_mumei_master(old):
     """Preserve each option profile while extending ally-only Mumei tables."""
     end=0x11e800+u32(old,0x11e00c)
@@ -2424,6 +2512,7 @@ if __name__=='__main__':
     p.add_argument('--mumei-episode6-only',action='store_true')
     p.add_argument('--episode6-granzon-test',action='store_true')
     p.add_argument('--mumei-ally-balance',action='store_true')
+    p.add_argument('--sladegelmir-ally-balance',action='store_true')
     p.add_argument('--wodan-survival',action='store_true')
     p.add_argument('--grungust-type3-grant',action='store_true')
     p.add_argument('--ouka-survival',action='store_true')
@@ -2451,6 +2540,7 @@ if __name__=='__main__':
     p.add_argument('--ouka-route-fix',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.sladegelmir_ally_balance:sladegelmir_ally_balance(a.apply);sys.exit()
     if a.ouka_route_fix:ouka_route_fix(a.apply);sys.exit()
     if a.small_enemy_hp_boost:small_enemy_hp_boost(a.apply);sys.exit()
     if a.global_weapon_upgrade_discount:global_weapon_upgrade_discount(a.apply);sys.exit()

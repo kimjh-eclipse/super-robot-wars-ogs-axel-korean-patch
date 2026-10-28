@@ -336,14 +336,14 @@ def build_story_common():
 
 
 def build_maintenance_common():
-    """v20261029 common/optional fixes, preserving all 32 legacy option profiles."""
+    """v20261029.1 common/optional fixes, preserving all 32 legacy option profiles."""
     import sys,json,shutil,concurrent.futures
     sys.path.insert(0,str(ROOT))
-    from build_hidden_rewards import relocate_ally_mumei_master,ouka_route_fix_plan
+    from build_hidden_rewards import relocate_ally_sladegelmir_master
     current=file_hash(TARGET)
-    assert current=='3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29'
+    assert current=='98ECEB49E5928194A88F7621C91CDDBFA4AC8D48267BA82A43C07081EB23C510'
     oldmeta=json.loads((ROOT/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
-    assert oldmeta['version']=='v20261028','Do not overwrite already rebuilt metadata'
+    assert oldmeta['version']=='v20261029','Do not overwrite already rebuilt metadata'
     core=json.loads((ROOT/'runtime/optional_features_profiles.json').read_text(encoding='utf-8'))
     oldplans=json.loads((ROOT/'runtime/story_common_edits.json').read_text(encoding='utf-8'))
     def unpack(es):return [(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after'])) for e in es]
@@ -364,8 +364,8 @@ def build_maintenance_common():
             for at,a,b in reversed(es) if reverse else es:
                 if reverse:a,b=b,a
                 f.seek(at);assert f.read(len(a))==a,hex(at);f.seek(at);f.write(b)
-    oldwar={i:unpack(oldplans[str(i)]) for i in range(4)}
-    ep6=journal('mumei_episode6_manifest.json');cost=journal('global_weapon_upgrade_discount_manifest.json');hp=journal('small_enemy_hp_boost_manifest.json')
+    oldwar={i:unpack(oldplans[str(i)]) for i in range(32)}
+    legacy28=oldplans['legacy_v20261028']
     class View:
         def __init__(self,f,es=()):self.f=f;self.edits=list(es)
         def read(self,at,n):
@@ -379,22 +379,12 @@ def build_maintenance_common():
                 assert self.read(at,len(a))==a,hex(at);self.edits.append((at,a,b))
     try:
         shutil.copyfile(TARGET,tmp)
-        for name in ('ouka_route_fix_manifest.json','small_enemy_hp_boost_manifest.json','global_weapon_upgrade_discount_manifest.json','mumei_ally_balance_manifest.json','mumei_episode6_manifest.json'):
-            disk_apply(journal(name),True)
+        disk_apply(journal('sladegelmir_ally_balance_manifest.json'),True)
         assert file_hash(tmp)==oldmeta['hashes'][31]
-        disk_apply(oldwar[3],True)
+        disk_apply(oldwar[31],True)
         for es in features.values():disk_apply(es,True)
         disk_apply(both,True);disk_apply(hidden,True)
         assert file_hash(tmp)==core['hashes'][0]
-        # Script layout varies with hidden rewards; generate the Ouka fix separately.
-        ouka={}
-        for low in (2,3):
-            sets=([hidden] if low&1 else [])+[both if low&1 else bundle]
-            for es in sets:disk_apply(es)
-            disk_apply(oldwar[low])
-            ouka[low]=ouka_route_fix_plan(tmp)[0]
-            disk_apply(oldwar[low],True)
-            for es in reversed(sets):disk_apply(es,True)
         plans={};views=[];checks=[]
         with tmp.open('rb') as f:
             for mask in range(32):
@@ -404,13 +394,10 @@ def build_maintenance_common():
                 for bit,es in features.items():
                     if mask&bit:v.apply(es)
                 start=View(f,v.edits)
-                v.apply(oldwar[low]);v.apply(ep6)
+                v.apply(oldwar[mask])
                 for base in (0x5DA000,0x83F000):
-                    master=v.read(base,0x1A5800);new=relocate_ally_mumei_master(master)
+                    master=v.read(base,0x1A5800);new=relocate_ally_sladegelmir_master(master)
                     v.apply([(base+0x11E000,master[0x11E000:len(new)],new[0x11E000:])])
-                v.apply(cost)
-                if mask&8:v.apply(hp)
-                if low&2:v.apply(ouka[low])
                 # Merge overlapping writes into guarded core-profile -> final-profile spans.
                 spans=[]
                 for at,a,b in sorted(v.edits[len(start.edits):]):
@@ -455,17 +442,20 @@ def build_maintenance_common():
             for h in oldmeta['prior_release_hashes']:f.write(bytes.fromhex(h))
             write_edits(f,journal('mumei_fallback_manifest.json'))
             # Backward-compatible extension: previous public release profiles -> core.
-            f.write(struct.pack('<I',32))
+            f.write(struct.pack('<I',64))
             for mask in range(32):
-                f.write(struct.pack('<I',mask));f.write(bytes.fromhex(oldmeta['hashes'][mask]));write_edits(f,oldwar[mask&3])
+                f.write(struct.pack('<I',mask));f.write(bytes.fromhex(oldmeta['legacy_v20261028_hashes'][mask]));write_edits(f,unpack(legacy28[str(mask&3)]))
+            for mask in range(32):
+                f.write(struct.pack('<I',mask));f.write(bytes.fromhex(oldmeta['hashes'][mask]));write_edits(f,oldwar[mask])
             f.flush();os.fsync(f.fileno())
         stage.replace(dest)
-        report=dict(core,version='v20261029',iso_unchanged_sha256=current,hashes=hashes,
-            previous_hashes=core['hashes'],prior_release_hashes=oldmeta['prior_release_hashes'],legacy_v20261028_hashes=oldmeta['hashes'],
+        report=dict(core,version='v20261029.1',iso_unchanged_sha256=current,hashes=hashes,
+            previous_hashes=core['hashes'],prior_release_hashes=oldmeta['prior_release_hashes'],legacy_v20261028_hashes=oldmeta['legacy_v20261028_hashes'],legacy_v20261029_hashes=oldmeta['hashes'],
             common_file_sha256=file_hash(dest),profile_checks=checks)
         (ROOT/'runtime/common_fix_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         data={str(k):[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in es] for k,es in plans.items()}
-        data['legacy_v20261028']=oldplans
+        data['legacy_v20261028']=legacy28
+        data['legacy_v20261029']={str(i):oldplans[str(i)] for i in range(32)}
         (ROOT/'runtime/story_common_edits.json').write_text(json.dumps(data),encoding='utf-8')
         print('Maintenance common pack ready; all 32 hashes, current all-ON equality verified',flush=True)
     finally:tmp.unlink(missing_ok=True)
@@ -476,7 +466,7 @@ def package_options():
     report=json.loads((ROOT/'runtime/optional_features_patcher_e2e.json').read_text(encoding='utf-8'))
     profiles=json.loads((ROOT/'runtime/common_fix_profiles.json').read_text(encoding='utf-8'))
     assert report['passed'] and len(report['real_iso_transitions'])==32
-    assert report['production_composition_selftest']==4096
+    assert report['production_composition_selftest']==5120
     assert report['current_gameplay_iso_unchanged']==profiles['iso_unchanged_sha256']
     assert file_hash(TARGET)==profiles['iso_unchanged_sha256'],'Gameplay ISO changed during patcher build'
     assert file_hash(HERE/'OGS_optional_features.bin')==profiles['features_file_sha256']
@@ -485,7 +475,7 @@ def package_options():
         'OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin','OGS_optional_features.bin','OGS_common_fix.bin']
     files=[HERE/name for name in required]+sorted(HERE.glob('OGS_ISO_ranges_upgrade*.bin'))
     assert all(p.exists() for p in files)
-    text="""슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261029
+    text="""슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261029.1
 
 OGs 한글패치 v1.4.3s1 적용 ISO 또는 이전 액셀 패치 적용 ISO를 선택합니다.
 OGS_AxelSwap_QuickPatch.exe를 실행하고 원하는 옵션을 체크한 뒤 [패치 적용]을 누르세요.
@@ -493,6 +483,8 @@ OGS_AxelSwap_QuickPatch.exe를 실행하고 원하는 옵션을 체크한 뒤 [�
 기준 SHA256: 9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C
 
 무명은 6화 종료 후 기체만 지급합니다. 5화 지급 삽입을 제거해 진행 문제에 대응했습니다. 이미 보유했다면 중복 지급하지 않습니다. 아군 무명 HP6300, 시시오 블레이드4600, 필살무장5600으로 조정했으며 적 무라타는 유지합니다. 무기 개조비용은 최저 등급을 제외하고20% 낮췄습니다.
+
+아군 슬레이드겔미르는 HP8300·장갑2100, 여섯 무장 공격력+200입니다. 성체의태도는 이동 후 공격 가능·사거리1~2·배리어 관통으로 변경했습니다. 적 슬레이드겔미르는 유지합니다.
 
 워단은 44화 마지막 결전 후 생환하여 기존 슬레이드겔미르에 합류합니다. 오우카 생존 옵션과 별개로 기본 적용됩니다.
 37화 클리어 후 젠가의 참식참함도 장착형 그룬거스트 삼식을 기체만 추가 지급합니다. 기존 다른 삼식은 유지합니다.
@@ -523,7 +515,7 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
 패치 후 에뮬레이터를 새로 실행하고 게임 내 메모리카드 세이브로 불러오세요.
 이전 세이브 스테이트는 이전 코드와 데이터를 복원하므로 사용하지 마세요.
 
-검증: 전체 32개 조합의 ISO SHA256, 패처 내 전환 4,096가지,
+검증: 전체 32개 조합의 ISO SHA256, 패처 내 전환 5,120가지,
 실제 ISO 32개 조합 적용 및 대표 조합 백업 복원 검증 통과.
 게임 플레이 전체를 새로 검증한 것은 아닙니다.
 
@@ -533,15 +525,15 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
     readme=HERE/'읽어주세요.txt';readme.write_text(text,encoding='utf-8-sig');files.append(readme)
     sums=HERE/'SHA256SUMS.txt'
     sums.write_text(''.join(file_hash(p)+'  '+p.name+'\n' for p in files),encoding='utf-8-sig');files.append(sums)
-    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261029.zip';out.parent.mkdir(exist_ok=True)
+    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261029.1.zip';out.parent.mkdir(exist_ok=True)
     tmp=out.with_suffix('.tmp')
     with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
-        for p in files:z.write(p,'OGS_AxelSwap_QuickPatch_v20261029/'+p.name)
+        for p in files:z.write(p,'OGS_AxelSwap_QuickPatch_v20261029.1/'+p.name)
     tmp.replace(out)
     with zipfile.ZipFile(out) as z:
         assert z.testzip() is None
         for p in files:
-            assert hashlib.sha256(z.read('OGS_AxelSwap_QuickPatch_v20261029/'+p.name)).hexdigest().upper()==file_hash(p)
+            assert hashlib.sha256(z.read('OGS_AxelSwap_QuickPatch_v20261029.1/'+p.name)).hexdigest().upper()==file_hash(p)
     result=dict(zip=str(out),sha256=file_hash(out),files=len(files),size=out.stat().st_size)
     (ROOT/'runtime/optional_features_package.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2))

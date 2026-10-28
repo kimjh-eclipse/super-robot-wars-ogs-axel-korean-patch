@@ -1,0 +1,41 @@
+{
+  "source_sha256": "3f7285fc75c92c282eea7820bf4688a23aca0cfe10de247ad8c31b190780eb29",
+  "target_sha256": "98eceb49e5928194a88f7621c91cddbfa4ac8d48267ba82a43c07081eb23c510",
+  "applied": true,
+  "checks": {
+    "ally_HP": 8300,
+    "ally_armor": 2100,
+    "ally_EN": 350,
+    "mobility": 95,
+    "move": 7,
+    "weapon_powers": [
+      4500,
+      4400,
+      5700,
+      3100,
+      3700,
+      6200
+    ],
+    "finisher": {
+      "P": true,
+      "range": [
+        1,
+        2
+      ],
+      "barrier_penetration": true,
+      "EN": 40,
+      "morale": 120,
+      "ALL": false
+    },
+    "enemy_HP": 160000,
+    "enemy_armor": 1800,
+    "enemy_weapons_unchanged": true,
+    "existing_Wodan_assignment_and_save_preserved": true,
+    "existing_fixed_weapon_slots_resolve_new_keys": true,
+    "all_six_original_motion_ids_preserved": true,
+    "repeated_grant_idempotent": true,
+    "Mumei_regression_passed": true,
+    "live_battle_test": false
+  },
+  "feature": "Ally Sladegelmir HP8300 armor2100 all six weapons+200; finisher P/range1-2/barrier penetration; enemy unchanged"
+}

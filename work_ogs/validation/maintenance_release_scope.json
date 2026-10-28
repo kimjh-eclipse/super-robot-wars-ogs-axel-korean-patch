@@ -1,13 +1,46 @@
 {
-  "version": "v20261029",
-  "Beowulf_excluded": true,
-  "Beowulf_test_deferred": [
-    "attack invisibility persists",
-    "copy original enemy Axel stats",
-    "name Beowulf"
-  ],
-  "production_sha256": "3f7285fc75c92c282eea7820bf4688a23aca0cfe10de247ad8c31b190780eb29",
-  "Ouka_alternate44_and45_fixed": true,
-  "weapon_discount_cheapest_exempt": true,
-  "HP_boost_in_enemy_option": true
+  "version": "v20261029.1",
+  "production_iso_sha256": "98ECEB49E5928194A88F7621C91CDDBFA4AC8D48267BA82A43C07081EB23C510",
+  "previous_public_iso_sha256": "3F7285FC75C92C282EEA7820BF4688A23ACA0CFE10DE247AD8C31B190780EB29",
+  "changes": {
+    "ally_HP": 8300,
+    "ally_armor": 2100,
+    "ally_EN": 350,
+    "mobility": 95,
+    "move": 7,
+    "weapon_powers": [
+      4500,
+      4400,
+      5700,
+      3100,
+      3700,
+      6200
+    ],
+    "finisher": {
+      "P": true,
+      "range": [
+        1,
+        2
+      ],
+      "barrier_penetration": true,
+      "EN": 40,
+      "morale": 120,
+      "ALL": false
+    },
+    "enemy_HP": 160000,
+    "enemy_armor": 1800,
+    "enemy_weapons_unchanged": true,
+    "existing_Wodan_assignment_and_save_preserved": true,
+    "existing_fixed_weapon_slots_resolve_new_keys": true,
+    "all_six_original_motion_ids_preserved": true,
+    "repeated_grant_idempotent": true,
+    "Mumei_regression_passed": true,
+    "live_battle_test": false
+  },
+  "option_count": 5,
+  "option_defaults": "all OFF",
+  "Beowulf_included": false,
+  "TTS_included": false,
+  "cafe_post": "CAFE_POST_붙여넣기용.txt",
+  "cumulative_changes_documented": true
 }

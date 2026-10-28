@@ -1525,7 +1525,7 @@ def validate_optional_patcher():
         match=re.search(r'PASS: (\d+) option transitions',completed.stdout.decode('utf-8',errors='replace'))
         assert match,completed.stdout
         composition_cases=int(match.group(1))
-    assert composition_cases==4096
+    assert composition_cases==5120
     results=[]
     def flags(mask):return [flag for bit,flag in [(1,'--hidden'),(2,'--bundle'),(4,'--rewards'),(8,'--enemy'),(16,'--spirits')] if mask&bit]
     def call(*args):
@@ -1572,6 +1572,16 @@ def validate_optional_patcher():
         assert sha(test).upper()==meta['previous_hashes'][31]
         call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
         call(test,'--restore');assert sha(test).upper()==meta['previous_hashes'][31]
+        legacy29=all_common['legacy_v20261029']['31']
+        with test.open('r+b') as f:
+            for e in legacy29:
+                a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after']);f.seek(e['offset']);assert f.read(len(a))==a;f.seek(e['offset']);f.write(b)
+        assert sha(test).upper()==meta['legacy_v20261029_hashes'][31]
+        call(test,'--cli',*flags(31));assert sha(test).upper()==expected[31]
+        call(test,'--restore');assert sha(test).upper()==meta['legacy_v20261029_hashes'][31]
+        with test.open('r+b') as f:
+            for e in reversed(legacy29):
+                a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after']);f.seek(e['offset']);assert f.read(len(b))==b;f.seek(e['offset']);f.write(a)
         # The immediately previous public release has four different story layouts.
         legacy_story=all_common['legacy_v20261028']['3']
         with test.open('r+b') as f:
@@ -1598,13 +1608,74 @@ def validate_optional_patcher():
 
         report=dict(passed=True,profile_count=32,real_iso_transitions=results,
             baseline_apply_restore=True,legacy_v20261025_1=True,previous_v20261027=True,previous_v20261027_1=True,backup_restore_profiles=[0,4,8,16,31],
-            idempotency_profiles=[0,31],production_composition_selftest=composition_cases,previous_v20261028=True,
+            idempotency_profiles=[0,31],production_composition_selftest=composition_cases,previous_v20261028=True,previous_v20261029=True,
             patcher_sha256=binary_hash,common_pack_sha256=common_hash,
             current_gameplay_iso_unchanged=before)
         (ROOT/'runtime/optional_features_patcher_e2e.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         return report
     finally:
         test.unlink(missing_ok=True);bak.unlink(missing_ok=True)
+
+
+def validate_sladegelmir_ally_balance(blob):
+    vm=VM();c=vm.cpu;master=c.read(0x59D360,4);save=c.read(0x59D364,4)
+    with ISO.open('rb') as f:
+        f.seek(0x94880);c.mem[0x100000:0x582980]=f.read(0x482980)
+        f.seek(0x5DA000);original=f.read(0x1A5800)
+    def load(data):
+        base=0x1100000;payload=data[0x11E800:];c.mem[base:base+len(payload)]=payload
+        for i,field in enumerate(range(0x18,0x8C,4)):
+            dst=base+u32(data,0x11E800+field);obj=master+0x28+i*24
+            for off,value in ((0,dst),(4,c.read(dst,4)),(8,c.read(dst+4,4)),(12,0),(16,dst),(20,dst+12)):
+                c.write(obj+off,value,4)
+    load(original)
+    vm.op(command(0x5A,0x601));slot=c.run(0x1ABC50,[save,0x601,0,0]);assert slot>=0
+    pilot=c.run(0x1B1FD0,[save,0x602,0]);assert pilot>=0
+    c.run(0x1B13D0,[save,pilot,slot,0])
+    oldkeys=[0xA44,0x84E,0xA46,0xA47,0xA48,0xCD6];keys=list(range(0x8C0,0x8C6))
+    oldmotions=[c.run(0x1A4A20,[master,k]) for k in oldkeys]
+    oldpowers=[c.run(0x1A5DC0,[master,k]) for k in oldkeys]
+    assert oldpowers==[4300,4200,5500,2900,3500,6000]
+    assert c.run(0x1A5240,[master,0xCD6])==0
+    assert c.run(0x1A4CB0,[master,0xCD6])==0
+    before=bytes(c.mem[save:save+0x3B400])
+    load(blob)
+    for key,HP,armor in ((0x601,8300,2100),(0x490,160000,1800)):
+        assert c.run(0x1A7D40,[master,key])==HP
+        assert c.run(0x1A7B40,[master,key])==armor
+    for fn,want in ((0x1A7CC0,350),(0x1A7BC0,95),(0x1A7C40,7)):
+        assert c.run(fn,[master,0x601])==want
+    assert [c.run(0x1AC9D0,[save,0x75,slot,i]) for i in range(6)]==keys
+    assert [c.run(0x1A5DC0,[master,k]) for k in keys]==[v+200 for v in oldpowers]
+    assert [c.run(0x1A5DC0,[master,k]) for k in oldkeys]==oldpowers
+    assert [c.run(0x1A4A20,[master,k]) for k in keys]==oldmotions
+    assert c.run(0x1A5240,[master,keys[-1]])==1
+    assert c.run(0x1A4CB0,[master,keys[-1]])==2
+    assert c.run(0x1A4EE0,[master,keys[-1]])==0
+    assert c.run(0x1A5AC0,[master,keys[-1]])==40
+    assert c.run(0x1A5A40,[master,keys[-1]])==120
+    wt=0x11E800+u32(blob,0x11E820);w=0x11E800+u32(blob,0x11E824)
+    oldwt=0x11E800+u32(original,0x11E820);oldw=0x11E800+u32(original,0x11E824)
+    for i,(oldkey,key) in enumerate(zip(oldkeys,keys)):
+        oi=struct.unpack_from('<H',original,oldwt+12+oldkey*2)[0];ni=struct.unpack_from('<H',blob,wt+12+key*2)[0]
+        a=original[oldw+12+oi*36:oldw+12+(oi+1)*36];b=blob[w+12+ni*36:w+12+(ni+1)*36]
+        allowed={8,9}|({0x14,0x15,0x18} if i==5 else set())
+        assert {j for j in range(36) if a[j]!=b[j]}<=allowed
+        if i==5:assert b[0x17:0x19]==b'\x01\x02'
+    assert c.run(0x1B1300,[save,slot,0])==pilot
+    assert c.run(0x1ABC50,[save,0x601,0,0])==slot
+    assert c.run(0x1A9B70,[save,slot,1])==1
+    assert c.run(0x1A7D40,[master,0x600])==6300
+    assert c.run(0x1A5DC0,[master,0x851])==5600
+    assert c.mem[save:save+0x3B400]==before
+    vm.op(command(0x5A,0x601));assert c.mem[save:save+0x3B400]==before
+    return dict(ally_HP=8300,ally_armor=2100,ally_EN=350,mobility=95,move=7,
+                weapon_powers=[4500,4400,5700,3100,3700,6200],
+                finisher=dict(P=True,range=[1,2],barrier_penetration=True,EN=40,morale=120,ALL=False),
+                enemy_HP=160000,enemy_armor=1800,enemy_weapons_unchanged=True,
+                existing_Wodan_assignment_and_save_preserved=True,existing_fixed_weapon_slots_resolve_new_keys=True,
+                all_six_original_motion_ids_preserved=True,repeated_grant_idempotent=True,
+                Mumei_regression_passed=True,live_battle_test=False)
 
 
 def validate_mumei_ally_balance(blob):
