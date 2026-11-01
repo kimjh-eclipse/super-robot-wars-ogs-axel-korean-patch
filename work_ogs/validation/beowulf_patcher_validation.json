@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "actual_iso_cases": [
+    {
+      "name": "base_to_off",
+      "mask": 0,
+      "sha256": "f8319876331761e8a5df7776cae65a217383edac7cf168a75ee6ba04d333447d",
+      "seconds": 10.53
+    },
+    {
+      "name": "off_to_all_on",
+      "mask": 63,
+      "sha256": "d8f67068415cf6ed69e2d6f2b00d253405a93af42ded559d9c474a4b3473654a",
+      "seconds": 10.56
+    },
+    {
+      "name": "all_on_to_off",
+      "mask": 0,
+      "sha256": "f8319876331761e8a5df7776cae65a217383edac7cf168a75ee6ba04d333447d",
+      "seconds": 10.26
+    },
+    {
+      "name": "restore",
+      "mask": 63,
+      "sha256": "d8f67068415cf6ed69e2d6f2b00d253405a93af42ded559d9c474a4b3473654a",
+      "seconds": 6.35
+    }
+  ],
+  "legacy_option_byte_transitions": 5120,
+  "beowulf_profile_hash_chains": 4096,
+  "profile_count": 64,
+  "baseline_and_legacy_anchors_verified": true,
+  "episode6_test_excluded": true,
+  "gameplay_ISO_modified": false
+}

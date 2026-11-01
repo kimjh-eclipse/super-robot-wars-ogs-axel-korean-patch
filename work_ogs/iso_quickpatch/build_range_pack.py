@@ -461,6 +461,278 @@ def build_maintenance_common():
     finally:tmp.unlink(missing_ok=True)
 
 
+def build_beowulf_extension():
+    """64 profiles layered on the unchanged five-option/legacy patch format."""
+    import sys,json,concurrent.futures
+    sys.path.insert(0,str(ROOT))
+    from build_hidden_rewards import Scripts,MAP
+    from build_beowulf_prototype import release_beowulf_master,beowulf_story_scenes,rebuild_beowulf_story_logo
+    from validate_beowulf_prototype import validate_story_blob
+    U=lambda b,p:struct.unpack_from('<I',b,p)[0]
+    def readranges(f):
+        rows=[]
+        for _ in range(struct.unpack('<I',f.read(4))[0]):
+            at,n=struct.unpack('<QI',f.read(12));a,b=f.read(n),f.read(n)
+            assert len(a)==len(b)==n;rows.append((at,a,b))
+        return rows
+    def option(name):
+        with (HERE/name).open('rb') as f:
+            assert f.read(8)==b'OGSHID01';f.read(72);return readranges(f)
+    hidden=option('OGS_hidden_rewards.bin');bundle=option('OGS_ouka_zengar.bin');both=option('OGS_ouka_zengar_hidden.bin')
+    features={}
+    with (HERE/'OGS_optional_features.bin').open('rb') as f:
+        assert f.read(8)==b'OGSOPT02';f.read(40);assert U(f.read(4),0)==32;f.read(36*32)
+        assert U(f.read(4),0)==3
+        for _ in range(3):
+            bit=U(f.read(4),0);features[bit]=readranges(f)
+    anchors=[];common={}
+    with (HERE/'OGS_common_fix.bin').open('rb') as f:
+        assert f.read(8)==b'OGSFIX02';iso_size,count=struct.unpack('<QI',f.read(12));assert count==32
+        for mask in range(32):
+            assert U(f.read(4),0)==mask;f.read(32);anchors.append(f.read(32).hex().upper());common[mask]=readranges(f)
+    class View:
+        def __init__(self,f,es=()):
+            self.f=f;self.es=[];self.bins={}
+            for at,data in es:self.put(at,data)
+        def read(self,at,n):
+            self.f.seek(at);b=bytearray(self.f.read(n));assert len(b)==n
+            indexes=set()
+            for block in range(at>>16,((at+n-1)>>16)+1):indexes.update(self.bins.get(block,()))
+            for index in sorted(indexes):
+                p,data=self.es[index]
+                lo=max(at,p);hi=min(at+n,p+len(data))
+                if lo<hi:b[lo-at:hi-at]=data[lo-p:hi-p]
+            return bytes(b)
+        def put(self,at,data):
+            data=bytes(data);index=len(self.es);self.es.append((at,data))
+            for block in range(at>>16,((at+len(data)-1)>>16)+1):self.bins.setdefault(block,[]).append(index)
+        def apply(self,rows,reverse=False):
+            for at,a,b in reversed(rows) if reverse else rows:
+                if reverse:a,b=b,a
+                assert self.read(at,len(a))==a,('byte guard',hex(at));self.put(at,b)
+        def clone(self):return View(self.f,self.es)
+    def spans(es):
+        out=[]
+        for at,data in sorted(es):
+            end=at+len(data)
+            if out and at<=out[-1][1]+64:out[-1][1]=max(out[-1][1],end)
+            else:out.append([at,end])
+        return out
+    def differences(before,after,regions):
+        out=[]
+        for a,b in regions:
+            x=before.read(a,b-a);y=after.read(a,b-a)
+            pos=np.flatnonzero(np.frombuffer(x,np.uint8)!=np.frombuffer(y,np.uint8))
+            if not len(pos):continue
+            cuts=np.flatnonzero(np.diff(pos)>65);starts=np.r_[0,cuts+1];ends=np.r_[cuts,len(pos)-1]
+            for i,j in zip(starts,ends):
+                lo,hi=int(pos[i]),int(pos[j])+1;out.append((a+lo,x[lo:hi],y[lo:hi]))
+        return out
+    current_hash=file_hash(TARGET);test=ROOT/'build/SRWOGS_BEOWULF_TEST.iso'
+    scripts=Scripts(TARGET);test_scripts=Scripts(test)
+    # Read actual tested graphics/animation/code additions, not its stale masters.
+    excluded=[(0x5da000,0x5da000+0x1a5800),(0x83f000,0x83f000+0x1a5800),(MAP,MAP+0x9600000)]
+    assetranges=[]
+    for a,n in find_ranges(TARGET,test):
+        parts=[(a,a+n)]
+        for lo,hi in excluded:
+            parts=[q for x,y in parts for q in ((x,min(y,lo)),(max(x,hi),y)) if q[0]<q[1]]
+        assetranges.extend(parts)
+    spawn=json.loads((ROOT/'runtime/beowulf/enemy_spawn_plan.json').read_text())
+    scene_def=beowulf_story_scenes();master_test={}
+    ram_fixture=(ROOT/'runtime/beowulf/current_user_ram.bin').read_bytes()
+    with test.open('rb') as tf:
+        for base in (0x5da000,0x83f000):tf.seek(base);master_test[base]=tf.read(0x1a5800)
+        assets=[]
+        for a,b in assetranges:tf.seek(a);assets.append((a,tf.read(b-a)))
+    proof=[];profiles=[];oldviews=[];pairplans=[];validation_cache={}
+    with TARGET.open('rb') as f:
+        current=View(f);old=current.clone()
+        corr=json.loads((ROOT/'runtime/shadowmirror_dialogue_correction.json').read_text(encoding='utf-8'))
+        rows=next(x['edits'] for x in corr['plans'] if Path(x['path']).name=='SRWOGS_K.iso')
+        for e in rows:old.apply([(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after']))],True)
+        rate=json.loads((ROOT/'runtime/lucky_probability_manifest.json').read_text())
+        e=next(x for x in rate['files'] if Path(x['path']).name=='SRWOGS_K.iso')
+        old.apply([(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after']))],True)
+        for base in (0x5da000,0x83f000):
+            b=bytearray(old.read(base,0x1a5800));h=0x11e800;pl=h+U(b,h+0x2c)+12;lv=h+U(b,h+0x44)+12
+            for idx in (60,170,368):struct.pack_into('<H',b,pl+idx*148+0x1a,3)
+            b[lv+119*9:lv+120*9]=bytes([1,8,20,29,38,42,0,0,0]);old.put(base,b)
+        recent=differences(old,current,spans(old.es));core=old.clone();core.apply(common[31],True)
+        for rows in features.values():core.apply(rows,True)
+        core.apply(both,True);core.apply(hidden,True)
+        for mask in range(32):
+            v=core.clone()
+            if mask&1:v.apply(hidden)
+            if mask&2:v.apply(both if mask&1 else bundle)
+            for bit,rows in features.items():
+                if mask&bit:v.apply(rows)
+            v.apply(common[mask]);oldviews.append(v.clone());v.apply(recent)
+            off=v.clone();on=v.clone()
+            for a,data in assets:on.put(a,data)
+            for base in master_test:on.put(base,release_beowulf_master(on.read(base,0x1a5800),master_test[base]))
+            # Rebuild each UNTD from this profile's current rows; omit episode6.
+            cursor=0x8dde000;wp=0x5071000
+            for table in sorted({x['table'] for x in spawn}):
+                assert table!=78
+                dp=wp+8+table*8;at=wp+U(scripts.data,dp);n=U(scripts.data,dp+4)
+                raw=on.read(MAP+at,n);cnt=U(raw,40);assert len(raw)==44+cnt*336
+                tp=wp+U(test_scripts.data,dp);tn=U(test_scripts.data,dp+4);tested=test_scripts.data[tp:tp+tn]
+                added=[tested[44+i*336:44+(i+1)*336] for i in range(U(tested,40)) if U(tested,44+i*336)==0x604]
+                assert len(added)==len([x for x in spawn if x['table']==table])
+                new=bytearray(raw+b''.join(added));struct.pack_into('<I',new,40,cnt+len(added))
+                cursor=(cursor+2047)//2048*2048;assert not any(on.read(MAP+cursor,len(new)))
+                on.put(MAP+cursor,new);on.put(MAP+dp,struct.pack('<II',cursor-wp,len(new)));cursor+=len(new)
+            on.put(MAP+0x800+8+13*8+4,struct.pack('<I',cursor-0x5070000))
+            # New dialogue is rebuilt over each option's own scripts, not copied.
+            cursor=0x8f00000
+            for n,scenes in sorted(scene_def.items()):
+                at,size=scripts.logos[n];raw=on.read(MAP+at,size)
+                new,notes=rebuild_beowulf_story_logo(raw,scenes)
+                fingerprint=hashlib.sha256(raw+new).digest()
+                if fingerprint not in validation_cache:
+                    validation_cache[fingerprint]=validate_story_blob(raw,new,notes,ram_fixture)
+                validation=validation_cache[fingerprint]
+                cursor=(cursor+2047)//2048*2048;assert not any(on.read(MAP+cursor,len(new)))
+                on.put(MAP+cursor,new);on.put(MAP+0x557f800+8+n*8,struct.pack('<II',cursor-0x557f800,len(new)));cursor+=len(new)
+                if mask==0:proof.append(dict(script=n,validation=validation))
+            on.put(MAP+0x800+8+14*8+4,struct.pack('<I',cursor-0x557e800))
+            # Test spawn is absent in either profile, including direct table data.
+            dp=wp+8+78*8;at=wp+U(scripts.data,dp);raw=on.read(MAP+at,U(scripts.data,dp+4))
+            assert not any(U(raw,44+i*336)==0x604 for i in range(U(raw,40)))
+            for profile in (off,on):
+                pairs=differences(oldviews[mask],profile,spans(profile.es+oldviews[mask].es))
+                pairplans.append((mask,profile,pairs))
+            print('Prepared Beowulf profiles',mask*2+2,'/64',flush=True)
+        # Reorder to low 5 option bits plus Beowulf bit32.
+        ordered=[None]*64
+        for i,(mask,v,es) in enumerate(pairplans):ordered[mask+(32 if i%2 else 0)]=(v,es)
+        allviews=oldviews+[v for v,es in ordered]
+        overlays=[[(a,v.read(a,b-a)) for a,b in spans(v.es)] for v in allviews]
+        hashes=[hashlib.sha256() for _ in allviews];pos=0;last=-1
+        def update(args):
+            h,es,raw,offset=args;out=None
+            for at,data in es:
+                lo=max(at,offset);hi=min(at+len(data),offset+len(raw))
+                if lo<hi:
+                    if out is None:out=bytearray(raw)
+                    out[lo-offset:hi-offset]=data[lo-at:hi-at]
+            h.update(raw if out is None else out)
+        f.seek(0)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            while raw:=f.read(16<<20):
+                list(pool.map(update,[(h,es,raw,pos) for h,es in zip(hashes,overlays)]));pos+=len(raw)
+                tick=int(pos*100/iso_size)//10
+                if tick!=last:print('Verify 96 full ISO hashes:',tick*10,'%',flush=True);last=tick
+        digests=[x.hexdigest().upper() for x in hashes]
+        assert digests[:32]==anchors,'Legacy profile reconstruction mismatch'
+        hashes=digests[32:];assert hashes[31]==current_hash and len(set(hashes))==64
+        # Deduplicate blobs so common new artwork is stored only once.
+        pool=[];ids={}
+        def ident(data):
+            k=hashlib.sha256(data).digest()
+            if k not in ids:ids[k]=len(pool);pool.append(data)
+            else:assert pool[ids[k]]==data
+            return ids[k]
+        entries=[]
+        for mask,(v,es) in enumerate(ordered):
+            entries.append([(at,len(a),ident(a),ident(b)) for at,a,b in es])
+        dest=HERE/'OGS_beowulf_options.bin';tmp=dest.with_suffix('.tmp')
+        with tmp.open('wb') as out:
+            out.write(b'OGSBEO01');out.write(struct.pack('<QII',iso_size,64,len(pool)))
+            for data in pool:out.write(struct.pack('<I',len(data)));out.write(data)
+            for mask,es in enumerate(entries):
+                out.write(struct.pack('<I',mask));out.write(bytes.fromhex(anchors[mask&31]));out.write(bytes.fromhex(hashes[mask]));out.write(struct.pack('<I',len(es)))
+                for row in es:out.write(struct.pack('<QIII',*row))
+            out.flush();os.fsync(out.fileno())
+        tmp.replace(dest)
+        report=dict(version='v20261101',bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),
+            defaults=0,hashes=hashes,anchors=anchors,profile_count=64,story_validation=proof,
+            episode6_test_excluded=True,production_master_records_preserved=True,
+            gameplay_ISO_read_only=True,production_sha256=current_hash,pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,
+            unique_blobs=len(pool),legacy_32_full_hashes_verified=True)
+        (ROOT/'runtime/beowulf_options_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+        print('Six-option pack ready:',dest,report['pack_size'],flush=True)
+
+def package_beowulf_options():
+    import json,zipfile
+    profiles=json.loads((ROOT/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
+    checks=json.loads((ROOT/'runtime/beowulf_patcher_validation.json').read_text(encoding='utf-8'))
+    assert checks['passed'] and len(checks['actual_iso_cases'])==4
+    assert file_hash(TARGET).lower()==profiles['production_sha256'].lower()
+    assert file_hash(HERE/'OGS_beowulf_options.bin').lower()==profiles['pack_sha256'].lower()
+    required=['OGS_AxelSwap_QuickPatch.exe','OGS_ISO_ranges.bin','OGS_hidden_rewards.bin',
+        'OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin','OGS_optional_features.bin',
+        'OGS_common_fix.bin','OGS_beowulf_options.bin']
+    files=[HERE/n for n in required]+sorted(HERE.glob('OGS_ISO_ranges_upgrade*.bin'))
+    assert all(p.exists() for p in files)
+    readme=HERE/'읽어주세요.txt'
+    readme.write_text('''슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261101
+
+OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 ISO를 선택하고
+원하는 옵션을 체크한 뒤 [패치 적용]을 누르세요.
+기준 ISO 크기: 4,518,150,144바이트
+기준 SHA256: 9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C
+
+선택 옵션 (모두 기본 해제)
+1. 숨겨진 요소 자동 습득 (OG2)
+2. 오우카 생존 + 젠가 밸런스
+3. 자금 +20% · PP 2배
+4. 적 강화: 파일럿 능력치 +5, 기본 개조 +1단,
+   기본 HP 20,000 미만인 적의 HP +10% (개조 상한 유지)
+5. 액셀·제오라 정신기 변경
+   액셀: 불굴→철벽(SP20), 트윈 예측→혼(SP50), 각성 SP50
+   제오라: 저격→번뜩임(SP10), 철벽→가속(SP10)
+6. 베어울프 등장 (추가 시나리오)
+   알피미가 적으로 등장하는 본편 전투에 베어울프와 게슈펜스트 Mk-Ⅲ를 추가합니다.
+   전용 초상화·컷인·기체 이미지 및 추가 대사를 포함하며, 전투 음성은 쿄스케의 것을 사용합니다.
+   6화 아군 시험 배치는 포함하지 않습니다. HD팩 없이도 기본 그래픽으로 표시됩니다.
+
+여섯 옵션은 각각 켜고 끌 수 있습니다. 이미 패치한 ISO에서도 체크를 바꿔 다시 적용하세요.
+체크를 해제하면 해당 옵션의 ISO 데이터가 복원됩니다.
+게임 내 세이브에 이미 기록된 보유품·자금·PP와 진행 상황은 되돌리지 않습니다.
+이미 지나간 화의 합류·보상은 소급 지급되지 않습니다.
+
+공통 변경
+· 47화의 레몬·라미아 관련 화자/호칭 및 대사 교정
+· 럭키 발동률: 스킬 레벨당 3% (9레벨 27%), 기존 에이스 보정 +10%p 유지
+· 타스크·아라드의 럭키 성장: 레벨 1/8/15/23/30/38/45/53/60에서 스킬 1~9레벨
+· 기존 무명·슬레이드겔미르 등 아군 추가 기체 데이터 유지
+기존 역할 교체·무장별 전투 대사·보상 및 밸런스 변경은 유지합니다.
+
+ISO를 직접 수정하며 작업 직전 구간을 <ISO명>.ogsbak으로 백업합니다.
+[백업으로 되돌리기]는 마지막 패치 직전 상태로 복원합니다.
+실행 파일과 옆의 모든 .bin 파일을 함께 두세요.
+
+에뮬레이터를 완전히 종료한 뒤 패치하세요.
+패치 후에는 새로 부팅하고 게임 내 메모리카드 세이브로 불러오세요.
+이전 세이브 스테이트는 구 코드와 데이터를 복원하므로 사용하지 마세요.
+
+검증: 기존 32개 배포 조합의 해시, 신규 64개 조합의 전체 ISO 해시,
+기존 옵션 5,120개 바이트 전환, 베어울프 포함 4,096개 전환 경로,
+실제 ISO 기본 설치·전체 옵션 켜기/끄기·백업 복원 확인.
+새 시나리오 전체의 실기 플레이 검증을 뜻하지는 않습니다.
+
+ISO는 포함하지 않습니다. 이 파일은 로컬 배포 준비본이며 GitHub 공개 릴리즈는 별도입니다.
+''',encoding='utf-8-sig')
+    files.append(readme)
+    sums=HERE/'SHA256SUMS.txt'
+    sums.write_text(''.join(file_hash(p)+'  '+p.name+'\n' for p in files),encoding='utf-8-sig')
+    files.append(sums)
+    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261101.zip'
+    out.parent.mkdir(exist_ok=True);tmp=out.with_suffix('.tmp')
+    prefix='OGS_AxelSwap_QuickPatch_v20261101/'
+    with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for p in files:z.write(p,prefix+p.name)
+    tmp.replace(out)
+    with zipfile.ZipFile(out) as z:
+        assert z.testzip() is None
+        for p in files:assert hashlib.sha256(z.read(prefix+p.name)).hexdigest().upper()==file_hash(p)
+    result=dict(zip=str(out),sha256=file_hash(out),size=out.stat().st_size,files=len(files),options=6,defaults=0)
+    (ROOT/'runtime/beowulf_patcher_package.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+
+
 def package_options():
     import json,zipfile
     report=json.loads((ROOT/'runtime/optional_features_patcher_e2e.json').read_text(encoding='utf-8'))
@@ -540,7 +812,9 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
 
 if __name__ == "__main__":
     import sys
-    if "--maintenance-common" in sys.argv:build_maintenance_common()
+    if "--package-beowulf" in sys.argv:package_beowulf_options()
+    elif "--beowulf-options" in sys.argv:build_beowulf_extension()
+    elif "--maintenance-common" in sys.argv:build_maintenance_common()
     elif "--story-common" in sys.argv:build_story_common()
     elif "--package-options" in sys.argv:package_options()
     elif "--common-fix" in sys.argv:build_options(common_fix=True)

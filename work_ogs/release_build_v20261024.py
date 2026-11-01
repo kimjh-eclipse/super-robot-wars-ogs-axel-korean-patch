@@ -585,8 +585,163 @@ def publish_options_release():
     (W/'runtime/optional_features_publish.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2),flush=True)
 
+def prepare_six_option_release():
+    """Package the independently verified six-option patcher, not the gameplay ISO."""
+    import zipfile
+    version='v20261101';repo=ROOT/'ogs-repo';dist=W/'dist'
+    profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
+    tested=json.loads((W/'runtime/beowulf_patcher_validation.json').read_text(encoding='utf-8'))
+    package=json.loads((W/'runtime/beowulf_patcher_package.json').read_text(encoding='utf-8'))
+    assert tested['passed'] and profiles['profile_count']==64
+    quick=Path(package['zip']);assert sha(quick).upper()==package['sha256'].upper()
+    scratch=W/'runtime/RELEASE_VERIFY.iso';decoded=W/'runtime/RELEASE_DECODE.iso'
+    assert not scratch.exists() and not decoded.exists()
+    baseline=W/'baseline/srwogs-v1.4.3s1.iso';xdelta=ROOT/'xdelta.exe'
+    delta=dist/('SRWOGS_AxelRoleSwap_kr_'+version+'.xdelta')
+    shutil.copyfile(baseline,scratch)
+    exe=W/'iso_quickpatch/OGS_AxelSwap_QuickPatch.exe'
+    p=subprocess.run([str(exe),str(scratch),'--cli'],cwd=exe.parent,capture_output=True,text=True)
+    assert p.returncode==0,p.stdout+p.stderr
+    assert sha(scratch).upper()==profiles['hashes'][0]
+    print('Release default ISO verified',flush=True)
+    subprocess.run([str(xdelta),'-f','-e','-s',str(baseline),str(scratch),str(delta)],check=True,capture_output=True)
+    subprocess.run([str(xdelta),'-f','-d','-s',str(baseline),str(delta),str(decoded)],check=True,capture_output=True)
+    assert sha(decoded).upper()==profiles['hashes'][0]
+    print('xdelta decode verified',flush=True)
+    for p in [scratch,decoded,Path(str(scratch)+'.ogsbak')]:
+        assert p.resolve().parent==(W/'runtime').resolve()
+        if p.exists():p.unlink()
+    notes='''## 이번 변경
+
+- **베어울프 등장**을 여섯 번째 선택 옵션으로 추가했습니다. 기본값은 꺼짐입니다. 알피미와 함께 적으로 등장하는 추가 시나리오, 전용 기체 이미지·초상화·컷인을 포함합니다. 전투 음성은 쿄스케의 것을 사용합니다.
+- 6화 아군 시험 배치는 배포본에 포함하지 않았습니다. 기존 무명·슬레이드겔미르의 데이터는 유지했습니다.
+- 럭키 발동률을 스킬 레벨당 **3%**로 조정했습니다. 9레벨은 27%이며 기존 에이스 보정 +10%p는 유지합니다.
+- **타스크·아라드만** 레벨 1/8/15/23/30/38/45/53/60에서 럭키가 1~9레벨로 성장하도록 변경했습니다.
+- 47화 W16 장면의 레몬·라미아 관련 호칭과 대사를 22곳 교정했습니다.
+- 기존 숨겨진 요소·오우카 생존/젠가 밸런스·자금/PP·적 강화·정신기 옵션은 유지합니다. 여섯 옵션은 각각 선택할 수 있으며 기본값은 모두 꺼짐입니다.
+
+## 설치
+
+ZIP을 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO와 옵션을 선택하세요. 기준 한글판 v1.4.3s1과 지원되는 이전 액셀 패치 ISO를 업데이트할 수 있습니다. 패처 옆 .bin 파일은 함께 두세요.
+
+xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 베어울프 등 선택 옵션은 빠른 패처를 이용해 주세요.
+
+**에뮬레이터를 완전히 종료한 뒤 패치하고, 새로 부팅하여 게임 내 메모리카드 세이브로 불러오세요. 이전 세이브 스테이트는 사용하지 마세요.** 이미 지나간 시나리오나 저장된 보유품·진행 상황은 옵션 전환으로 다시 작성되지 않습니다.
+
+## 검증
+
+기존 32개 배포 조합과 신규 64개 결과 ISO의 전체 SHA256, 기존 옵션 5,120개 바이트 전환, 여섯 옵션 4,096개 전환 경로를 확인했습니다. 실제 ISO에서 기본 설치·전체 옵션 켜기/끄기·백업 복원과 xdelta 복호 결과도 검증했습니다. 새 시나리오 전체의 실기 플레이를 완료했다는 의미는 아닙니다.
+
+기존 누적 변경사항: [CHANGELOG.md](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+'''
+    release_note=W/'runtime/beowulf_release_notes.md';release_note.write_text(notes,encoding='utf-8')
+    hashes=dict(version=version,iso_size=4518150144,options=profiles['bits'],defaults=0,
+        profiles=[dict(mask=i,sha256=h) for i,h in enumerate(profiles['hashes'])])
+    readme=(W/'iso_quickpatch/읽어주세요.txt').read_text(encoding='utf-8-sig')
+    readme=readme.replace('이 파일은 로컬 배포 준비본이며 GitHub 공개 릴리즈는 별도입니다.','공식 배포처: https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest')
+    readme+='\n빠른 패처는 patcher 폴더에 있습니다. xdelta는 기준 한글판 전용이며 6옵션 모두 해제입니다.\n'
+    payload={}
+    with zipfile.ZipFile(quick) as z:
+        assert z.testzip() is None
+        for name in z.namelist():
+            leaf=Path(name).name
+            if leaf not in ('읽어주세요.txt','SHA256SUMS.txt'):payload['patcher/'+leaf]=z.read(name)
+    payload[delta.name]=delta.read_bytes();payload['읽어주세요.txt']=readme.encode('utf-8-sig')
+    payload['변경사항.md']=notes.encode('utf-8-sig')
+    payload['옵션별_ISO_SHA256.json']=json.dumps(hashes,ensure_ascii=False,indent=2).encode('utf-8')
+    payload['SHA256SUMS.txt']=''.join(hashlib.sha256(b).hexdigest().upper()+'  '+n+'\n' for n,b in sorted(payload.items())).encode('utf-8-sig')
+    out=dist/('SRWOGS_AxelRoleSwap_kr_'+version+'.zip');tmp=out.with_suffix('.tmp')
+    with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for n,b in payload.items():z.writestr(n,b)
+    tmp.replace(out)
+    with zipfile.ZipFile(out) as z:
+        assert z.testzip() is None
+        for n,b in payload.items():assert z.read(n)==b
+    # Update public source and documents without touching historical changelog entries.
+    sources=['iso_quickpatch/OgsAxelQuickPatch.cs','iso_quickpatch/build_range_pack.py',
+        'build_beowulf_prototype.py','validate_beowulf_prototype.py','build_hidden_rewards.py',
+        'validate_hidden_rewards.py','release_build_v20261024.py','audit_shadowmirror_dialogue.py']
+    for name in sources:
+        dest=repo/'work_ogs'/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(W/name,dest)
+    for name in ['beowulf_options_profiles.json','beowulf_patcher_validation.json']:
+        shutil.copyfile(W/'runtime'/name,repo/'work_ogs/validation'/name)
+    shutil.copyfile(delta,repo/'patch'/delta.name)
+    change=repo/'CHANGELOG.md';old=change.read_text(encoding='utf-8-sig')
+    header='# 변경 내역\n\n## '+version+' (2026-11-01)\n\n'+notes+'\n'
+    assert '## '+version not in old
+    change.write_text(header+old.removeprefix('# 변경 내역\n'),encoding='utf-8')
+    for name in ['README.md','docs/home.md']:
+        path=repo/name;t=path.read_text(encoding='utf-8-sig').replace('v20261029.1',version).replace('다섯 옵션','여섯 옵션')
+        marker='| 액셀·제오라 정신기 변경 | 액셀 철벽·혼·각성 SP 조정, 제오라 번뜩임·가속 |'
+        t=t.replace(marker,marker+'\n| 베어울프 등장 | 알피미와 함께 적 등장·추가 시나리오, 6화 시험 배치 제외 |')
+        t=t.replace('새 32개 조합','새 64개 조합').replace('32개 결과 ISO 전체 해시, 5,120개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다.','64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규 4,096개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다.')
+        t=t.replace('## 기본 적용 사항','## 이번 업데이트\n\n럭키 발동률을 레벨당 3%로 조정하고, 타스크·아라드는 레벨 60에 럭키 9레벨을 달성하도록 변경했습니다. 47화 W16 장면의 레몬·라미아 호칭과 대사도 교정했습니다. 베어울프 등장은 선택 옵션입니다.\n\n## 기본 적용 사항',1)
+        path.write_text(t,encoding='utf-8')
+    pn=repo/'docs/patch-notes.md';pn.write_text('# '+version+' 업데이트\n\n'+notes+'\n---\n\n'+pn.read_text(encoding='utf-8-sig'),encoding='utf-8')
+    metadata=dict(version=version,status='PREPARED',previous='v20261029.1',built='2026-11-01',
+        base_iso=dict(size=4518150144,sha256='9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C'),
+        result_iso=dict(size=4518150144,sha256=profiles['hashes'][0]),
+        patch=dict(file=delta.name,size=delta.stat().st_size,sha256=sha(delta),verified='xdelta decode SHA256 matches default profile'),
+        release_zip=dict(file=out.name,size=out.stat().st_size,sha256=sha(out)),
+        options=profiles['bits'],defaults=0,profile_count=64,episode6_test_excluded=True,
+        validation=tested,source_files=sources)
+    (repo/'patch/PATCH_INFO.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding='utf-8')
+    (W/'runtime/beowulf_release_metadata.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(metadata['release_zip'],ensure_ascii=False),flush=True)
+
+
+def publish_six_option_release():
+    import urllib.error
+    version='v20261101';repo=ROOT/'ogs-repo'
+    m=json.loads((W/'runtime/beowulf_release_metadata.json').read_text(encoding='utf-8'))
+    assert m['version']==version
+    assert not subprocess.check_output(['git','status','--porcelain'],cwd=repo).strip(),'Commit release files first'
+    head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
+    c=subprocess.run(['git','credential','fill'],input='protocol=https\nhost=github.com\n\n',text=True,capture_output=True,cwd=repo)
+    credentials=dict(x.split('=',1) for x in c.stdout.splitlines() if '=' in x)
+    token=credentials.get('password');assert token,'GitHub authentication unavailable'
+    def api(method,url,data=None,kind='application/json'):
+        req=urllib.request.Request(url,data=data,method=method,headers={'Authorization':'Bearer '+token,
+            'Accept':'application/vnd.github+json','Content-Type':kind,'User-Agent':'OGS-release'})
+        with urllib.request.urlopen(req,timeout=600) as f:return json.load(f)
+    base='https://api.github.com/repos/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch'
+    body=(W/'runtime/beowulf_release_notes.md').read_text(encoding='utf-8')
+    body+='\nZIP SHA256: `'+m['release_zip']['sha256']+'`\n'
+    try:
+        rel=api('GET',base+'/releases/tags/'+version);assert rel['draft'],'Version already public'
+    except urllib.error.HTTPError as e:
+        if e.code!=404:raise
+        rel=api('POST',base+'/releases',json.dumps(dict(tag_name=version,target_commitish=head,
+            name='OGs 액셀 역할 교체 패치 '+version+' — 베어울프 선택 옵션·럭키 성장',
+            body=body,draft=True,prerelease=False),ensure_ascii=False).encode())
+    files=[W/'dist'/m['release_zip']['file'],W/'dist'/m['patch']['file']]
+    for file in files:
+        expected=sha(file).lower()
+        match=next((a for a in rel.get('assets',[]) if a['name']==file.name),None)
+        if match:assert match.get('digest','').lower()=='sha256:'+expected
+        else:
+            asset=api('POST',rel['upload_url'].split('{')[0]+'?name='+urllib.parse.quote(file.name),file.read_bytes(),'application/octet-stream')
+            assert asset['size']==file.stat().st_size and asset.get('digest','').lower()=='sha256:'+expected
+        print('Uploaded and digest verified:',file.name,flush=True)
+    rel=api('PATCH',rel['url'],json.dumps(dict(draft=False,make_latest='true',body=body),ensure_ascii=False).encode())
+    checks=[]
+    for file in files:
+        asset=next(a for a in rel['assets'] if a['name']==file.name)
+        with urllib.request.urlopen(asset['browser_download_url'],timeout=600) as f:
+            h=hashlib.sha256()
+            while chunk:=f.read(4<<20):h.update(chunk)
+        assert h.hexdigest().upper()==sha(file).upper()
+        checks.append(asset['browser_download_url']);print('Public download verified:',file.name,flush=True)
+    assert api('GET',base+'/releases/latest')['tag_name']==version
+    result=dict(release=rel['html_url'],tag=version,commit=head,assets=checks,download_verified=True)
+    (W/'runtime/beowulf_release_publish.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(result,ensure_ascii=False,indent=2),flush=True)
+
+
 if __name__ == "__main__":
-    if "--common-xdelta" in sys.argv:build_common_xdelta()
+    if "--release-six" in sys.argv:prepare_six_option_release()
+    elif "--publish-six" in sys.argv:publish_six_option_release()
+    elif "--common-xdelta" in sys.argv:build_common_xdelta()
     elif "--release-options" in sys.argv:prepare_options_release()
     elif "--publish-options" in sys.argv:publish_options_release()
     else:main()

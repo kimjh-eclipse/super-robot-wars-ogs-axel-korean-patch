@@ -1988,3 +1988,63 @@ def validate_grungust_type3_grant(edits,source=ISO):
         duplicate_grant_idempotent=True,sanger_boarding_and_daizengar_return=True,
         wodan_recruitment_regression_passed=True,ordinary_grants_unchanged=True,
         original_stats_weapons_and_dialogue_preserved=True,rendered_playthrough=False)
+def validate_lucky_probability(executable, replacement):
+    """Execute the complete native Lucky function with controlled properties/RNG."""
+    from pathlib import Path
+    from r5900_scalar_check import CPU
+    root=Path(__file__).resolve().parent
+    ram=bytearray((root/'runtime/beowulf/story_portrait_ram.bin').read_bytes())
+    ram[0x100000:0x100000+len(executable)]=executable
+    patched=bytearray(ram);patched[0x31d0a0:0x31d0b8]=replacement
+    class Fixture(CPU):
+        def __init__(self,mem,cfg):
+            super().__init__(mem);self.cfg=cfg;self.random_calls=0
+        def step(self):
+            if self.pc in (0x1fe9d0,0x1a0d10,0x16b930):
+                if self.pc==0x1fe9d0:
+                    prop=self.r[5]
+                    if prop==0x1b8:
+                        assert self.r[7]==6;value=2 if self.cfg.get('eligible',True) else 0
+                    elif prop==0x1ba:
+                        assert self.r[7]==6;value=self.cfg['level']
+                    elif prop==0x10d:value=0 if self.cfg['ace'] else -1
+                    else:raise AssertionError(('unexpected property',hex(prop)))
+                elif self.pc==0x1a0d10:value=2
+                else:
+                    assert self.r[4]==10000
+                    self.random_calls+=1;value=self.cfg['roll']
+                self.put(2,value);self.pc=self.r[31];self.pending=None;return
+            super().step()
+    tested=0
+    def case(mem,cfg,expected):
+        nonlocal tested
+        c=Fixture(mem,cfg);ctx=0x1800000;actor=0x1810000
+        c.mem[ctx:ctx+0x2400]=bytes(0x2400)
+        for side in (0,1):
+            for slot in range(4):c.write(ctx+side*0x950+slot*0x254,actor,4)
+        c.write(actor+0x18,0,4)
+        cache=cfg.get('cache',-1)
+        for at in range(ctx+0x1fc0,ctx+0x1fe0,4):c.write(at,cache,4)
+        c.run(0x31cf10,[ctx,cfg['side'],cfg['slot']])
+        assert c.r[2]==expected,(cfg,c.r[2],expected)
+        selected=ctx+cfg['side']*0x950+cfg['slot']*0x254
+        for i in range(4):
+            flag=c.read(selected+i*0x70+0xd0,4)
+            assert bool(flag&8)==bool(expected),(cfg,hex(flag))
+        if cache>=0:assert c.random_calls==0
+        tested+=1
+    for mem,original in ((ram,True),(patched,False)):
+        for level in range(10):
+            for ace in (False,True):
+                threshold=(level*10000//64 if original else level*300)+(1000 if ace else 0)
+                for side in (0,1):
+                    for slot in (0,3):
+                        for roll in sorted({0,max(0,threshold-1),threshold,9999}):
+                            cfg=dict(level=level,ace=ace,side=side,slot=slot,roll=roll)
+                            case(mem,cfg,int(level>0 and roll<threshold))
+        for eligible,cache in ((False,-1),(False,0),(False,1),(True,0),(True,1)):
+            cfg=dict(level=6,ace=True,side=0,slot=1,roll=0,eligible=eligible,cache=cache)
+            case(mem,cfg,int(cache==1))
+    return dict(native_full_function_cases=tested,random_range_preserved=10000,
+        levels_tested=list(range(10)),both_combat_sides=True,ace_bonus_preserved=1000,
+        no_skill_and_cached_results_preserved=True,L1_percent=3,L6_percent=18,L6_ace_percent=28)

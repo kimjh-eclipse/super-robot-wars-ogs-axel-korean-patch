@@ -1637,6 +1637,124 @@ def daizengar_arsenal_balance(apply=False):
         journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
+def lucky_probability(apply=False):
+    """Lucky base chance = skill level * 3%; retain the separate native ace bonus."""
+    import os,subprocess
+    pc=0x31d0a0;offset=0x94880+pc-0x100000
+    old=struct.pack('<6I',0x24032710,0x00431018,0x04410003,0x0002a183,0x2442003f,0x0002a183)
+    # R5900 MULT with rd=v0 preserves the native HI/LO and result convention.
+    new=struct.pack('<6I',0x2403012c,0x00431018,0x0040a02d,0,0,0)
+    plans=[];checks=None
+    for path in (ISO,ROOT/'build/SRWOGS_BEOWULF_TEST.iso'):
+        if not path.exists():continue
+        with path.open('rb') as f:
+            f.seek(offset);actual=f.read(len(old));assert actual in (old,new),(path,actual.hex())
+            if actual==old:
+                f.seek(0x94880);executable=f.read(0x482980)
+                from validate_hidden_rewards import validate_lucky_probability
+                validation=validate_lucky_probability(executable,new)
+                if checks is not None:assert checks==validation
+                checks=validation
+        plans.append(dict(path=str(path),offset=offset,before=actual.hex(),after=new.hex(),source_sha256=sha(path)))
+    report=dict(applied=False,formula='skill_level * 300 / 10000',ace_bonus=1000,checks=checks,files=plans)
+    journal=ROOT/'runtime/lucky_probability_manifest.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command','@(Get-Process pcsx2* -ErrorAction SilentlyContinue).Count'],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        for item in plans:
+            path=Path(item['path']);assert sha(path)==item['source_sha256']
+            before=bytes.fromhex(item['before'])
+            with path.open('r+b') as f:
+                f.seek(offset);assert f.read(len(before))==before;f.seek(offset);f.write(new)
+                f.flush();os.fsync(f.fileno());f.seek(0);inverse=hashlib.sha256();target=hashlib.sha256();remaining=offset
+                while remaining:
+                    z=f.read(min(4<<20,remaining));assert z;inverse.update(z);target.update(z);remaining-=len(z)
+                assert f.read(len(new))==new;inverse.update(before);target.update(new)
+                while z:=f.read(4<<20):inverse.update(z);target.update(z)
+                assert inverse.hexdigest()==item['source_sha256']
+                item['target_sha256']=target.hexdigest()
+        report['applied']=True
+        journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(dict(applied=apply,checks=checks,files=[dict(path=x['path'],target_sha256=x.get('target_sha256')) for x in plans]),ensure_ascii=False,indent=2))
+
+def lucky_growth(apply=False):
+    """Tusk/Arado only: Lucky L9 at pilot level 60, preserving other holders."""
+    import os,subprocess
+    from r5900_scalar_check import CPU
+    targets=(ISO,ROOT/'build/SRWOGS_BEOWULF_TEST.iso')
+    paths=[]
+    for path in targets:
+        if not path.exists():continue
+        edits=[];checks=[]
+        with path.open('rb') as f:
+            for base in (0x5da000,0x83f000):
+                f.seek(base);blob=f.read(0x1a5800);h=0x11e800
+                pl=h+u32(blob,h+0x2c)+12;lv=h+u32(blob,h+0x44)+12
+                assert blob[pl-12:pl-8]==b'Plot' and blob[lv-12:lv-8]==b'SkLv'
+                assert blob[pl+169*148+0x82]==6
+                pattern=struct.unpack_from('<H',blob,pl+169*148+0x1a)[0]
+                oldgrowth=blob[lv+pattern*9:lv+(pattern+1)*9]
+                growth=bytes([1,8,15,23,30,38,45,53,60])
+                assert pattern==119 and oldgrowth in (bytes([1,8,20,29,38,42,0,0,0]),growth)
+                users={(i,j) for i in range(u32(blob,pl-4)) for j in range(6)
+                    if struct.unpack_from('<H',blob,pl+i*148+0x18+j*2)[0]==119}
+                assert users <= {(i,1) for i in (60,169,170,171,368)},('Shared growth used elsewhere',users)
+                if oldgrowth!=growth:edits.append((base+lv+pattern*9,oldgrowth,growth))
+                assert blob[lv+3*9:lv+4*9]==bytes([1,0,0,0,0,0,0,0,0])
+                # Only the Lucky slot of Arado (including OG2.5) and OG2 Tusk.
+                for idx in (60,170,368):
+                    p=pl+idx*148
+                    assert blob[p+0x82]==6,(idx,'Lucky must occupy slot 1')
+                    old=blob[p+0x1a:p+0x1c];new=struct.pack('<H',pattern)
+                    assert old in (b'\x03\x00',new),(idx,old.hex())
+                    if old!=new:edits.append((base+p+0x1a,old,new))
+                # Execute game's actual skill ID / growth-threshold getters.
+                c=CPU((ROOT/'runtime/beowulf/story_portrait_ram.bin').read_bytes())
+                mem=0xA00000;ctx=0x1800000;c.mem[mem:mem+len(blob)]=blob
+                for off,old,new in edits:
+                    if base<=off<base+len(blob):c.mem[mem+off-base:mem+off-base+len(new)]=new
+                for field,context in ((0x28,0x88),(0x2c,0xa0),(0x44,0x130)):
+                    at=mem+h+u32(blob,h+field)
+                    for off,value in ((0,at),(4,c.read(at,4)),(8,c.read(at+4,4)),(12,c.read(at+8,4)),(16,at),(20,at+12)):
+                        c.write(ctx+context+off,value,4)
+                pt=h+u32(blob,h+0x28)+12
+                for idx in (60,169,170,171,368):
+                    keys=[k for k in range(2048) if struct.unpack_from('<H',blob,pt+k*2)[0]==idx]
+                    assert keys,(idx,'no pilot aliases')
+                    key=keys[0];assert c.run(0x1a32c0,[ctx,key,1])==6
+                    native=[c.run(0x1a31b0,[ctx,key,1,k]) for k in range(9)]
+                    assert native==list(growth),(idx,native)
+                    checks.append(dict(master=hex(base),plot=idx,pilot_key=hex(key),native_growth=native))
+        paths.append(dict(path=str(path),source_sha256=sha(path),checks=checks,
+            edits=[dict(offset=o,before=a.hex(),after=b.hex()) for o,a,b in sorted(edits)]))
+    report=dict(applied=False,thresholds=[1,8,15,23,30,38,45,53,60],max_skill_level=9,
+        only_tusk_and_arado=True,other_lucky_holders_growth_preserved=True,files=paths)
+    manifest=ROOT/'runtime/lucky_growth_manifest.json'
+    manifest.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        running=subprocess.check_output(['powershell','-NoProfile','-Command','@(Get-Process pcsx2* -ErrorAction SilentlyContinue).Count'],text=True)
+        assert running.strip()=='0','Close PCSX2 before ISO update'
+        for item in paths:
+            path=Path(item['path']);assert sha(path)==item['source_sha256']
+            with path.open('r+b') as f:
+                for e in item['edits']:
+                    raw=bytes.fromhex(e['before']);f.seek(e['offset']);assert f.read(len(raw))==raw
+                for e in item['edits']:f.seek(e['offset']);f.write(bytes.fromhex(e['after']))
+                f.flush();os.fsync(f.fileno());f.seek(0)
+                inverse=hashlib.sha256();target=hashlib.sha256();pos=0
+                for e in item['edits']:
+                    off=e['offset']
+                    while pos<off:
+                        z=f.read(min(4<<20,off-pos));assert z;inverse.update(z);target.update(z);pos+=len(z)
+                    raw=bytes.fromhex(e['after']);z=f.read(len(raw));assert z==raw;inverse.update(bytes.fromhex(e['before']));target.update(z);pos+=len(raw)
+                while z:=f.read(4<<20):inverse.update(z);target.update(z)
+                assert inverse.hexdigest()==item['source_sha256'],'Unrelated data changed'
+                item['target_sha256']=target.hexdigest()
+        report['applied']=True
+        manifest.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(dict(applied=apply,thresholds=report['thresholds'],files=[dict(path=x['path'],changed_fields=len(x['edits']),native_checks=len(x['checks'])) for x in paths]),ensure_ascii=False,indent=2))
+
 def axel_spirits(apply=False):
     """Axel only: Iron Wall 20, twin Soul 50, Awakening 50."""
     import os,subprocess
@@ -2524,6 +2642,8 @@ if __name__=='__main__':
     p.add_argument('--daizengar-animation-links',action='store_true')
     p.add_argument('--daizengar-arsenal-balance',action='store_true')
     p.add_argument('--axel-spirits',action='store_true')
+    p.add_argument('--lucky-growth',action='store_true')
+    p.add_argument('--lucky-probability',action='store_true')
     p.add_argument('--seolla-spirits',action='store_true')
     p.add_argument('--battle-rewards',action='store_true')
     p.add_argument('--enemy-strength',action='store_true')
@@ -2540,6 +2660,8 @@ if __name__=='__main__':
     p.add_argument('--ouka-route-fix',action='store_true')
     p.add_argument('--daizengar-refit-visibility',action='store_true')
     a=p.parse_args()
+    if a.lucky_probability:lucky_probability(a.apply);sys.exit()
+    if a.lucky_growth:lucky_growth(a.apply);sys.exit()
     if a.sladegelmir_ally_balance:sladegelmir_ally_balance(a.apply);sys.exit()
     if a.ouka_route_fix:ouka_route_fix(a.apply);sys.exit()
     if a.small_enemy_hp_boost:small_enemy_hp_boost(a.apply);sys.exit()

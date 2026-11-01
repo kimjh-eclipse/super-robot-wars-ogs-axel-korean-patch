@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261029.1";
+    private const string VersionText = "v20261101";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";
@@ -360,6 +360,82 @@ internal static class OgsAxelQuickPatch
         return Combine(plan, FixPack(packs[0], fix, features.Hashes[selected], fix.Hashes[selected], true));
     }
 
+    private sealed class BeowulfOptions
+    {
+        public Pack[] On = new Pack[64], Off = new Pack[64];
+    }
+    private static BeowulfOptions LoadBeowulf(Pack full, CommonFix fix)
+    {
+        using (Stream stream = OpenPatchData("OGS_beowulf_options.bin", true))
+        using (BinaryReader r = new BinaryReader(stream, Encoding.UTF8))
+        {
+            if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSBEO01" || r.ReadInt64() != full.IsoSize || r.ReadInt32() != 64)
+                throw new InvalidDataException("베어울프 옵션 버전 불일치");
+            int count = r.ReadInt32();
+            if (count < 1 || count > 100000) throw new InvalidDataException("옵션 데이터 수 오류");
+            byte[][] blobs = new byte[count][];
+            for (int i = 0; i < count; i++)
+            {
+                int len = r.ReadInt32();
+                if (len < 1 || len > 67108864) throw new InvalidDataException("옵션 데이터 크기 오류");
+                blobs[i] = r.ReadBytes(len); if (blobs[i].Length != len) throw new EndOfStreamException();
+            }
+            BeowulfOptions result = new BeowulfOptions(); HashSet<string> hashes = new HashSet<string>();
+            for (int mask = 0; mask < 64; mask++)
+            {
+                if (r.ReadInt32() != mask) throw new InvalidDataException("옵션 번호 오류");
+                byte[] anchor = r.ReadBytes(32), hash = r.ReadBytes(32);
+                if (anchor.Length != 32 || hash.Length != 32 || Hex(anchor) != Hex(fix.Hashes[mask & 31]) || !hashes.Add(Hex(hash)))
+                    throw new InvalidDataException("옵션 기준 해시 오류");
+                Pack on = new Pack { Title = "최신 수정 및 베어울프 옵션", IsoSize = full.IsoSize, SourceHash = anchor, TargetHash = hash, Ranges = new List<PatchRange>() };
+                Pack off = new Pack { Title = "기존 옵션 기준으로 정규화", IsoSize = full.IsoSize, SourceHash = hash, TargetHash = anchor, Ranges = new List<PatchRange>() };
+                int ranges = r.ReadInt32(); long end = 0;
+                if (ranges < 1 || ranges > 1000000) throw new InvalidDataException("옵션 구간 수 오류");
+                for (int i = 0; i < ranges; i++)
+                {
+                    long at = r.ReadInt64(); int len = r.ReadInt32(), a = r.ReadInt32(), b = r.ReadInt32();
+                    if (at < end || len < 1 || at > full.IsoSize - len || a < 0 || a >= count || b < 0 || b >= count || blobs[a].Length != len || blobs[b].Length != len)
+                        throw new InvalidDataException("베어울프 옵션 구간 오류");
+                    off.Ranges.Add(new PatchRange { Offset = at, Data = blobs[a] }); on.Ranges.Add(new PatchRange { Offset = at, Data = blobs[b] });
+                    off.PayloadBytes += len; on.PayloadBytes += len; end = at + len;
+                }
+                result.On[mask] = on; result.Off[mask] = off;
+            }
+            if (stream.Position != stream.Length) throw new InvalidDataException("옵션 데이터 길이 오류");
+            return result;
+        }
+    }
+    private static Pack SelectBeowulfPlan(List<Pack> packs, Pack[] hidden, Pack[] bundle, Pack[] both,
+        FeatureOptions features, CommonFix fix, BeowulfOptions extra, string current, int selected)
+    {
+        Pack prefix = null; string desired = Hex(extra.On[selected].TargetHash);
+        if (current == desired) return new Pack { Title = "적용 완료", IsoSize = packs[0].IsoSize,
+            SourceHash = extra.On[selected].TargetHash, TargetHash = extra.On[selected].TargetHash, Ranges = new List<PatchRange>() };
+        for (int i = 0; i < 64; i++)
+            if (current == Hex(extra.Off[i].SourceHash)) { prefix = extra.Off[i]; current = Hex(prefix.TargetHash); break; }
+        Pack plan = SelectFixedPlan(packs, hidden, bundle, both, features, fix, current, selected & 31);
+        if (plan == null) return null;
+        if (prefix != null) plan = Combine(prefix, plan);
+        return Combine(plan, extra.On[selected]);
+    }
+    private static void CheckBeowulfTransitions()
+    {
+        List<Pack> packs = LoadPacks(); Pack full = packs[0];
+        Pack[] hidden = LoadOption(full, HiddenResourceName, "숨김");
+        Pack[] bundle = LoadOption(full, OukaResourceName, "묶음");
+        Pack[] both = LoadOption(hidden[0], OukaHiddenResourceName, "묶음");
+        FeatureOptions features = LoadFeatures(full); CommonFix fix = LoadCommonFix(full, features);
+        BeowulfOptions extra = LoadBeowulf(full, fix); int cases = 0;
+        for (int source = 0; source < 64; source++)
+            for (int target = 0; target < 64; target++)
+            {
+                Pack plan = SelectBeowulfPlan(packs, hidden, bundle, both, features, fix, extra, Hex(extra.On[source].TargetHash), target);
+                if (plan == null || Hex(plan.SourceHash) != Hex(extra.On[source].TargetHash) || Hex(plan.TargetHash) != Hex(extra.On[target].TargetHash))
+                    throw new InvalidDataException("6개 옵션 전환 연결 오류");
+                cases++;
+            }
+        Console.WriteLine("PASS: " + cases + " six-option transition chains; 64 unique profiles.");
+    }
     private static Pack Combine(Pack first, Pack second)
     {
         if (Hex(first.TargetHash) != Hex(second.SourceHash)) throw new InvalidDataException("패치 연결 오류");
@@ -533,7 +609,7 @@ internal static class OgsAxelQuickPatch
             }
     }
 
-    private static void Run(string isoPath, Mode mode, bool hidden, bool ouka, bool rewards, bool enemy, bool spirits, Action<string> log,
+    private static void Run(string isoPath, Mode mode, bool hidden, bool ouka, bool rewards, bool enemy, bool spirits, bool beowulf, Action<string> log,
                             Action<int> progress)
     {
         List<Pack> packs = LoadPacks();
@@ -544,13 +620,16 @@ internal static class OgsAxelQuickPatch
         FeatureOptions features = LoadFeatures(full);
         int selected = (hidden ? 1 : 0) | (ouka ? 2 : 0) | (rewards ? 4 : 0) | (enemy ? 8 : 0) | (spirits ? 16 : 0);
         CommonFix fix = LoadCommonFix(full, features);
-        string desiredHash = Hex(fix.Hashes[selected]);
+        BeowulfOptions extra = LoadBeowulf(full, fix); if (beowulf) selected |= 32;
+        string desiredHash = Hex(extra.On[selected].TargetHash);
         log("무명 6화 지급·아군 전용 능력치·무기 비용 인하: 기본 적용");
         log("자금 +20% · PP 2배: " + (rewards ? "선택" : "선택 안 함"));
         log("적 강화: " + (enemy ? "선택" : "선택 안 함"));
         log("액셀·제오라 정신기 변경: " + (spirits ? "선택" : "선택 안 함"));
         log("오우카 생존 + 젠가 밸런스: " + (ouka ? "선택" : "선택 안 함"));
         log("숨겨진 요소 자동 습득: " + (hidden ? "선택" : "선택 안 함"));
+        log("베어울프 본편 등장: " + (beowulf ? "선택" : "선택 안 함"));
+        log("럭키: 레벨당 3%, 타스크·아라드는 Lv60에 L9");
         log(full.Title);
         log("패처 " + VersionText);
         log(string.Format(CultureInfo.InvariantCulture,
@@ -578,7 +657,7 @@ internal static class OgsAxelQuickPatch
         });
         string dst = desiredHash;
 
-        Pack pack = SelectFixedPlan(packs, option, oukaBase, oukaHidden, features, fix, current, selected);
+        Pack pack = SelectBeowulfPlan(packs, option, oukaBase, oukaHidden, features, fix, extra, current, selected);
         bool isPatched = string.Equals(current, dst, StringComparison.OrdinalIgnoreCase);
         bool isFull = current == Hex(full.SourceHash);
 
@@ -742,6 +821,7 @@ internal static class OgsAxelQuickPatch
         private readonly CheckBox rewardsCheck = new CheckBox();
         private readonly CheckBox enemyCheck = new CheckBox();
         private readonly CheckBox spiritsCheck = new CheckBox();
+        private readonly CheckBox beowulfCheck = new CheckBox();
         private bool working;
 
         public MainForm(string initialIso)
@@ -819,9 +899,12 @@ internal static class OgsAxelQuickPatch
             enemyCheck.SetBounds(430, 60, 405, 28); options.Controls.Add(enemyCheck);
             spiritsCheck.Text = "액셀·제오라 정신기 변경";
             spiritsCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
-            spiritsCheck.SetBounds(18, 94, 800, 28); options.Controls.Add(spiritsCheck);
+            spiritsCheck.SetBounds(18, 94, 402, 28); options.Controls.Add(spiritsCheck);
+            beowulfCheck.Text = "베어울프 등장 (추가 시나리오)";
+            beowulfCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
+            beowulfCheck.SetBounds(430, 94, 405, 28); options.Controls.Add(beowulfCheck);
             Label optionInfo = new Label();
-            optionInfo.Text = "워단 생존·37화 삼식 지급·무명 보충은 기본 적용입니다. 다섯 옵션은 각각 선택할 수 있습니다.\n이미 받은 보유품·보상은 유지됩니다. 적 개조는 다음 시나리오의 적 생성 시부터 적용됩니다.";
+            optionInfo.Text = "여섯 옵션은 각각 선택할 수 있습니다. 베어울프는 알피미의 적 등장 장면에 추가됩니다.\n6화 아군 시험 배치는 포함하지 않습니다. 이미 저장된 보유품·보상은 유지됩니다.";
             optionInfo.SetBounds(20, 132, 820, 42); options.Controls.Add(optionInfo);
 
             Label info = new Label();
@@ -882,7 +965,7 @@ internal static class OgsAxelQuickPatch
             if (InvokeRequired) { BeginInvoke((Action<bool>)SetBusy, busy); return; }
             working = busy;
             patchBtn.Enabled = verifyBtn.Enabled = restoreBtn.Enabled = !busy;
-            rewardsCheck.Enabled = enemyCheck.Enabled = spiritsCheck.Enabled = oukaCheck.Enabled = hiddenCheck.Enabled = isoBox.Enabled = browse.Enabled = !busy;
+            beowulfCheck.Enabled = rewardsCheck.Enabled = enemyCheck.Enabled = spiritsCheck.Enabled = oukaCheck.Enabled = hiddenCheck.Enabled = isoBox.Enabled = browse.Enabled = !busy;
         }
 
         private void Start(Mode mode)
@@ -895,9 +978,10 @@ internal static class OgsAxelQuickPatch
             bool hidden = hiddenCheck.Checked;
             bool ouka = oukaCheck.Checked;
             bool rewards = rewardsCheck.Checked, enemy = enemyCheck.Checked, spirits = spiritsCheck.Checked;
+            bool beowulf = beowulfCheck.Checked;
             Thread t = new Thread(delegate()
             {
-                try { Run(iso, mode, hidden, ouka, rewards, enemy, spirits, Log, SetProgress); }
+                try { Run(iso, mode, hidden, ouka, rewards, enemy, spirits, beowulf, Log, SetProgress); }
                 catch (Exception ex) { Log(string.Empty); Log("오류: " + ex.Message); }
                 finally { SetBusy(false); }
             });
@@ -940,18 +1024,37 @@ internal static class OgsAxelQuickPatch
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--preview-ui")
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            using (MainForm form = new MainForm(null))
+            {
+                form.Show(); Application.DoEvents();
+                using (Bitmap bitmap = new Bitmap(form.Width, form.Height))
+                {
+                    form.DrawToBitmap(bitmap, new Rectangle(0, 0, form.Width, form.Height));
+                    bitmap.Save(args[1], System.Drawing.Imaging.ImageFormat.Png);
+                }
+                form.Close();
+            }
+            return 0;
+        }
         bool cli = false;
         bool selfTest = false;
+        bool beowulfTest = false;
         bool restore = false;
         bool hidden = false;
         bool ouka = false;
         bool rewards = false, enemy = false, spirits = false;
+        bool beowulf = false;
         string iso = null;
         Mode mode = Mode.Patch;
         for (int i = 0; i < args.Length; i++)
         {
             string a = args[i];
             if (a == "--self-test-options") { cli = true; selfTest = true; }
+            else if (a == "--self-test-beowulf") { cli = true; beowulfTest = true; }
             else if (a == "--cli") cli = true;
             else if (a == "--verify") { cli = true; mode = Mode.Verify; }
             else if (a == "--restore") { cli = true; restore = true; }
@@ -960,6 +1063,7 @@ internal static class OgsAxelQuickPatch
             else if (a == "--rewards") rewards = true;
             else if (a == "--enemy") enemy = true;
             else if (a == "--spirits") spirits = true;
+            else if (a == "--beowulf") beowulf = true;
             else if (iso == null) iso = a;
         }
 
@@ -975,10 +1079,11 @@ internal static class OgsAxelQuickPatch
         try
         {
             if (selfTest) { CheckOptionTransitions(); return 0; }
+            if (beowulfTest) { CheckBeowulfTransitions(); return 0; }
             if (iso == null)
             {
                 Console.WriteLine(
-                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden] [--bundle] [--rewards] [--enemy] [--spirits]");
+                    "사용: OGS_AxelSwap_QuickPatch.exe <ISO> [--cli|--verify|--restore] [--hidden] [--bundle] [--rewards] [--enemy] [--spirits] [--beowulf]");
                 return 2;
             }
             if (restore)
@@ -990,7 +1095,7 @@ internal static class OgsAxelQuickPatch
             }
             else
             {
-                Run(iso, mode, hidden, ouka, rewards, enemy, spirits, Console.WriteLine, null);
+                Run(iso, mode, hidden, ouka, rewards, enemy, spirits, beowulf, Console.WriteLine, null);
             }
             return 0;
         }
