@@ -507,7 +507,7 @@ def prepare_options_release():
     info.update(version=version,built='2026-10-29',status='RELEASED')
 
     info['previous']='v20261029'
-    info['changes']=['아군 슬레이드겔미르 HP8300·장갑2100·6무장 공격력+200, 성체의태도 P/사거리1~2/배리어 관통; 적 원형 유지','5화 무명 지급 삽입 제거, 6화 종료 무명 지급으로 통일', '아군 무명 HP6300, 시시오 블레이드4600, 무명2도인기참5600; 적 무라타 유지', '무기 개조비용 최저등급 유지, 나머지20% 인하', '오우카 생존 옵션: 다른44화 루트 합류와45화 후속대사 수정', '적 강화 옵션: 기본HP20000미만 적HP10% 추가', '베어울프 테스트 제외', '자금+20%·PP2배 / 적 강화 / 액셀·제오라 정신기 변경을 독립 선택 옵션으로 추가',
+    info['changes']=['아군 슬레이드겔미르 HP8300·장갑2100·6무장 공격력+200, 성체의태도 P/사거리1~2/배리어 관통; 적 원형 유지','5화 무명 지급 삽입 제거, 6화 종료 무명 지급으로 통일', '아군 무명 HP6300, 시시오 블레이드4600, 무명2도인기참5600; 적 무라타 유지', '무기 개조비용 최저등급 유지, 나머지20% 인하', '오우카 생존 옵션: 다른44화 루트 합류와45화 후속대사 수정', '적 강화 옵션: 기본HP20000미만 적HP10% 추가', '베오울프 테스트 제외', '자금+20%·PP2배 / 적 강화 / 액셀·제오라 정신기 변경을 독립 선택 옵션으로 추가',
         '기존 숨겨진 요소·오우카 생존+젠가 밸런스 옵션 유지; 모두 기본 OFF',
         '32개 옵션 조합 및 5120개 전환 검증',
         '무명·슬레이드겔미르 획득, 6화 추가 보상 및 기존 무장·대사 조정을 누적 릴리즈 노트에 정리']
@@ -588,7 +588,7 @@ def publish_options_release():
 def prepare_six_option_release():
     """Package the independently verified six-option patcher, not the gameplay ISO."""
     import zipfile
-    version='v20261101';repo=ROOT/'ogs-repo';dist=W/'dist'
+    version='v20261101.1';repo=ROOT/'ogs-repo';dist=W/'dist'
     profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
     tested=json.loads((W/'runtime/beowulf_patcher_validation.json').read_text(encoding='utf-8'))
     package=json.loads((W/'runtime/beowulf_patcher_package.json').read_text(encoding='utf-8'))
@@ -611,9 +611,13 @@ def prepare_six_option_release():
     for p in [scratch,decoded,Path(str(scratch)+'.ogsbak')]:
         assert p.resolve().parent==(W/'runtime').resolve()
         if p.exists():p.unlink()
-    notes='''## 이번 변경
+    notes='''## 이번 교정
 
-- **베어울프 등장**을 여섯 번째 선택 옵션으로 추가했습니다. 기본값은 꺼짐입니다. 알피미와 함께 적으로 등장하는 추가 시나리오, 전용 기체 이미지·초상화·컷인을 포함합니다. 전투 음성은 쿄스케의 것을 사용합니다.
+인물 이름을 **베오울프**로 통일했습니다. 게임 안 이름·시나리오·전투 대사와 패처·문서에 반영했습니다. v20261101 적용본도 옵션 상태를 선택해 업데이트할 수 있습니다. 이름 외의 게임 동작은 유지합니다.
+
+## v20261101 변경사항 유지
+
+- **베오울프 등장**을 여섯 번째 선택 옵션으로 추가했습니다. 기본값은 꺼짐입니다. 알피미와 함께 적으로 등장하는 추가 시나리오, 전용 기체 이미지·초상화·컷인을 포함합니다. 전투 음성은 쿄스케의 것을 사용합니다.
 - 6화 아군 시험 배치는 배포본에 포함하지 않았습니다. 기존 무명·슬레이드겔미르의 데이터는 유지했습니다.
 - 럭키 발동률을 스킬 레벨당 **3%**로 조정했습니다. 9레벨은 27%이며 기존 에이스 보정 +10%p는 유지합니다.
 - **타스크·아라드만** 레벨 1/8/15/23/30/38/45/53/60에서 럭키가 1~9레벨로 성장하도록 변경했습니다.
@@ -624,13 +628,13 @@ def prepare_six_option_release():
 
 ZIP을 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO와 옵션을 선택하세요. 기준 한글판 v1.4.3s1과 지원되는 이전 액셀 패치 ISO를 업데이트할 수 있습니다. 패처 옆 .bin 파일은 함께 두세요.
 
-xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 베어울프 등 선택 옵션은 빠른 패처를 이용해 주세요.
+xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 베오울프 등 선택 옵션은 빠른 패처를 이용해 주세요.
 
 **에뮬레이터를 완전히 종료한 뒤 패치하고, 새로 부팅하여 게임 내 메모리카드 세이브로 불러오세요. 이전 세이브 스테이트는 사용하지 마세요.** 이미 지나간 시나리오나 저장된 보유품·진행 상황은 옵션 전환으로 다시 작성되지 않습니다.
 
 ## 검증
 
-기존 32개 배포 조합과 신규 64개 결과 ISO의 전체 SHA256, 기존 옵션 5,120개 바이트 전환, 여섯 옵션 4,096개 전환 경로를 확인했습니다. 실제 ISO에서 기본 설치·전체 옵션 켜기/끄기·백업 복원과 xdelta 복호 결과도 검증했습니다. 새 시나리오 전체의 실기 플레이를 완료했다는 의미는 아닙니다.
+기존 32개 배포 조합과 신규 64개 결과 ISO의 전체 SHA256, 기존 옵션 5,120개 바이트 전환, 신규·이전 버전 8,192개 전환 경로를 확인했습니다. 실제 ISO에서 기본 설치·전체 옵션 켜기/끄기·백업 복원과 xdelta 복호 결과도 검증했습니다. 새 시나리오 전체의 실기 플레이를 완료했다는 의미는 아닙니다.
 
 기존 누적 변경사항: [CHANGELOG.md](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 '''
@@ -663,7 +667,7 @@ xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를
         'validate_hidden_rewards.py','release_build_v20261024.py','audit_shadowmirror_dialogue.py']
     for name in sources:
         dest=repo/'work_ogs'/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(W/name,dest)
-    for name in ['beowulf_options_profiles.json','beowulf_patcher_validation.json']:
+    for name in ['beowulf_options_profiles.json','beowulf_patcher_validation.json','beowulf_spelling_profiles_validation.json']:
         shutil.copyfile(W/'runtime'/name,repo/'work_ogs/validation'/name)
     shutil.copyfile(delta,repo/'patch'/delta.name)
     change=repo/'CHANGELOG.md';old=change.read_text(encoding='utf-8-sig')
@@ -671,14 +675,15 @@ xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를
     assert '## '+version not in old
     change.write_text(header+old.removeprefix('# 변경 내역\n'),encoding='utf-8')
     for name in ['README.md','docs/home.md']:
-        path=repo/name;t=path.read_text(encoding='utf-8-sig').replace('v20261029.1',version).replace('다섯 옵션','여섯 옵션')
+        path=repo/name;t=path.read_text(encoding='utf-8-sig').replace('v20261101',version).replace('다섯 옵션','여섯 옵션').replace('\ubca0\uc5b4\uc6b8\ud504','베오울프')
         marker='| 액셀·제오라 정신기 변경 | 액셀 철벽·혼·각성 SP 조정, 제오라 번뜩임·가속 |'
-        t=t.replace(marker,marker+'\n| 베어울프 등장 | 알피미와 함께 적 등장·추가 시나리오, 6화 시험 배치 제외 |')
-        t=t.replace('새 32개 조합','새 64개 조합').replace('32개 결과 ISO 전체 해시, 5,120개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다.','64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규 4,096개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다.')
-        t=t.replace('## 기본 적용 사항','## 이번 업데이트\n\n럭키 발동률을 레벨당 3%로 조정하고, 타스크·아라드는 레벨 60에 럭키 9레벨을 달성하도록 변경했습니다. 47화 W16 장면의 레몬·라미아 호칭과 대사도 교정했습니다. 베어울프 등장은 선택 옵션입니다.\n\n## 기본 적용 사항',1)
+        if '| 베오울프 등장 |' not in t:
+            t=t.replace(marker,marker+'\n| 베오울프 등장 | 알피미와 함께 적 등장·추가 시나리오, 6화 시험 배치 제외 |')
+        t=t.replace('새 32개 조합','새 64개 조합').replace('32개 결과 ISO 전체 해시, 5,120개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다.','64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 8,192개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다.')
+        t=t.replace('## 이번 업데이트\n','## 이번 업데이트\n\n인물 이름을 베오울프로 통일했습니다. v20261101 적용본도 업데이트할 수 있습니다.\n',1)
         path.write_text(t,encoding='utf-8')
     pn=repo/'docs/patch-notes.md';pn.write_text('# '+version+' 업데이트\n\n'+notes+'\n---\n\n'+pn.read_text(encoding='utf-8-sig'),encoding='utf-8')
-    metadata=dict(version=version,status='PREPARED',previous='v20261029.1',built='2026-11-01',
+    metadata=dict(version=version,status='PREPARED',previous='v20261101',built='2026-11-01',
         base_iso=dict(size=4518150144,sha256='9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C'),
         result_iso=dict(size=4518150144,sha256=profiles['hashes'][0]),
         patch=dict(file=delta.name,size=delta.stat().st_size,sha256=sha(delta),verified='xdelta decode SHA256 matches default profile'),
@@ -692,7 +697,7 @@ xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를
 
 def publish_six_option_release():
     import urllib.error
-    version='v20261101';repo=ROOT/'ogs-repo'
+    version='v20261101.1';repo=ROOT/'ogs-repo'
     m=json.loads((W/'runtime/beowulf_release_metadata.json').read_text(encoding='utf-8'))
     assert m['version']==version
     assert not subprocess.check_output(['git','status','--porcelain'],cwd=repo).strip(),'Commit release files first'
@@ -712,7 +717,7 @@ def publish_six_option_release():
     except urllib.error.HTTPError as e:
         if e.code!=404:raise
         rel=api('POST',base+'/releases',json.dumps(dict(tag_name=version,target_commitish=head,
-            name='OGs 액셀 역할 교체 패치 '+version+' — 베어울프 선택 옵션·럭키 성장',
+            name='OGs 액셀 역할 교체 패치 '+version+' — 베오울프 표기 통일',
             body=body,draft=True,prerelease=False),ensure_ascii=False).encode())
     files=[W/'dist'/m['release_zip']['file'],W/'dist'/m['patch']['file']]
     for file in files:

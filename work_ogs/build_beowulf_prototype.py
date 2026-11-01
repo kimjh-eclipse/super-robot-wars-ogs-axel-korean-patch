@@ -393,7 +393,7 @@ def plan(source=SOURCE):
             assert m[st:st+4]==b'Strg' and count in (1806,1807)
             pointers=struct.unpack_from('<%dI'%count,m,st+12)
             pool=m[st+12+count*4:st+size]
-            name=encode('베어울프　쿄스케')+b'\0'
+            name=encode('베오울프　쿄스케')+b'\0'
             textoff=size+4
             s=bytearray(b'Strg'+struct.pack('<II',size+4+len(name),count+1))
             s.extend(struct.pack('<%dI'%(count+1),*[x+4 for x in pointers],textoff));s.extend(pool);s.extend(name)
@@ -819,72 +819,72 @@ def beowulf_story_scenes():
         (A,'알피미：쿄스케……。@저는 당신을 만나고 싶었어요……。'),
         (R,'라이：중위！@또 다른 기체가 나타났습니다！'),
         (A,'알피미：이 느낌은……쿄스케……？@아니에요。당신은……。'),
-        (B,'베어울프：……네가 나를 불렀나。'),
+        (B,'베오울프：……네가 나를 불렀나。'),
         (K,'쿄스케：그 목소리……。@누구냐。'),
-        (B,'베어울프：이쪽 세계의 나인가。@아직 그 모습으로 남아 있었군。'),
+        (B,'베오울프：이쪽 세계의 나인가。@아직 그 모습으로 남아 있었군。'),
         (T,'브릿트：중위님과……@같은 사람이라는 겁니까！？'),
         (A,'알피미：저는……그저 쿄스케를@만나고 싶었을 뿐인데……。'),
-        (B,'베어울프：그 부름이 내게까지 닿았다。@네 마음이 만든 틈을 따라왔지。'),
+        (B,'베오울프：그 부름이 내게까지 닿았다。@네 마음이 만든 틈을 따라왔지。'),
         (K,'쿄스케：……다른 세계에서 왔다고？'),
-        (B,'베어울프：베어울프라고 불러라。@이 세계의 끝을 보러 왔다。'),
+        (B,'베오울프：베오울프라고 불러라。@이 세계의 끝을 보러 왔다。'),
         (A,'알피미：잠깐……기다려요……！'),
         (K,'쿄스케：브릿트、물러서라。@저 기체도 경계해라。')])],
       121:[(492,'별도 루트의 소환',[
         (A,'알피미：쿄스케……。@만나고 싶다고 생각했을 뿐인데……。'),
-        (B,'베어울프：그 마음이 닿았다。@다른 세계의 나에게까지 말이다。'),
+        (B,'베오울프：그 마음이 닿았다。@다른 세계의 나에게까지 말이다。'),
         (A,'알피미：당신도……쿄스케……？'),
-        (B,'베어울프：베어울프다。@네 부름을 따라 이곳까지 왔다。'),
+        (B,'베오울프：베오울프다。@네 부름을 따라 이곳까지 왔다。'),
         (A,'알피미：하지만……。@제가 찾던 느낌과는……달라요。'),
-        (B,'베어울프：그 차이는 곧 알게 되겠지。')])],
+        (B,'베오울프：그 차이는 곧 알게 되겠지。')])],
       97:[(660,'부름의 정체',[
         (A,'알피미：당신에게서도……@쿄스케를 느껴요。그런데……。'),
-        (B,'베어울프：같은 이름、같은 목소리。@그것으로는 부족한가？'),
+        (B,'베오울프：같은 이름、같은 목소리。@그것으로는 부족한가？'),
         (A,'알피미：저는……아직 모르겠어요……。'),
-        (B,'베어울프：그렇다면 지켜봐라。@어느 쪽이 네가 찾던 쿄스케인지。')])],
+        (B,'베오울프：그렇다면 지켜봐라。@어느 쪽이 네가 찾던 쿄스케인지。')])],
       106:[(526,'엑셀렌을 향한 부름',[
         (A,'알피미：엑셀렌……。@쿄스케는 당신을……。'),
-        (B,'베어울프：또 그 이름인가。@네가 찾던 것은 그 여자인가？'),
+        (B,'베오울프：또 그 이름인가。@네가 찾던 것은 그 여자인가？'),
         (A,'알피미：당신에게도……@소중한 사람은 없었나요……？'),
-        (B,'베어울프：그런 것은、더는 필요 없다。')])],
+        (B,'베오울프：그런 것은、더는 필요 없다。')])],
       110:[(596,'두 쿄스케',[
-        (B,'베어울프：또 만났군、이쪽의 나。@그 몸으로 어디까지 버틸 셈이지？'),
+        (B,'베오울프：또 만났군、이쪽의 나。@그 몸으로 어디까지 버틸 셈이지？'),
         (K,'쿄스케：네 기준에 맞출 생각은 없다。'),
         (A,'알피미：같은 목소리인데……。@어째서、이렇게 다른 건가요……？'),
-        (B,'베어울프：답은 전장에서 확인해라。')])],
+        (B,'베오울프：답은 전장에서 확인해라。')])],
       126:[(711,'별도 루트의 두 쿄스케',[
         (A,'알피미：쿄스케를 원했을 텐데……。@당신을 보면、뭔가가 달라요……。'),
-        (B,'베어울프：그 녀석도 나도、같은 존재다。'),
+        (B,'베오울프：그 녀석도 나도、같은 존재다。'),
         (K,'쿄스케：모습이 닮았으면 같다는 건가？@멋대로 결정하지 마라。'),
         (A,'알피미：……그 말은……。')])],
       112:[(705,'어긋난 마음',[
-        (B,'베어울프：길은 넓어지고 있다。@이젠、네 바람만으론 멈추지 않아。'),
+        (B,'베오울프：길은 넓어지고 있다。@이젠、네 바람만으론 멈추지 않아。'),
         (A,'알피미：저는……그것까지 바라진 않았어요……。'),
-        (B,'베어울프：바람이 불렀고、힘이 응했다。@이제 와서 무엇이 두렵지？'),
+        (B,'베오울프：바람이 불렀고、힘이 응했다。@이제 와서 무엇이 두렵지？'),
         (A,'알피미：……당신이、두려워요。')])],
       130:[(324,'별도 루트의 어긋난 마음',[
         (A,'알피미：당신이 와 주길 원했던 건……。'),
-        (B,'베어울프：부른 것은 너다。@나를 거부하는 건가？'),
+        (B,'베오울프：부른 것은 너다。@나를 거부하는 건가？'),
         (A,'알피미：같은 목소리라도……@제가 만나고 싶었던 사람과는 달라요……。'),
-        (B,'베어울프：그렇다면、그 남자까지 확인해 주지。')])],
+        (B,'베오울프：그렇다면、그 남자까지 확인해 주지。')])],
       114:[(161,'열리는 문',[
-        (B,'베어울프：문이 열리는군。@이제、그 작은 틈에 매달릴 필요도 없겠어。'),
+        (B,'베오울프：문이 열리는군。@이제、그 작은 틈에 매달릴 필요도 없겠어。'),
         (A,'알피미：제 마음이、당신을 불렀어요……。@하지만、그것만으로는……。'),
-        (B,'베어울프：아직도 망설이는 건가。@그 남자의 무엇을 원하는 거지？'),
+        (B,'베오울프：아직도 망설이는 건가。@그 남자의 무엇을 원하는 거지？'),
         (A,'알피미：그건……。@제가、알고 싶은 것이에요……。')])],
       115:[(82,'결전의 문턱',[
-        (B,'베어울프：여기까지 왔나。@같은 얼굴로、어디까지 버틸 셈이지？'),
+        (B,'베오울프：여기까지 왔나。@같은 얼굴로、어디까지 버틸 셈이지？'),
         (K,'쿄스케：누구와 같은 얼굴이든 상관없다。@이 세계는 넘겨주지 않겠다。'),
-        (A,'알피미：쿄스케……베어울프……。@저는……어느 쪽을 원했던 걸까요……？')]),
+        (A,'알피미：쿄스케……베오울프……。@저는……어느 쪽을 원했던 걸까요……？')]),
        (199,'부름을 거두다',[
-        (B,'베어울프：아직도 나를 거부하나、알피미。'),
+        (B,'베오울프：아직도 나를 거부하나、알피미。'),
         (A,'알피미：제가 찾던 쿄스케는……@당신이 아니에요。'),
-        (B,'베어울프：그토록 강하게 불러 놓고、@이제 와서 길을 막을 셈인가？'),
+        (B,'베오울프：그토록 강하게 불러 놓고、@이제 와서 길을 막을 셈인가？'),
         (A,'알피미：그 부름은、제 마음이었어요。@그러니……멈추는 것도 저예요。'),
         (K,'쿄스케：네가 어떤 나였든 상관없다。@이쪽 세계에 네 뜻을 강요하게 두진 않겠다。'),
         (A,'알피미：당신이 지나온、그 틈을……@지금、닫겠어요。'),
-        (B,'베어울프：……큭！@이 나를、원래 세계로……！？'),
+        (B,'베오울프：……큭！@이 나를、원래 세계로……！？'),
         ('retire',None),
-        (K,'쿄스케：여기까지다。베어울프。')]),
+        (K,'쿄스케：여기까지다。베오울프。')]),
        (1077,'자신의 마음',[
         (E,'알피미：당신을 만나고 싶었던……@그때의 기분도……@분명、제 것이었어요……。'),
         (K,'쿄스케：너는 누구의 그림자도 아니다。@알피미。너는 너다。')])],
@@ -1027,14 +1027,14 @@ def story_fix(apply=False):
         raise
     entry.update(applied=True,target_sha256=target.hexdigest(),all_other_bytes_preserved=True)
     journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-    text=['베어울프 추가 시나리오 — 시험 ISO 반영본','기존 대사를 유지하고 아래 대화를 추가했습니다。','']
+    text=['베오울프 추가 시나리오 — 시험 ISO 반영본','기존 대사를 유지하고 아래 대화를 추가했습니다。','']
     order=[84,121,97,106,110,126,112,130,114,115]
     for ch in sorted(chapters,key=lambda x:order.index(x['script'])):
         cursor=0
         for point,title,lines in beowulf_story_scenes()[ch['script']]:
             text.extend(['【'+title+'】',''])
             for speaker,line in lines:
-                if speaker=='retire':text.extend(['[베어울프의 기체가 원래 세계로 퇴장]','']);continue
+                if speaker=='retire':text.extend(['[베오울프의 기체가 원래 세계로 퇴장]','']);continue
                 text.extend([ch['messages'][cursor]['text'].replace('　',' ').replace('@','\n'),'']);cursor+=1
     (ART/'story_dialogue.txt').write_text('\n'.join(text),encoding='utf-8-sig')
     print(json.dumps({k:v for k,v in entry.items() if k not in ('edits','chapters')},indent=2))
@@ -1064,7 +1064,7 @@ def release_beowulf_master(old, tested):
     struct.pack_into('<II',tables[0x24],4,u32(tables[0x24],4)+216,wc+6)
     pilot=bytearray(tested[other[0x2c]+12+381*148:other[0x2c]+12+382*148])
     # Append only the display name, keeping every existing string ID stable.
-    st=tables[0x80];count=u32(st,8);size=u32(st,4);name=encode('베어울프')+b'\0'
+    st=tables[0x80];count=u32(st,8);size=u32(st,4);name=encode('베오울프')+b'\0'
     ptrs=struct.unpack_from('<%dI'%count,st,12)
     stnew=bytearray(b'Strg'+struct.pack('<II',size+4+len(name),count+1))
     stnew.extend(struct.pack('<%dI'%(count+1),*[p+4 for p in ptrs],size+4))
@@ -1805,8 +1805,8 @@ def riese_night_head_update(apply=False):
             # Existing appended pilot name belongs only to the TEST Beowulf.
             st=h+u32(b,h+0x80);strings=u32(b,st+8);nameat=st+u32(b,st+12+(strings-1)*4)
             oldname=b[nameat:b.find(b'\0',nameat)+1]
-            assert decode(oldname[:-1])=='베어울프　쿄스케'
-            name=encode('베어울프')+b'\0';assert len(name)<=len(oldname)
+            assert decode(oldname[:-1])=='베오울프　쿄스케'
+            name=encode('베오울프')+b'\0';assert len(name)<=len(oldname)
             b[nameat:nameat+len(oldname)]=name+bytes(len(oldname)-len(name))
             assert b[unit+12+0x19f*100:unit+12+(0x19f+1)*100]==original[origunit+12+0x19f*100:origunit+12+(0x19f+1)*100]
             add(base+0x11E000,old[0x11E000:len(b)],b[0x11E000:],'Append independent Beowulf unit; restore original native unit578')
@@ -1831,7 +1831,7 @@ def riese_night_head_update(apply=False):
     feature=dict(applied=False,source_sha256=before,production_sha256=production,base_actor=42,clone_bank=BANK,
         stats=skin.stats,animation_resources=checks,native_originals_preserved=True,
         original_unit578_restored=True,new_unit_index=427,Beowulf_portrait_retained=True,
-        name='베어울프',all_command_UV_alpha_bytes_preserved=True,live_battle_verified=False,
+        name='베오울프',all_command_UV_alpha_bytes_preserved=True,live_battle_verified=False,
         art_tool='built-in image_gen',art_files=['riese_head_glow_generated.png','night_head_glow_generated.png'],
         edits=[dict(offset=a,before=old.hex(),after=new.hex(),label=label) for a,old,new,label in edits])
     if apply:
@@ -1945,4 +1945,46 @@ def main():
     (ART/'prototype_manifest.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='edits'},ensure_ascii=False,indent=2))
 
-if __name__=='__main__':main()
+def normalize_beowulf_spelling(apply=False):
+    """Equal-length Korean spelling repair with reversible whole-image verification."""
+    import os,psutil
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    old=encode('베어울프');new=encode('베오울프');assert len(old)==len(new)==8
+    expected={SOURCE:('80a9a37bdc0ddb0322a4d72a57610d34edd88d26a5270cf35b160e0b8eedc509',32),
+        OUT:('8bd677be7aa67d3e84432cfc06b52ceeb815422c7379a21c0436868e91ece856',62)}
+    result=dict(old='베어울프',new='베오울프',files=[],applied=apply)
+    for path,(digest,count) in expected.items():
+        edits=[];pos=0;tail=b''
+        with path.open('rb') as f:
+            assert hashlib.file_digest(f,'sha256').hexdigest()==digest;f.seek(0)
+            while chunk:=f.read(16<<20):
+                data=tail+chunk;start=0
+                while (i:=data.find(old,start))>=0:
+                    at=pos-len(tail)+i
+                    if not edits or at>edits[-1]['offset']:edits.append(dict(offset=at,before=old.hex(),after=new.hex()))
+                    start=i+len(old)
+                tail=data[-7:];pos+=len(chunk)
+        assert len(edits)==count
+        if apply:
+            with path.open('r+b') as f:
+                for e in edits:
+                    f.seek(e['offset']);assert f.read(8)==old;f.seek(e['offset']);f.write(new)
+                f.flush();os.fsync(f.fileno())
+            reverse=hashlib.sha256();actual=hashlib.sha256();pos=0
+            with path.open('rb') as f:
+                for e in edits:
+                    while pos<e['offset']:
+                        b=f.read(min(4<<20,e['offset']-pos));reverse.update(b);actual.update(b);pos+=len(b)
+                    assert f.read(8)==new;reverse.update(old);actual.update(new);pos+=8
+                while b:=f.read(4<<20):reverse.update(b);actual.update(b)
+            assert reverse.hexdigest()==digest,'Unexpected changes outside spelling edits'
+            after=actual.hexdigest()
+        else:after=None
+        result['files'].append(dict(path=str(path),before_sha256=digest,after_sha256=after,count=count,edits=edits))
+    (ROOT/'runtime/beowulf_spelling_manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({**result,'files':[{k:v for k,v in x.items() if k!='edits'} for x in result['files']]},ensure_ascii=False,indent=2))
+
+
+if __name__=='__main__':
+    if '--name-spelling' in sys.argv:normalize_beowulf_spelling('--apply' in sys.argv)
+    else:main()

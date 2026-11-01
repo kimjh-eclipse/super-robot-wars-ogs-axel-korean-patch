@@ -548,6 +548,10 @@ def build_beowulf_extension():
     proof=[];profiles=[];oldviews=[];pairplans=[];validation_cache={}
     with TARGET.open('rb') as f:
         current=View(f);old=current.clone()
+        spelling=json.loads((ROOT/'runtime/beowulf_spelling_manifest.json').read_text(encoding='utf-8'))
+        rename=next(x for x in spelling['files'] if Path(x['path']).name=='SRWOGS_K.iso')
+        assert spelling['applied'] and rename['after_sha256'].upper()==current_hash
+        for e in rename['edits']:old.apply([(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after']))],True)
         corr=json.loads((ROOT/'runtime/shadowmirror_dialogue_correction.json').read_text(encoding='utf-8'))
         rows=next(x['edits'] for x in corr['plans'] if Path(x['path']).name=='SRWOGS_K.iso')
         for e in rows:old.apply([(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after']))],True)
@@ -637,20 +641,43 @@ def build_beowulf_extension():
         entries=[]
         for mask,(v,es) in enumerate(ordered):
             entries.append([(at,len(a),ident(a),ident(b)) for at,a,b in es])
+        # Preserve all v20261101 profiles as update sources, sharing their blobs.
+        import io,zipfile
+        with zipfile.ZipFile(ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261101.zip') as z:
+            data=z.read('OGS_AxelSwap_QuickPatch_v20261101/OGS_beowulf_options.bin')
+        prior=io.BytesIO(data);assert prior.read(8)==b'OGSBEO01'
+        prev_size,prev_count,blob_count=struct.unpack('<QII',prior.read(16));assert (prev_size,prev_count)==(iso_size,64)
+        previous_blobs=[]
+        for _ in range(blob_count):
+            n=struct.unpack('<I',prior.read(4))[0];b=prior.read(n);assert len(b)==n;previous_blobs.append(b)
+        aliases=[]
+        for mask in range(64):
+            assert U(prior.read(4),0)==mask
+            anchor=prior.read(32);source=prior.read(32);assert anchor.hex().upper()==anchors[mask&31]
+            rows=[]
+            for _ in range(U(prior.read(4),0)):
+                at,n,a,b=struct.unpack('<QIII',prior.read(20));assert len(previous_blobs[a])==len(previous_blobs[b])==n
+                rows.append((at,n,ident(previous_blobs[a])))
+            aliases.append((mask,source,anchor,rows))
+        assert prior.tell()==len(data)
         dest=HERE/'OGS_beowulf_options.bin';tmp=dest.with_suffix('.tmp')
         with tmp.open('wb') as out:
-            out.write(b'OGSBEO01');out.write(struct.pack('<QII',iso_size,64,len(pool)))
+            out.write(b'OGSBEO02');out.write(struct.pack('<QII',iso_size,64,len(pool)))
             for data in pool:out.write(struct.pack('<I',len(data)));out.write(data)
             for mask,es in enumerate(entries):
                 out.write(struct.pack('<I',mask));out.write(bytes.fromhex(anchors[mask&31]));out.write(bytes.fromhex(hashes[mask]));out.write(struct.pack('<I',len(es)))
                 for row in es:out.write(struct.pack('<QIII',*row))
+            out.write(struct.pack('<I',len(aliases)))
+            for mask,source,anchor,rows in aliases:
+                out.write(struct.pack('<I',mask));out.write(source);out.write(anchor);out.write(struct.pack('<I',len(rows)))
+                for row in rows:out.write(struct.pack('<QII',*row))
             out.flush();os.fsync(out.fileno())
         tmp.replace(dest)
-        report=dict(version='v20261101',bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),
+        report=dict(version='v20261101.1',bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),
             defaults=0,hashes=hashes,anchors=anchors,profile_count=64,story_validation=proof,
             episode6_test_excluded=True,production_master_records_preserved=True,
             gameplay_ISO_read_only=True,production_sha256=current_hash,pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,
-            unique_blobs=len(pool),legacy_32_full_hashes_verified=True)
+            unique_blobs=len(pool),legacy_32_full_hashes_verified=True,previous_64_profiles_supported=True)
         (ROOT/'runtime/beowulf_options_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         print('Six-option pack ready:',dest,report['pack_size'],flush=True)
 
@@ -658,7 +685,9 @@ def package_beowulf_options():
     import json,zipfile
     profiles=json.loads((ROOT/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
     checks=json.loads((ROOT/'runtime/beowulf_patcher_validation.json').read_text(encoding='utf-8'))
-    assert checks['passed'] and len(checks['actual_iso_cases'])==4
+    assert checks['passed'] and len(checks['actual_iso_cases'])==5
+    spelling=json.loads((ROOT/'runtime/beowulf_spelling_profiles_validation.json').read_text(encoding='utf-8'))
+    assert spelling['passed'] and spelling['profiles_checked']==64 and spelling['only_equal_length_name_replacements']
     assert file_hash(TARGET).lower()==profiles['production_sha256'].lower()
     assert file_hash(HERE/'OGS_beowulf_options.bin').lower()==profiles['pack_sha256'].lower()
     required=['OGS_AxelSwap_QuickPatch.exe','OGS_ISO_ranges.bin','OGS_hidden_rewards.bin',
@@ -667,7 +696,7 @@ def package_beowulf_options():
     files=[HERE/n for n in required]+sorted(HERE.glob('OGS_ISO_ranges_upgrade*.bin'))
     assert all(p.exists() for p in files)
     readme=HERE/'읽어주세요.txt'
-    readme.write_text('''슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261101
+    readme.write_text('''슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261101.1
 
 OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 ISO를 선택하고
 원하는 옵션을 체크한 뒤 [패치 적용]을 누르세요.
@@ -683,8 +712,8 @@ OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 IS
 5. 액셀·제오라 정신기 변경
    액셀: 불굴→철벽(SP20), 트윈 예측→혼(SP50), 각성 SP50
    제오라: 저격→번뜩임(SP10), 철벽→가속(SP10)
-6. 베어울프 등장 (추가 시나리오)
-   알피미가 적으로 등장하는 본편 전투에 베어울프와 게슈펜스트 Mk-Ⅲ를 추가합니다.
+6. 베오울프 등장 (추가 시나리오)
+   알피미가 적으로 등장하는 본편 전투에 베오울프와 게슈펜스트 Mk-Ⅲ를 추가합니다.
    전용 초상화·컷인·기체 이미지 및 추가 대사를 포함하며, 전투 음성은 쿄스케의 것을 사용합니다.
    6화 아군 시험 배치는 포함하지 않습니다. HD팩 없이도 기본 그래픽으로 표시됩니다.
 
@@ -694,6 +723,7 @@ OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 IS
 이미 지나간 화의 합류·보상은 소급 지급되지 않습니다.
 
 공통 변경
+· 인물 이름·시나리오·전투 대사의 표기를 베오울프로 통일
 · 47화의 레몬·라미아 관련 화자/호칭 및 대사 교정
 · 럭키 발동률: 스킬 레벨당 3% (9레벨 27%), 기존 에이스 보정 +10%p 유지
 · 타스크·아라드의 럭키 성장: 레벨 1/8/15/23/30/38/45/53/60에서 스킬 1~9레벨
@@ -709,7 +739,7 @@ ISO를 직접 수정하며 작업 직전 구간을 <ISO명>.ogsbak으로 백업�
 이전 세이브 스테이트는 구 코드와 데이터를 복원하므로 사용하지 마세요.
 
 검증: 기존 32개 배포 조합의 해시, 신규 64개 조합의 전체 ISO 해시,
-기존 옵션 5,120개 바이트 전환, 베어울프 포함 4,096개 전환 경로,
+기존 옵션 5,120개 바이트 전환, 신규 및 이전 버전 8,192개 전환 경로,
 실제 ISO 기본 설치·전체 옵션 켜기/끄기·백업 복원 확인.
 새 시나리오 전체의 실기 플레이 검증을 뜻하지는 않습니다.
 
@@ -719,9 +749,9 @@ ISO는 포함하지 않습니다. 이 파일은 로컬 배포 준비본이며 Gi
     sums=HERE/'SHA256SUMS.txt'
     sums.write_text(''.join(file_hash(p)+'  '+p.name+'\n' for p in files),encoding='utf-8-sig')
     files.append(sums)
-    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261101.zip'
+    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261101.1.zip'
     out.parent.mkdir(exist_ok=True);tmp=out.with_suffix('.tmp')
-    prefix='OGS_AxelSwap_QuickPatch_v20261101/'
+    prefix='OGS_AxelSwap_QuickPatch_v20261101.1/'
     with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
         for p in files:z.write(p,prefix+p.name)
     tmp.replace(out)

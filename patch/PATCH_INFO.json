@@ -1,7 +1,7 @@
 {
-  "version": "v20261101",
+  "version": "v20261101.1",
   "status": "RELEASED",
-  "previous": "v20261029.1",
+  "previous": "v20261101",
   "built": "2026-11-01",
   "base_iso": {
     "size": 4518150144,
@@ -9,18 +9,18 @@
   },
   "result_iso": {
     "size": 4518150144,
-    "sha256": "F8319876331761E8A5DF7776CAE65A217383EDAC7CF168A75EE6BA04D333447D"
+    "sha256": "DA87952538DC9A1C6E51CA4360C21CFDC776254BCF9F6A8BC7B1AECF9FAEF484"
   },
   "patch": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261101.xdelta",
-    "size": 6344583,
-    "sha256": "B60767AE07585543DB62E022C7B4EA6CB0EFF2B886C7F712AFFE148CC547662F",
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261101.1.xdelta",
+    "size": 6344562,
+    "sha256": "D92A31D0872B085A0858AE9AF90A7D31E431B5022A505FE0692E1898CE991D99",
     "verified": "xdelta decode SHA256 matches default profile"
   },
   "release_zip": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261101.zip",
-    "size": 117839100,
-    "sha256": "08B280BFCB79EA0845BB0335E10C90263A88A00AF246BAC3AB61E54B734B95B9"
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261101.1.zip",
+    "size": 121994533,
+    "sha256": "E4F5EF38F3AE457BF774AFD61B2431A278B24DBC5017CDBE44108CA46C6379BE"
   },
   "options": {
     "hidden": 1,
@@ -39,30 +39,36 @@
       {
         "name": "base_to_off",
         "mask": 0,
-        "sha256": "f8319876331761e8a5df7776cae65a217383edac7cf168a75ee6ba04d333447d",
-        "seconds": 10.53
+        "sha256": "da87952538dc9a1c6e51ca4360c21cfdc776254bcf9f6a8bc7b1aecf9faef484",
+        "seconds": 10.63
       },
       {
         "name": "off_to_all_on",
         "mask": 63,
-        "sha256": "d8f67068415cf6ed69e2d6f2b00d253405a93af42ded559d9c474a4b3473654a",
-        "seconds": 10.56
+        "sha256": "44ef362e91ebb9d2404b2cc6c8858a3a0fab39325479f6f16fbb5cfce1ba81ea",
+        "seconds": 10.52
       },
       {
         "name": "all_on_to_off",
         "mask": 0,
-        "sha256": "f8319876331761e8a5df7776cae65a217383edac7cf168a75ee6ba04d333447d",
-        "seconds": 10.26
+        "sha256": "da87952538dc9a1c6e51ca4360c21cfdc776254bcf9f6a8bc7b1aecf9faef484",
+        "seconds": 10.76
       },
       {
         "name": "restore",
         "mask": 63,
-        "sha256": "d8f67068415cf6ed69e2d6f2b00d253405a93af42ded559d9c474a4b3473654a",
-        "seconds": 6.35
+        "sha256": "44ef362e91ebb9d2404b2cc6c8858a3a0fab39325479f6f16fbb5cfce1ba81ea",
+        "seconds": 6.38
+      },
+      {
+        "name": "v20261101_to_spelling_fix",
+        "mask": 63,
+        "sha256": "44ef362e91ebb9d2404b2cc6c8858a3a0fab39325479f6f16fbb5cfce1ba81ea",
+        "seconds": 11.27
       }
     ],
     "legacy_option_byte_transitions": 5120,
-    "beowulf_profile_hash_chains": 4096,
+    "beowulf_profile_hash_chains": 8192,
     "profile_count": 64,
     "baseline_and_legacy_anchors_verified": true,
     "episode6_test_excluded": true,

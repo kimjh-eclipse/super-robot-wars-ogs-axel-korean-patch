@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261101";
+    private const string VersionText = "v20261101.1";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";
@@ -363,14 +363,15 @@ internal static class OgsAxelQuickPatch
     private sealed class BeowulfOptions
     {
         public Pack[] On = new Pack[64], Off = new Pack[64];
+        public List<Pack> LegacyOff = new List<Pack>();
     }
     private static BeowulfOptions LoadBeowulf(Pack full, CommonFix fix)
     {
         using (Stream stream = OpenPatchData("OGS_beowulf_options.bin", true))
         using (BinaryReader r = new BinaryReader(stream, Encoding.UTF8))
         {
-            if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSBEO01" || r.ReadInt64() != full.IsoSize || r.ReadInt32() != 64)
-                throw new InvalidDataException("베어울프 옵션 버전 불일치");
+            if (Encoding.ASCII.GetString(r.ReadBytes(8)) != "OGSBEO02" || r.ReadInt64() != full.IsoSize || r.ReadInt32() != 64)
+                throw new InvalidDataException("베오울프 옵션 버전 불일치");
             int count = r.ReadInt32();
             if (count < 1 || count > 100000) throw new InvalidDataException("옵션 데이터 수 오류");
             byte[][] blobs = new byte[count][];
@@ -387,7 +388,7 @@ internal static class OgsAxelQuickPatch
                 byte[] anchor = r.ReadBytes(32), hash = r.ReadBytes(32);
                 if (anchor.Length != 32 || hash.Length != 32 || Hex(anchor) != Hex(fix.Hashes[mask & 31]) || !hashes.Add(Hex(hash)))
                     throw new InvalidDataException("옵션 기준 해시 오류");
-                Pack on = new Pack { Title = "최신 수정 및 베어울프 옵션", IsoSize = full.IsoSize, SourceHash = anchor, TargetHash = hash, Ranges = new List<PatchRange>() };
+                Pack on = new Pack { Title = "최신 수정 및 베오울프 옵션", IsoSize = full.IsoSize, SourceHash = anchor, TargetHash = hash, Ranges = new List<PatchRange>() };
                 Pack off = new Pack { Title = "기존 옵션 기준으로 정규화", IsoSize = full.IsoSize, SourceHash = hash, TargetHash = anchor, Ranges = new List<PatchRange>() };
                 int ranges = r.ReadInt32(); long end = 0;
                 if (ranges < 1 || ranges > 1000000) throw new InvalidDataException("옵션 구간 수 오류");
@@ -395,11 +396,31 @@ internal static class OgsAxelQuickPatch
                 {
                     long at = r.ReadInt64(); int len = r.ReadInt32(), a = r.ReadInt32(), b = r.ReadInt32();
                     if (at < end || len < 1 || at > full.IsoSize - len || a < 0 || a >= count || b < 0 || b >= count || blobs[a].Length != len || blobs[b].Length != len)
-                        throw new InvalidDataException("베어울프 옵션 구간 오류");
+                        throw new InvalidDataException("베오울프 옵션 구간 오류");
                     off.Ranges.Add(new PatchRange { Offset = at, Data = blobs[a] }); on.Ranges.Add(new PatchRange { Offset = at, Data = blobs[b] });
                     off.PayloadBytes += len; on.PayloadBytes += len; end = at + len;
                 }
                 result.On[mask] = on; result.Off[mask] = off;
+            }
+            int aliases = r.ReadInt32();
+            if (aliases != 64) throw new InvalidDataException("이전 버전 조합 수 오류");
+            for (int j = 0; j < aliases; j++)
+            {
+                int mask = r.ReadInt32(); byte[] source = r.ReadBytes(32), anchor = r.ReadBytes(32);
+                if (mask != j || source.Length != 32 || anchor.Length != 32 || Hex(anchor) != Hex(fix.Hashes[mask & 31]))
+                    throw new InvalidDataException("이전 버전 기준 오류");
+                Pack legacy = new Pack { Title = "v20261101 표기 교정 업데이트", IsoSize = full.IsoSize,
+                    SourceHash = source, TargetHash = anchor, Ranges = new List<PatchRange>() };
+                int ranges = r.ReadInt32(); long end = 0;
+                if (ranges < 1 || ranges > 1000000) throw new InvalidDataException("이전 구간 수 오류");
+                for (int i = 0; i < ranges; i++)
+                {
+                    long at = r.ReadInt64(); int len = r.ReadInt32(), b = r.ReadInt32();
+                    if (at < end || len < 1 || at > full.IsoSize - len || b < 0 || b >= count || blobs[b].Length != len)
+                        throw new InvalidDataException("이전 버전 구간 오류");
+                    legacy.Ranges.Add(new PatchRange { Offset = at, Data = blobs[b] }); legacy.PayloadBytes += len; end = at + len;
+                }
+                result.LegacyOff.Add(legacy);
             }
             if (stream.Position != stream.Length) throw new InvalidDataException("옵션 데이터 길이 오류");
             return result;
@@ -413,6 +434,9 @@ internal static class OgsAxelQuickPatch
             SourceHash = extra.On[selected].TargetHash, TargetHash = extra.On[selected].TargetHash, Ranges = new List<PatchRange>() };
         for (int i = 0; i < 64; i++)
             if (current == Hex(extra.Off[i].SourceHash)) { prefix = extra.Off[i]; current = Hex(prefix.TargetHash); break; }
+        if (prefix == null)
+            foreach (Pack legacy in extra.LegacyOff)
+                if (current == Hex(legacy.SourceHash)) { prefix = legacy; current = Hex(prefix.TargetHash); break; }
         Pack plan = SelectFixedPlan(packs, hidden, bundle, both, features, fix, current, selected & 31);
         if (plan == null) return null;
         if (prefix != null) plan = Combine(prefix, plan);
@@ -434,7 +458,15 @@ internal static class OgsAxelQuickPatch
                     throw new InvalidDataException("6개 옵션 전환 연결 오류");
                 cases++;
             }
-        Console.WriteLine("PASS: " + cases + " six-option transition chains; 64 unique profiles.");
+        foreach (Pack legacy in extra.LegacyOff)
+            for (int target = 0; target < 64; target++)
+            {
+                Pack plan = SelectBeowulfPlan(packs, hidden, bundle, both, features, fix, extra, Hex(legacy.SourceHash), target);
+                if (plan == null || Hex(plan.SourceHash) != Hex(legacy.SourceHash) || Hex(plan.TargetHash) != Hex(extra.On[target].TargetHash))
+                    throw new InvalidDataException("이전 버전 업데이트 연결 오류");
+                cases++;
+            }
+        Console.WriteLine("PASS: " + cases + " six-option and legacy transition chains; 64 unique target profiles.");
     }
     private static Pack Combine(Pack first, Pack second)
     {
@@ -628,7 +660,7 @@ internal static class OgsAxelQuickPatch
         log("액셀·제오라 정신기 변경: " + (spirits ? "선택" : "선택 안 함"));
         log("오우카 생존 + 젠가 밸런스: " + (ouka ? "선택" : "선택 안 함"));
         log("숨겨진 요소 자동 습득: " + (hidden ? "선택" : "선택 안 함"));
-        log("베어울프 본편 등장: " + (beowulf ? "선택" : "선택 안 함"));
+        log("베오울프 본편 등장: " + (beowulf ? "선택" : "선택 안 함"));
         log("럭키: 레벨당 3%, 타스크·아라드는 Lv60에 L9");
         log(full.Title);
         log("패처 " + VersionText);
@@ -900,11 +932,11 @@ internal static class OgsAxelQuickPatch
             spiritsCheck.Text = "액셀·제오라 정신기 변경";
             spiritsCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             spiritsCheck.SetBounds(18, 94, 402, 28); options.Controls.Add(spiritsCheck);
-            beowulfCheck.Text = "베어울프 등장 (추가 시나리오)";
+            beowulfCheck.Text = "베오울프 등장 (추가 시나리오)";
             beowulfCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             beowulfCheck.SetBounds(430, 94, 405, 28); options.Controls.Add(beowulfCheck);
             Label optionInfo = new Label();
-            optionInfo.Text = "여섯 옵션은 각각 선택할 수 있습니다. 베어울프는 알피미의 적 등장 장면에 추가됩니다.\n6화 아군 시험 배치는 포함하지 않습니다. 이미 저장된 보유품·보상은 유지됩니다.";
+            optionInfo.Text = "여섯 옵션은 각각 선택할 수 있습니다. 베오울프는 알피미의 적 등장 장면에 추가됩니다.\n6화 아군 시험 배치는 포함하지 않습니다. 이미 저장된 보유품·보상은 유지됩니다.";
             optionInfo.SetBounds(20, 132, 820, 42); options.Controls.Add(optionInfo);
 
             Label info = new Label();

@@ -435,6 +435,59 @@ def validate_attack_display():
     print(json.dumps(result,indent=2))
 
 
+def validate_spelling_profiles():
+    """Compare every release profile against its old payload; allow name bytes only."""
+    import io,zipfile,bisect
+    from ogs_korean_codec import encode
+    root=Path(__file__).resolve().parent
+    def parse(data):
+        f=io.BytesIO(data);magic=f.read(8);assert magic in (b'OGSBEO01',b'OGSBEO02')
+        size,count,nb=struct.unpack('<QII',f.read(16));assert (size,count)==(4518150144,64)
+        pool=[]
+        for _ in range(nb):
+            n=struct.unpack('<I',f.read(4))[0];b=f.read(n);assert len(b)==n;pool.append(b)
+        profiles=[]
+        for mask in range(64):
+            assert struct.unpack('<I',f.read(4))[0]==mask
+            anchor=f.read(32);digest=f.read(32);rows=[]
+            for _ in range(struct.unpack('<I',f.read(4))[0]):
+                at,n,a,b=struct.unpack('<QIII',f.read(20));assert len(pool[a])==len(pool[b])==n
+                rows.append((at,pool[a],pool[b]))
+            profiles.append((anchor,digest,rows))
+        return profiles
+    with zipfile.ZipFile(root/'dist/OGS_AxelSwap_QuickPatch_v20261101.zip') as z:
+        old=parse(z.read('OGS_AxelSwap_QuickPatch_v20261101/OGS_beowulf_options.bin'))
+    new=parse((root/'iso_quickpatch/OGS_beowulf_options.bin').read_bytes())
+    before=encode('\ubca0\uc5b4\uc6b8\ud504');after=encode('베오울프');counts=[]
+    with (root/'build/SRWOGS_K.iso').open('rb') as f:
+        for mask,((anchor,oh,aa),(anchor2,nh,bb)) in enumerate(zip(old,new)):
+            assert anchor==anchor2 and oh!=nh
+            starts={id(rows):[x[0] for x in rows] for rows in (aa,bb)}
+            regions=[]
+            for at,a,b in sorted(aa+bb):
+                lo=max(0,at-8);hi=min(4518150144,at+len(a)+8)
+                if regions and lo<=regions[-1][1]:regions[-1][1]=max(regions[-1][1],hi)
+                else:regions.append([lo,hi])
+            changed=0
+            for lo,hi in regions:
+                f.seek(lo);base=bytearray(f.read(hi-lo))
+                def apply(buf,rows,index):
+                    keys=starts[id(rows)];left=bisect.bisect_left(keys,lo);right=bisect.bisect_left(keys,hi)
+                    if left and rows[left-1][0]+len(rows[left-1][1])>lo:left-=1
+                    for at,a,b in rows[left:right]:
+                        left=max(lo,at);right=min(hi,at+len(a))
+                        if left<right:buf[left-lo:right-lo]=(a,b)[index][left-at:right-at]
+                apply(base,aa,0);apply(base,bb,0)
+                x=bytearray(base);y=bytearray(base);apply(x,aa,1);apply(y,bb,1)
+                assert bytes(x).replace(before,after)==y,('Non-name change',mask,hex(lo))
+                changed+=bytes(x).count(before)
+            assert changed>0;counts.append(changed)
+            if mask%16==15:print('Name-only comparison:',mask+1,'/64',flush=True)
+    result=dict(passed=True,profiles_checked=64,only_equal_length_name_replacements=True,replacements_per_profile=counts)
+    (root/'runtime/beowulf_spelling_profiles_validation.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('PASS: 64 profiles differ from v20261101 only in Korean name spelling.',flush=True)
+
+
 def validate_patcher_e2e():
     import shutil,subprocess,time
     root=Path(__file__).resolve().parent
@@ -458,8 +511,26 @@ def validate_patcher_e2e():
         assert digest.lower()==profiles['hashes'][mask].lower(),(name,digest,profiles['hashes'][mask])
         cases.append(dict(name=name,mask=mask,sha256=digest,seconds=round(time.time()-start,2)))
         print('PASS actual ISO:',name,digest,flush=True)
+    # Reconstruct the actual previously released all-five-on profile using the
+    # reversible spelling journal, then exercise the compiled migration path.
+    spelling=json.loads((root/'runtime/beowulf_spelling_manifest.json').read_text(encoding='utf-8'))
+    prior=next(x for x in spelling['files'] if Path(x['path']).name=='SRWOGS_K.iso')
+    shutil.copyfile(root/'build/SRWOGS_K.iso',scratch)
+    with scratch.open('r+b') as f:
+        for e in prior['edits']:
+            a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after'])
+            f.seek(e['offset']);assert f.read(len(b))==b;f.seek(e['offset']);f.write(a)
+    with scratch.open('rb') as f:assert hashlib.file_digest(f,'sha256').hexdigest()==prior['before_sha256']
+    start=time.time()
+    r=subprocess.run([str(exe),str(scratch),'--cli','--hidden','--bundle','--rewards','--enemy','--spirits','--beowulf'],cwd=exe.parent,capture_output=True,text=True)
+    (root/'runtime/beowulf_patcher_legacy_upgrade.log').write_text(r.stdout+r.stderr,encoding='utf-8')
+    assert r.returncode==0,(r.stdout,r.stderr)
+    with scratch.open('rb') as f:digest=hashlib.file_digest(f,'sha256').hexdigest()
+    assert digest.upper()==profiles['hashes'][63]
+    cases.append(dict(name='v20261101_to_spelling_fix',mask=63,sha256=digest,seconds=round(time.time()-start,2)))
+    print('PASS actual ISO: v20261101 update',digest,flush=True)
     result=dict(passed=True,actual_iso_cases=cases,legacy_option_byte_transitions=5120,
-        beowulf_profile_hash_chains=4096,profile_count=64,baseline_and_legacy_anchors_verified=True,
+        beowulf_profile_hash_chains=8192,profile_count=64,baseline_and_legacy_anchors_verified=True,
         episode6_test_excluded=profiles['episode6_test_excluded'],gameplay_ISO_modified=False)
     (root/'runtime/beowulf_patcher_validation.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     # Only remove the explicitly named scratch artifacts created by this verifier.
@@ -470,7 +541,8 @@ def validate_patcher_e2e():
 
 if __name__=='__main__':
     import sys
-    if '--patcher-e2e' in sys.argv:validate_patcher_e2e()
+    if '--spelling-profiles' in sys.argv:validate_spelling_profiles()
+    elif '--patcher-e2e' in sys.argv:validate_patcher_e2e()
     elif '--story' in sys.argv:validate_story()
     elif '--balance' in sys.argv:validate_balance()
     elif '--voice-chunk' in sys.argv:validate_voice_chunk()
