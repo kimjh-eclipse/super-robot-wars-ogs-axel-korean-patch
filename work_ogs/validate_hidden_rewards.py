@@ -1418,12 +1418,19 @@ def validate_battle_rewards(edits,applied=False):
 if __name__=='__main__':main()
 
 
-def validate_enemy_strength(edits,layout,applied=False):
+def validate_enemy_strength(edits,layout,applied=False,upgrade_add=1,compare_vanilla=False):
     """Execute both complete native getter and UNTD loader; no call stubs."""
     with ISO.open('rb') as f:
         f.seek(0x94880);current=f.read(0x482980)
     old=bytearray(current);new=bytearray(current)
-    if applied:
+    if compare_vanilla:
+        es=json.loads((ROOT/'runtime/enemy_strength_manifest.json').read_text(encoding='utf-8'))['edits']
+        for e in es:
+            at=e['offset']-0x94880;a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
+            assert old[at:at+len(b)]==b;old[at:at+len(a)]=a
+        for off,a,b in edits:
+            at=off-0x94880;assert new[at:at+len(a)]==a;new[at:at+len(b)]=b
+    elif applied:
         es=json.loads((ROOT/'runtime/enemy_strength_manifest.json').read_text(encoding='utf-8'))['edits']
         for e in es:
             at=e['offset']-0x94880;a=bytes.fromhex(e['before']);b=bytes.fromhex(e['after'])
@@ -1475,7 +1482,7 @@ def validate_enemy_strength(edits,layout,applied=False):
     spawn_cases=0;body_cases=0;weapon_cases=0
     for difficulty in range(3):
         for side in range(6):
-            for base in (0,5,15):
+            for base in (0,5,14,15):
                 rec=bytearray(template);struct.pack_into('<I',rec,8,side)
                 for j in range(14,20):struct.pack_into('<I',rec,j*4,base)
                 outcomes=[]
@@ -1493,7 +1500,7 @@ def validate_enemy_strength(edits,layout,applied=False):
                     arg=0x1780000;c.write(arg,0,4)
                     weapon=c.run(0x1AF860,[save,0xc,slot,arg])
                     outcomes.append((body,weapon,bytes(c.mem[src:src+336])))
-                add=int(side in (2,3,4))
+                add=upgrade_add if side in (2,3,4) else 0
                 for a,b in zip(outcomes[0][0],outcomes[1][0]):
                     assert b==min(a+add,15),(difficulty,side,base,a,b);body_cases+=1
                 assert outcomes[1][1]==min(outcomes[0][1]+add,15),(difficulty,side,base,outcomes)

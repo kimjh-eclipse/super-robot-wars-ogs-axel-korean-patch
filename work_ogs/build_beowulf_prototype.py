@@ -1055,8 +1055,8 @@ def release_beowulf_master(old, tested):
     other={k:h+u32(tested,h+k) for k in fields}
     tables={k:bytearray(old[p:(starts[i+1] if i+1<len(starts) else end)]) for i,(k,p) in enumerate(zip(fields,starts))}
     uc,wc=u32(tables[0x1c],8),u32(tables[0x24],8)
-    assert uc in (429,430,431) and wc in (1636,1639,1643)
-    if uc==431:assert u16(tables[0x18],12+0x606*2)==430
+    assert uc in (429,430,431,432) and wc in (1636,1639,1643)
+    if uc>=431:assert u16(tables[0x18],12+0x606*2)==430
     if wc==1643:assert all(u16(tables[0x20],12+k*2)==1639+i for i,k in enumerate(range(0xfa0,0xfa4)))
     if wc==1639:assert all(u16(tables[0x20],12+k*2)==1636+i for i,k in enumerate(range(0xf90,0xf93)))
     if uc==430:assert u16(tables[0x18],12+0x605*2)==429
@@ -1081,6 +1081,22 @@ def release_beowulf_master(old, tested):
     stnew=bytearray(b'Strg'+struct.pack('<II',size+4+len(name),count+1))
     stnew.extend(struct.pack('<%dI'%(count+1),*[p+4 for p in ptrs],size+4))
     stnew.extend(st[12+count*4:size]);stnew.extend(name);stnew.extend(bytes((-len(stnew))%4))
+    if starts[0]+sum(len(v) for v in tables.values())-len(st)+len(stnew)+100+216>len(old):
+        # Reuse identical suffix strings, retaining every string ID and byte.
+        strings=[]
+        for i in range(u32(stnew,8)):
+            q=u32(stnew,12+i*4);strings.append(bytes(stnew[q:stnew.index(0,q)+1]))
+        pool=bytearray();positions={}
+        for value in sorted(set(strings),key=lambda x:(-len(x),x)):
+            q=pool.find(value)
+            if q<0:q=len(pool);pool.extend(value)
+            positions[value]=q
+        prefix=12+len(strings)*4
+        compact=bytearray(b'Strg'+struct.pack('<II',prefix+len(pool),len(strings)))
+        compact.extend(struct.pack('<%dI'%len(strings),*[prefix+positions[v] for v in strings]));compact.extend(pool)
+        compact.extend(bytes((-len(compact))%4));stnew=compact
+        for i,value in enumerate(strings):
+            q=u32(stnew,12+i*4);assert stnew[q:stnew.index(0,q)+1]==value
     tables[0x80]=stnew
     struct.pack_into('<3H',pilot,4,count,count,count)
     tables[0x2c][12+381*148:12+382*148]=pilot

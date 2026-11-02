@@ -544,8 +544,283 @@ def valcion_custom(apply=False):
         report['applied']=True;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
 
 
+LEGACY_UNITS=((0x607,140,'그룬가스트 영식'),(0x608,234,'휴케바인 009'),
+              (0x609,232,'휴케바인 Mk-II 트롬베'),(0x60a,12,'F-28 멧서'),(0x60b,183,'지간스쿠드'))
+
+
+def legacy_master(old):
+    """Append OG1 player variants; keep every existing record intact."""
+    h=0x11e800;fields=list(range(0x18,0x8c,4));starts=[h+u32(old,h+k) for k in fields];end=h+u32(old,0x11e00c)
+    ts={k:bytearray(old[p:(starts[i+1] if i+1<len(starts) else end)]) for i,(k,p) in enumerate(zip(fields,starts))}
+    count=u32(ts[0x1c],8)
+    for i,(key,source,name) in enumerate(LEGACY_UNITS):
+        assert u16(ts[0x18],12+key*2)==65535
+        body=bytearray(ts[0x1c][12+source*100:12+(source+1)*100]);assert len(body)==100
+        # These are pilot-free reserve machines. Preserve weapons, graphics,
+        # stats and upgrade types; permit normal pilot boarding.
+        if key==0x607:
+            struct.pack_into('<H',body,0x22,65535);ts[0x1c].extend(body);index=count
+        else:
+            assert u16(body,0x22)==1;index=source
+        struct.pack_into('<H',ts[0x18],12+key*2,index)
+    amount=100
+    struct.pack_into('<II',ts[0x1c],4,u32(ts[0x1c],4)+amount,count+1)
+    struct.pack_into('<I',ts[0x18],4,u32(ts[0x18],4)+amount)
+    out=bytearray(old[:starts[0]])
+    for k in fields:struct.pack_into('<I',out,h+k,len(out)-h);out.extend(ts[k])
+    struct.pack_into('<I',out,0x11e00c,len(out)-h);assert len(out)<=len(old) and not any(old[end:len(out)]);out.extend(old[len(out):])
+    for k in fields:
+        if k==0x18:continue
+        a=starts[fields.index(k)];b=h+u32(out,h+k)
+        if k==0x1c:assert out[b+12:b+12+count*100]==old[a+12:a+12+count*100]
+        else:assert out[b:b+len(ts[k])]==old[a:a+len(ts[k])]
+    return bytes(out)
+
+
+def legacy_scenes(s):
+    """Use the real ally entry groups on both route variants, not stage clear."""
+    specs=[(77,1143,0xc5,0x13,0x60a),(82,571,0xc5,0x1e,0x60a),
+           (89,56,0xc5,0x14,0x608),
+           (90,466,0xc5,6,0x609),(91,361,0xc5,6,0x609),
+           (103,936,0x6f,0x45e,0x607),
+           (82,153,0xc5,0xa,0x60b),(86,135,0xc5,2,0x60b)]
+    inserts={}
+    for n,i,op,arg,key in specs:
+        r=s.records(n)[i][1];assert r[0]==op and r[2]==arg,(n,i,r)
+        inserts.setdefault(n,{}).setdefault(i+1,[]).append(command(0x5a,key))
+    # The OG2 inventory grants for repair/resupply use distinct master keys.
+    for n in range(65,138):
+        for i,(_,r) in enumerate(s.records(n)):
+            if r[0]==0x5f and r[2] in (0xde5,0xde6) and r[3]==0:
+                inserts.setdefault(n,{}).setdefault(i+1,[]).append(list(r))
+    return {n:[(point,'OG1 기체 추가 및 지원장치 수량', [('command',r) for r in rows])
+               for point,rows in sorted(points.items())] for n,points in inserts.items()}
+
+
+def legacy_recruitment(apply=False):
+    import psutil
+    from validate_hidden_rewards import VM,ram as vr
+    from validate_beowulf_prototype import validate_story_blob
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    journal=json.loads(JOURNAL.read_text(encoding='utf-8'));previous=journal['valcion_custom'];assert previous['applied']
+    assert not journal.get('legacy_recruitment',{}).get('applied'),'Already applied'
+    oldcode=struct.pack('<14I',0x8e280008,0x39080606,0x11000006,0,0x8e280008,0x39080600,0x2d080003,0x11000002,0,0x24070001,0x0806bc00,0x0000402d,0,0)
+    # Owned aliases 606..60B plus the previous 600..602. All other keys retain
+    # the vanilla reserve-faction behavior, including 603..605.
+    code=struct.pack('<14I',0x8e280008,0x2508f9fa,0x2d080006,0x15000005,0x8e280008,0x39080600,0x2d080003,0x11000002,0,0x24070001,0x0806bc00,0x0000402d,0,0)
+    codeoff=0x94880+0x114f88-0x100000
+    report=dict(applied=False,units=[dict(key=k,source_record=i,name=n) for k,i,n in LEGACY_UNITS],files=[],scope='OG2 recruitment; repair/resupply grants become two')
+    for item in previous['files']:
+        path=Path(item['path']);s=Scripts(path);edits=[];stories=[]
+        with path.open('rb') as f:
+            assert hashlib.file_digest(f,'sha256').hexdigest()==item['after_sha256']
+            assert read(f,codeoff,len(oldcode))==oldcode;edits.append(dict(offset=codeoff,before=oldcode.hex(),after=code.hex()))
+            for base in (0x5da000,0x83f000):
+                old=read(f,base,0x1a5800);new=legacy_master(old);edits.append(dict(offset=base,before=old.hex(),after=new.hex()))
+            cursor=0x9130000
+            for n,scenes in sorted(legacy_scenes(s).items()):
+                at,size=s.logos[n];old=s.data[at:at+size];new,note=rebuild_beowulf_story_logo(old,scenes)
+                allowed=tuple(tuple(r) for _,_,lines in scenes for _,r in lines)
+                proof=validate_story_blob(old,new,note,vr,allowed_commands=allowed)
+                assert not any(read(f,MAP+cursor,len(new))),(n,hex(cursor),'Occupied relocation space')
+                edits.extend([dict(offset=MAP+cursor,before=bytes(len(new)).hex(),after=new.hex()),
+                    dict(offset=MAP+0x557f800+8+n*8,before=read(f,MAP+0x557f800+8+n*8,8).hex(),after=struct.pack('<II',cursor-0x557f800,len(new)).hex())])
+                stories.append(dict(script=n,insertions=note['insert_counts'],validation=proof));cursor=(cursor+len(new)+2047)&~2047
+            assert cursor<0x9300000
+            root=MAP+0x800+8+14*8+4;a=read(f,root,4);edits.append(dict(offset=root,before=a.hex(),after=struct.pack('<I',max(u32(a,0),cursor-0x557e800)).hex()))
+            vm=VM();c=vm.cpu;c.mem[0x100000:0x582980]=read(f,0x94880,0x482980);c.mem[0x114f88:0x114f88+len(code)]=code
+            blob=bytes.fromhex(next(e['after'] for e in edits if e['offset']==0x5da000));h=0x11e800;master=u32(vr,0x59d360);p=0x1100000;c.mem[p:p+len(blob[h:])]=blob[h:]
+            for i,field in enumerate(range(0x18,0x8c,4)):
+                q=p+u32(blob,h+field)
+                for o,v in [(0,q),(4,c.read(q,4)),(8,c.read(q+4,4)),(12,c.read(q+8,4)),(16,q),(20,q+12)]:c.write(master+0x28+i*24+o,v,4)
+            save=u32(vr,0x59d364)
+            for key,source,name in LEGACY_UNITS:
+                vm.op(command(0x5a,key));slot=c.run(0x1abc50,[save,key,0,0]);assert slot>=0 and c.run(0x1a9b70,[save,slot,1])==1
+                assert c.run(0x1b1300,[save,slot,0])==-1 and c.run(0x1b01d0,[save,0x34,slot,0])==(65535 if key==0x607 else 1)
+                vm.op(command(0x5a,key));assert c.run(0x1abc50,[save,key,0,0])==slot
+                raw=blob[h+u32(blob,h+0x1c)+12+source*100:][:100]
+                for fn,want in ((0x1a7d40,u32(raw,0)),(0x1a7cc0,u16(raw,0x18)),(0x1a7b40,u16(raw,0x1a)),(0x1a7bc0,raw[0x53]),(0x1a7c40,raw[0x52])):assert c.run(fn,[master,key])==want
+                for weapon in struct.unpack_from('<16H',raw,0x24):
+                    if weapon!=65535:assert c.run(0x1a4a20,[master,weapon])>=0
+            for key in range(0x600,0x60d):
+                rec=0x1900000;c.write(rec+8,key,4);c.r[17]=rec;c.r[7]=31;c.run(0x114f88,stop=0x1af000)
+                assert c.r[7]==(1 if key in (0x600,0x601,0x602) or 0x606<=key<=0x60b else 31)
+            for key in (0xde5,0xde6):
+                allocations=[]
+                for repeat in range(2):
+                    before=bytes(c.mem);c.writes.clear();vm.op(command(0x5f,key,0))
+                    slots={a for a,z,pc in c.writes if pc==0x33513c and z==2 and c.read(a,2)==key and before[a:a+2]!=c.mem[a:a+2]}
+                    assert len(slots)==1;allocations.extend(slots)
+                assert len(set(allocations))==2
+        report['files'].append(dict(path=str(path),before_sha256=item['after_sha256'],edits=sorted(edits,key=lambda e:e['offset']),stories=stories,native_grants_verified=True,duplicates_prevented=True,original_master_records_preserved=True))
+        print(path.name,'legacy recruitment and native grant checks passed',flush=True)
+    journal['legacy_recruitment']=report;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        for item in report['files']:
+            inv,target,pos=hashlib.sha256(),hashlib.sha256(),0
+            with Path(item['path']).open('r+b') as f:
+                for e in item['edits']:
+                    a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert read(f,e['offset'],len(a))==a;f.seek(e['offset']);f.write(b)
+                f.flush();os.fsync(f.fileno());f.seek(0)
+                for e in item['edits']:
+                    while pos<e['offset']:
+                        raw=f.read(min(4<<20,e['offset']-pos));assert raw;inv.update(raw);target.update(raw);pos+=len(raw)
+                    a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert f.read(len(b))==b;inv.update(a);target.update(b);pos+=len(b)
+                while raw:=f.read(4<<20):inv.update(raw);target.update(raw)
+            assert inv.hexdigest()==item['before_sha256'];item['after_sha256']=target.hexdigest();print(Path(item['path']).name,'applied',item['after_sha256'],flush=True)
+        report['applied']=True;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+
+
+def weapon_cost_rebalance(apply=False):
+    """Only price curves and Rivale's price-tier bits; never growth bits."""
+    import psutil
+    from r5900_scalar_check import CPU
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    journal=json.loads(JOURNAL.read_text(encoding='utf-8'));previous=journal['legacy_recruitment'];assert previous['applied']
+    assert not journal.get('weapon_cost_rebalance',{}).get('applied'),'Already applied'
+    offset=0x94880+0x534e30-0x100000
+    expected=struct.pack('<80I',*(step*i for step in (2000,2400,4000,5200,6000) for i in range(16)))
+    target=struct.pack('<80I',*(step*i for step in (1600,1600,1920,3200,3200) for i in range(16)))
+    report=dict(applied=False,ten_stage_costs=[88000,88000,105600,176000,176000],
+        all_attack_growth_unchanged=True,rivale_cost_tiers=[0,1,2],files=[])
+    for item in previous['files']:
+        path=Path(item['path']);edits=[]
+        with path.open('rb') as f:
+            assert hashlib.file_digest(f,'sha256').hexdigest()==item['after_sha256']
+            old=read(f,offset,320);vanilla=struct.pack('<80I',*(step*i for step in (2000,3000,5000,6500,7500) for i in range(16)));assert old in (expected,vanilla)
+            edits.append(dict(offset=offset,before=old.hex(),after=target.hex()))
+            for base in (0x5da000,0x83f000):
+                blob=read(f,base,0x1a5800);h=0x11e800;wt=h+u32(blob,h+0x20);weap=h+u32(blob,h+0x24)
+                for tier,key in enumerate(range(0xf90,0xf93)):
+                    index=u16(blob,wt+12+key*2);p=weap+12+index*36+3;a=blob[p:p+1]
+                    assert a[0]&7==(1 if tier==2 else 0) and (a[0]>>3)&7==0
+                    b=bytes([(a[0]&~7)|tier])
+                    if a!=b:edits.append(dict(offset=base+p,before=a.hex(),after=b.hex()))
+            ram=(ROOT/'runtime/beowulf/current_user_ram.bin').read_bytes();c=CPU(ram)
+            c.mem[0x100000:0x582980]=read(f,0x94880,0x482980);c.mem[0x534e30:0x534f70]=target
+            # Execute the same menu lookup and invested-cost loop used in-game.
+            for tier in range(5):
+                for level in range(1,16):
+                    c.r[2]=tier;c.r[16]=(level-1)*4;c.r[17]=level-1;c.r[19]=0x1800000;c.write(0x1800000+0x53c,0,4)
+                    c.run(0x443858,stop=0x443880)
+                    assert c.read(0x1800000+0x53c,4)==u32(target,tier*64+level*4)
+                    c.r[2]=tier;c.r[3]=level;c.r[16]=0;c.run(0x334f98,stop=0x334fd8)
+                    assert c.r[16]==sum(u32(target,tier*64+i*4) for i in range(1,level+1))
+            assert all(sum(u32(target,t*64+i*4) for i in range(1,11))==report['ten_stage_costs'][t] for t in range(5))
+        report['files'].append(dict(path=str(path),before_sha256=item['after_sha256'],edits=sorted(edits,key=lambda e:e['offset']),native_menu_and_total_checks=75))
+        print(path.name,'price-only checks passed',flush=True)
+    journal['weapon_cost_rebalance']=report;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        for item in report['files']:
+            inv,targethash,pos=hashlib.sha256(),hashlib.sha256(),0
+            try:
+                with Path(item['path']).open('r+b') as f:
+                    for e in item['edits']:
+                        a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert read(f,e['offset'],len(a))==a;f.seek(e['offset']);f.write(b)
+                    f.flush();os.fsync(f.fileno());f.seek(0)
+                    for e in item['edits']:
+                        while pos<e['offset']:
+                            raw=f.read(min(4<<20,e['offset']-pos));assert raw;inv.update(raw);targethash.update(raw);pos+=len(raw)
+                        a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert f.read(len(b))==b;inv.update(a);targethash.update(b);pos+=len(b)
+                    while raw:=f.read(4<<20):inv.update(raw);targethash.update(raw)
+                assert inv.hexdigest()==item['before_sha256'];item['after_sha256']=targethash.hexdigest()
+            except Exception:
+                with Path(item['path']).open('r+b') as f:
+                    for e in item['edits']:f.seek(e['offset']);f.write(bytes.fromhex(e['before']))
+                raise
+            print(Path(item['path']).name,'applied',item['after_sha256'],flush=True)
+        report['applied']=True;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+
+
+def enemy_upgrade_plus2(apply=False):
+    import psutil
+    from validate_hidden_rewards import validate_enemy_strength
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    journal=json.loads(JOURNAL.read_text(encoding='utf-8'));previous=journal['weapon_cost_rebalance'];assert previous['applied']
+    assert not journal.get('enemy_upgrade_plus2',{}).get('applied'),'Already applied'
+    original=json.loads((ROOT/'runtime/enemy_strength_manifest.json').read_text(encoding='utf-8'))
+    offset=0x94880+original['layout']['spawn_helper']+7*4-0x100000
+    before=struct.pack('<I',0x24420001);after=struct.pack('<I',0x24420002)
+    proof=validate_enemy_strength([(offset,before,after)],original['layout'],upgrade_add=2,compare_vanilla=True)
+    report=dict(applied=False,body_and_weapon_upgrade_add=2,pilot_stat_add=5,native_caps_retained=True,checks=proof,files=[])
+    for item in previous['files']:
+        path=Path(item['path'])
+        with path.open('rb') as f:
+            assert hashlib.file_digest(f,'sha256').hexdigest()==item['after_sha256']
+            assert read(f,offset,4)==before
+        report['files'].append(dict(path=str(path),before_sha256=item['after_sha256'],edits=[dict(offset=offset,before=before.hex(),after=after.hex())]))
+    journal['enemy_upgrade_plus2']=report;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        for item in report['files']:
+            inv,target,pos=hashlib.sha256(),hashlib.sha256(),0
+            with Path(item['path']).open('r+b') as f:
+                assert read(f,offset,4)==before;f.seek(offset);f.write(after);f.flush();os.fsync(f.fileno());f.seek(0)
+                while pos<offset:
+                    raw=f.read(min(4<<20,offset-pos));assert raw;inv.update(raw);target.update(raw);pos+=len(raw)
+                assert f.read(4)==after;inv.update(before);target.update(after)
+                while raw:=f.read(4<<20):inv.update(raw);target.update(raw)
+            assert inv.hexdigest()==item['before_sha256'];item['after_sha256']=target.hexdigest()
+            print(Path(item['path']).name,'enemy upgrade +2 applied',item['after_sha256'],flush=True)
+        report['applied']=True;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(proof,ensure_ascii=False),flush=True)
+
+
+def upgrade_report():
+    """List actual player weapon records, keeping growth and price separate."""
+    from collections import defaultdict
+    path=ROOT/'build/SRWOGS_K.iso'
+    with path.open('rb') as f:
+        b=read(f,0x5da000,0x1a5800);h=0x11e800
+        def table(k):return h+u32(b,h+k)
+        st=table(0x80)
+        def name(i):
+            p=st+u32(b,st+12+i*4);return decode(b[p:b.index(0,p)])
+        s=Scripts(path);wp=0x5071000;units=set()
+        for n in range(min(144,u32(s.data,wp+4))):
+            at=wp+u32(s.data,wp+8+n*8)
+            for j in range(u32(s.data,at+40)):
+                a=at+44+j*336;key=u32(s.data,a)
+                if key<4096 and u32(s.data,a+8)==0:
+                    idx=u16(b,table(0x18)+12+key*2)
+                    if idx not in (0,1,65535):units.add(idx)
+        for key in range(0x600,0x60c):
+            idx=u16(b,table(0x18)+12+key*2)
+            if idx!=65535:units.add(idx)
+        weapons=defaultdict(set)
+        for idx in sorted(units):
+            a=table(0x1c)+12+idx*100;owner=name(u16(b,a+12))
+            for key in struct.unpack_from('<16H',b,a+0x24):
+                if key==65535:continue
+                wi=u16(b,table(0x20)+12+key*2)
+                if wi!=65535 and u16(b,table(0x24)+12+wi*36+8):weapons[wi].add(owner)
+        growth=[];cost=[]
+        for address,out in ((0x534bb4,growth),(0x534e30,cost)):
+            data=read(f,0x94880+address-0x100000,320)
+            for tier in range(5):
+                values=struct.unpack_from('<16I',data,tier*64);out.append(sum(values[:10]) if address==0x534bb4 else sum(values[1:11]))
+        rows=[]
+        for wi,owners in weapons.items():
+            a=table(0x24)+12+wi*36;ct=b[a+3]&7;gt=(b[a+3]>>3)&7
+            if ct<5 and gt<5:rows.append((ct,gt,name(u16(b,a+4)),wi,owners))
+        lines=['무기 개조 등급 — 현재 SRWOGS_K.iso 기준','비용과 공격력 상승량은 별도 등급입니다. 내부 등급은 0부터 시작합니다.',
+            'OG1·OG2 아군 배치 및 추가 지급 기체의 고정·기본 장착 무장 기준. 개조표 범위 밖의 특수 무장은 제외.','']
+        for tier in range(5):lines.append(f'공격력 상승 등급 {tier}: 10단계 +{growth[tier]} / 비용 등급 {tier}: 10단계 {cost[tier]:,}')
+        for ct in sorted(set(r[0] for r in rows),reverse=True):
+            lines+=['',f'=== 비용 등급 {ct} / 10단계 {cost[ct]:,} ===']
+            for _,gt,n,wi,owners in sorted((r for r in rows if r[0]==ct),key=lambda r:(r[1],r[2],r[3])):
+                lines.append(f'{n} | 상승등급 {gt} (+{growth[gt]}) | '+', '.join(sorted(owners))+f' | Weap[{wi}]')
+        out=ROOT/'runtime/무기_개조등급_목록.txt';out.write_text('\n'.join(lines),encoding='utf-8-sig')
+        print('Growth',growth,'cost',cost,'records',len(rows),flush=True)
+        for ct in (4,3):print('Cost tier',ct,sorted(set(n for c,g,n,wi,owners in rows if c==ct)),flush=True)
+        return out
+
+
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--repair-loading',action='store_true');ap.add_argument('--balance',action='store_true');ap.add_argument('--finisher-cost',action='store_true');ap.add_argument('--clear-bonus',action='store_true');ap.add_argument('--valcion-custom',action='store_true');args=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--repair-loading',action='store_true');ap.add_argument('--balance',action='store_true');ap.add_argument('--finisher-cost',action='store_true');ap.add_argument('--clear-bonus',action='store_true');ap.add_argument('--valcion-custom',action='store_true');ap.add_argument('--legacy-recruitment',action='store_true');ap.add_argument('--weapon-cost-rebalance',action='store_true');ap.add_argument('--enemy-upgrade-plus2',action='store_true');ap.add_argument('--upgrade-report',action='store_true');args=ap.parse_args()
+    if args.enemy_upgrade_plus2:return enemy_upgrade_plus2(args.apply)
+    if args.weapon_cost_rebalance:return weapon_cost_rebalance(args.apply)
+    if args.upgrade_report:return upgrade_report()
+    if args.legacy_recruitment:return legacy_recruitment(args.apply)
     if args.valcion_custom:return valcion_custom(args.apply)
     if args.clear_bonus:return clear_bonus(args.apply)
     if args.finisher_cost:return finisher_cost(args.apply)

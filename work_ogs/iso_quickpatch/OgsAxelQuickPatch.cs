@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261102";
+    private const string VersionText = "v20261102.1";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";
@@ -926,7 +926,7 @@ internal static class OgsAxelQuickPatch
             rewardsCheck.Text = "자금 +20% · PP 2배";
             rewardsCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             rewardsCheck.SetBounds(18, 60, 402, 28); options.Controls.Add(rewardsCheck);
-            enemyCheck.Text = "적 강화 (능력치 +5 · 개조 +1 · 저HP +10%)";
+            enemyCheck.Text = "적 강화 (능력치 +5 · 개조 +2 · 저HP +10%)";
             enemyCheck.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
             enemyCheck.SetBounds(430, 60, 405, 28); options.Controls.Add(enemyCheck);
             spiritsCheck.Text = "액셀·제오라 정신기 변경";

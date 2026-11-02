@@ -6,5 +6,9 @@
   "chapter11_clear_rewards_preserved": true,
   "all_profile_chapter11_bytes_identical": true,
   "valcion_refurbishment_and_chapter30_grant_verified": true,
+  "legacy_five_units_and_support_grants_verified": true,
+  "price_tables_and_rivale_tiers_verified": true,
+  "enemy_plus2_conditional_verified": true,
+  "hidden_off_branch_preserved": true,
   "live_playthrough": false
 }

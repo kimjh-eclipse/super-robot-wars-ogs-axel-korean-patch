@@ -518,13 +518,13 @@ def build_beowulf_extension():
             if out and at<=out[-1][1]+64:out[-1][1]=max(out[-1][1],end)
             else:out.append([at,end])
         return out
-    def differences(before,after,regions):
+    def differences(before,after,regions,gap=65):
         out=[]
         for a,b in regions:
             x=before.read(a,b-a);y=after.read(a,b-a)
             pos=np.flatnonzero(np.frombuffer(x,np.uint8)!=np.frombuffer(y,np.uint8))
             if not len(pos):continue
-            cuts=np.flatnonzero(np.diff(pos)>65);starts=np.r_[0,cuts+1];ends=np.r_[cuts,len(pos)-1]
+            cuts=np.flatnonzero(np.diff(pos)>gap);starts=np.r_[0,cuts+1];ends=np.r_[cuts,len(pos)-1]
             for i,j in zip(starts,ends):
                 lo,hi=int(pos[i]),int(pos[j])+1;out.append((a+lo,x[lo:hi],y[lo:hi]))
         return out
@@ -552,6 +552,13 @@ def build_beowulf_extension():
         ingram_path=ROOT/'runtime/ingram_rivale_manifest.json'
         if ingram_path.exists():
             ingram_layers=json.loads(ingram_path.read_text(encoding='utf-8'))
+            for layer in ('enemy_upgrade_plus2','weapon_cost_rebalance','legacy_recruitment'):
+                entry=ingram_layers.get(layer,{})
+                if entry.get('applied'):
+                    latest=next(x for x in entry['files'] if Path(x['path']).name=='SRWOGS_K.iso')
+                    assert latest['after_sha256'].upper()==composition_hash
+                    old.apply([(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after'])) for e in latest['edits']],True)
+                    composition_hash=latest['before_sha256'].upper()
             valcion=ingram_layers.get('valcion_custom',{})
             if valcion.get('applied'):
                 refurbished=next(x for x in valcion['files'] if Path(x['path']).name=='SRWOGS_K.iso')
@@ -621,9 +628,25 @@ def build_beowulf_extension():
                 end=base+0x1a5800
                 parts=[q for a,b in parts for q in ((a,min(b,base)),(max(a,end),b)) if q[0]<q[1]]
             nonmaster.extend(parts)
-        recent=differences(old,current,nonmaster)
+        current_common=current.clone()
+        enemy2=next(x for x in ingram_layers['enemy_upgrade_plus2']['files'] if Path(x['path']).name=='SRWOGS_K.iso')['edits']
+        enemy2=[(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after'])) for e in enemy2]
+        current_common.apply(enemy2,True)
+        legacy_file=next(x for x in ingram_layers['legacy_recruitment']['files'] if Path(x['path']).name=='SRWOGS_K.iso')
+        legacy_nonmaster=[(e['offset'],bytes.fromhex(e['before']),bytes.fromhex(e['after'])) for e in legacy_file['edits'] if not any(base<=e['offset']<base+0x1a5800 for base in (0x5da000,0x83f000))]
+        current_common.apply(legacy_nonmaster,True)
+        from build_ingram_rivale import legacy_scenes
+        # Definition indices refer to pre-insertion scripts, obtained by inverse journal.
+        import copy
+        legacy_source=copy.copy(scripts);legacy_source.data=bytearray(scripts.data)
+        for at,a,b in legacy_nonmaster:
+            if MAP<=at<MAP+len(legacy_source.data):legacy_source.data[at-MAP:at-MAP+len(a)]=a
+        wp=0x557f800
+        legacy_source.logos=[(wp+U(legacy_source.data,wp+8+n*8),U(legacy_source.data,wp+12+n*8)) for n in range(len(scripts.logos))]
+        legacy_def=legacy_scenes(legacy_source)
+        recent=differences(old,current_common,nonmaster)
         master_recent=differences(old,pre_ingram,[(b,b+0x1a5800) for b in (0x5da000,0x83f000)])
-        from build_ingram_rivale import master_patch as add_ingram, balance_master as balance_ingram, valcion_master
+        from build_ingram_rivale import master_patch as add_ingram, balance_master as balance_ingram, valcion_master, legacy_master
         core=old.clone();core.apply(common[31],True)
         for rows in features.values():core.apply(rows,True)
         core.apply(both,True);core.apply(hidden,True)
@@ -635,7 +658,25 @@ def build_beowulf_extension():
                 if mask&bit:v.apply(rows)
             v.apply(common[mask]);oldviews.append(v.clone());v.apply(recent);v.apply(master_recent)
             for base in (0x5da000,0x83f000):
-                new,_=add_ingram(v.read(base,0x1a5800));new,_=balance_ingram(new);v.put(base,valcion_master(new))
+                new,_=add_ingram(v.read(base,0x1a5800));new,_=balance_ingram(new);new=bytearray(legacy_master(valcion_master(new)))
+                h=0x11e800;wt=h+U(new,h+0x20);wa=h+U(new,h+0x24)
+                for tier,key in enumerate(range(0xf90,0xf93)):
+                    index=struct.unpack_from('<H',new,wt+12+key*2)[0];q=wa+12+index*36+3;new[q]=(new[q]&~7)|tier
+                v.put(base,new)
+            # Rebuild over each option's own script: never copy hidden-ON branches.
+            cursor=0x9130000
+            for n,scenes in sorted(legacy_def.items()):
+                dp=MAP+0x557f800+8+n*8;pointer=v.read(dp,8);at=MAP+0x557f800+U(pointer,0);length=U(pointer,4)
+                raw=v.read(at,length);new,notes=rebuild_beowulf_story_logo(raw,scenes)
+                allowed=tuple(tuple(r) for _,_,lines in scenes for _,r in lines)
+                fingerprint=hashlib.sha256(raw+new).digest()
+                if fingerprint not in validation_cache:validation_cache[fingerprint]=validate_story_blob(raw,new,notes,ram_fixture,allowed_commands=allowed)
+                assert not any(v.read(MAP+cursor,len(new)))
+                v.put(MAP+cursor,new);v.put(dp,struct.pack('<II',cursor-0x557f800,len(new)));cursor=(cursor+len(new)+2047)&~2047
+            assert cursor<0x9300000
+            span=MAP+0x800+8+14*8+4;v.put(span,struct.pack('<I',max(U(v.read(span,4),0),cursor-0x557e800)))
+            v.apply([e for e in legacy_nonmaster if e[0]<MAP])
+            if mask&8:v.apply(enemy2)
             off=v.clone();on=v.clone()
             for a,data in assets:on.put(a,data)
             for base in master_test:on.put(base,release_beowulf_master(on.read(base,0x1a5800),master_test[base]))
@@ -710,22 +751,32 @@ def build_beowulf_extension():
         # Retain both public six-option versions as independently guarded sources.
         import io,zipfile
         aliases=[]
-        for version in ('v20261101','v20261101.1'):
-            prefix='OGS_AxelSwap_QuickPatch_'+version
-            with zipfile.ZipFile(ROOT/('dist/'+prefix+'.zip')) as z:data=z.read(prefix+'/OGS_beowulf_options.bin')
-            prior=io.BytesIO(data);assert prior.read(8) in (b'OGSBEO01',b'OGSBEO02')
-            prev_size,prev_count,blob_count=struct.unpack('<QII',prior.read(16));assert (prev_size,prev_count)==(iso_size,64)
-            previous_blobs=[]
-            for _ in range(blob_count):
-                n=struct.unpack('<I',prior.read(4))[0];b=prior.read(n);assert len(b)==n;previous_blobs.append(b)
-            for mask in range(64):
-                assert U(prior.read(4),0)==mask
-                anchor=prior.read(32);source=prior.read(32);assert anchor.hex().upper()==anchors[mask&31]
-                rows=[]
-                for _ in range(U(prior.read(4),0)):
-                    at,n,a,b=struct.unpack('<QIII',prior.read(20));assert len(previous_blobs[a])==len(previous_blobs[b])==n
-                    rows.append((at,n,ident(previous_blobs[a])))
-                aliases.append((mask,source,anchor,rows))
+        # The last public pack already retains both older six-option releases.
+        prefix='OGS_AxelSwap_QuickPatch_v20261102'
+        with zipfile.ZipFile(ROOT/('dist/'+prefix+'.zip')) as z:data=z.read(prefix+'/OGS_beowulf_options.bin')
+        prior=io.BytesIO(data);assert prior.read(8)==b'OGSBEO02'
+        prev_size,prev_count,blob_count=struct.unpack('<QII',prior.read(16));assert (prev_size,prev_count)==(iso_size,64)
+        previous_blobs=[]
+        for _ in range(blob_count):
+            n=struct.unpack('<I',prior.read(4))[0];b=prior.read(n);assert len(b)==n;previous_blobs.append(b)
+        for mask in range(64):
+            assert U(prior.read(4),0)==mask
+            anchor=prior.read(32);source=prior.read(32);assert anchor.hex().upper()==anchors[mask&31]
+            rows=[]
+            for _ in range(U(prior.read(4),0)):
+                at,n,a,b=struct.unpack('<QIII',prior.read(20));assert len(previous_blobs[a])==len(previous_blobs[b])==n
+                rows.append((at,n,ident(previous_blobs[a])))
+            aliases.append((mask,source,anchor,rows))
+        count=U(prior.read(4),0);assert count==128
+        for j in range(count):
+            mask=U(prior.read(4),0);source=prior.read(32);anchor=prior.read(32)
+            assert mask==j%64 and anchor.hex().upper()==anchors[mask&31]
+            rows=[]
+            for _ in range(U(prior.read(4),0)):
+                at,n,blob=struct.unpack('<QII',prior.read(16));assert len(previous_blobs[blob])==n
+                rows.append((at,n,ident(previous_blobs[blob])))
+            aliases.append((mask,source,anchor,rows))
+        assert not prior.read(1) and len(aliases)==192
         dest=HERE/'OGS_beowulf_options.bin';tmp=dest.with_suffix('.tmp')
         with tmp.open('wb') as out:
             out.write(b'OGSBEO02');out.write(struct.pack('<QII',iso_size,64,len(pool)))
@@ -739,7 +790,7 @@ def build_beowulf_extension():
                 for row in rows:out.write(struct.pack('<QII',*row))
             out.flush();os.fsync(out.fileno())
         tmp.replace(dest)
-        report=dict(version='v20261102',bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),
+        report=dict(version='v20261102.1',bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),
             defaults=0,hashes=hashes,anchors=anchors,profile_count=64,story_validation=proof,
             episode6_test_excluded=True,production_master_records_preserved=True,
             gameplay_ISO_read_only=True,production_sha256=current_hash,pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,
@@ -751,7 +802,7 @@ def package_beowulf_options():
     import json,zipfile
     profiles=json.loads((ROOT/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
     checks=json.loads((ROOT/'runtime/beowulf_patcher_validation.json').read_text(encoding='utf-8'))
-    assert checks['passed'] and len(checks['actual_iso_cases'])==7
+    assert checks['passed'] and len(checks['actual_iso_cases'])==9
     assert checks['actual_iso_cases'][0]['sha256'].upper()==profiles['hashes'][0]
     assert checks['actual_iso_cases'][1]['sha256'].upper()==profiles['hashes'][63]
     ingram=json.loads((ROOT/'runtime/ingram_profiles_validation.json').read_text(encoding='utf-8'))
@@ -764,7 +815,7 @@ def package_beowulf_options():
     files=[HERE/n for n in required]+sorted(HERE.glob('OGS_ISO_ranges_upgrade*.bin'))
     assert all(p.exists() for p in files)
     readme=HERE/'읽어주세요.txt'
-    readme.write_text('''슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261102
+    readme.write_text('''슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261102.1
 
 OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 ISO를 선택하고
 원하는 옵션을 체크한 뒤 [패치 적용]을 누르세요.
@@ -775,7 +826,7 @@ OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 IS
 1. 숨겨진 요소 자동 습득 (OG2)
 2. 오우카 생존 + 젠가 밸런스
 3. 자금 +20% · PP 2배
-4. 적 강화: 파일럿 능력치 +5, 기본 개조 +1단,
+4. 적 강화: 파일럿 능력치 +5, 기본 개조 +2단,
    기본 HP 20,000 미만인 적의 HP +10% (개조 상한 유지)
 5. 액셀·제오라 정신기 변경
    액셀: 불굴→철벽(SP20), 트윈 예측→혼(SP50), 각성 SP50
@@ -791,12 +842,15 @@ OGs 한글패치 v1.4.3s1 적용 ISO 또는 지원되는 이전 액셀 패치 IS
 이미 지나간 화의 합류·보상은 소급 지급되지 않습니다.
 
 공통 변경
+· 완결판: 영식·휴케바인009·Mk-II트롬베·F-28멧서·지간스쿠드 동시 지급, OG2 수리·보급장치 각2개
+· 무기 개조비용: 10단계 0/1등급88000, 2등급105600, 3/4등급176000. 공격력 상승량 유지
+· 리바레 무장 비용등급0/1/2, 공격력 상승등급 모두0 유지
 · 30화 종료 후 OG1 회수 기체를 개수한 발시온 개를 미탑승 범용기로 추가 지급. 정비진 설명 대사 포함
 · 발시온 개 HP9000·EN300·장갑2100·운동성120·이동력6, 원본 무장 공격력+700. 원래 적 기체와 별도 데이터
 · 11화 모의전 종료 후 기지 습격 장면에서 다른 차원의 잉그램·R-GUN 리바레 등장, 전투 후 정식 합류
 · 리바레 HP8300·장갑2100·운동성120, 잉그램 기본 격투146·사격151
 · 로슈 블레이드3900, 건슬레이브4100·탄수15, 아키시온 버스터4900
-· 세 무장 공격력 개조 상승 등급은 콜드 메탈 나이프와 동일. 비용은 앞의 두 무장 최저 등급, 아키시온 버스터는 한 단계 위
+· 세 무장 공격력 개조 상승 등급은 콜드 메탈 나이프와 동일. 비용등급은 로슈 블레이드0, 건슬레이브1, 아키시온 버스터2
 · 잉그램 직격→집중(SP15·Lv16), 다른 정신기와 트윈 예측은 유지
 · 11화 종료 후 G 임팩트 스테이크·네오 차크람 슈터·스텔스 부메랑·고성능 레이더·메가 제너레이터 각1개 추가 지급
 · 11화 격납고의 안쥬르그 외형 대사를 소울게인의 콧수염을 화제로 수정
@@ -817,7 +871,7 @@ ISO를 직접 수정하며 작업 직전 구간을 <ISO명>.ogsbak으로 백업�
 이전 세이브 스테이트는 구 코드와 데이터를 복원하므로 사용하지 마세요.
 
 검증: 기존 32개 배포 조합의 해시, 신규 64개 조합의 전체 ISO 해시,
-기존 옵션 5,120개 바이트 전환, 신규 및 이전 버전 12,288개 전환 경로,
+기존 옵션 5,120개 바이트 전환, 신규 및 이전 버전 16,384개 전환 경로,
 실제 ISO 기본 설치·전체 옵션 켜기/끄기·백업 복원 확인.
 새 시나리오 전체의 실기 플레이 검증을 뜻하지는 않습니다.
 
@@ -827,9 +881,9 @@ ISO는 포함하지 않습니다. 이 파일은 로컬 배포 준비본이며 Gi
     sums=HERE/'SHA256SUMS.txt'
     sums.write_text(''.join(file_hash(p)+'  '+p.name+'\n' for p in files),encoding='utf-8-sig')
     files.append(sums)
-    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261102.zip'
+    out=ROOT/'dist/OGS_AxelSwap_QuickPatch_v20261102.1.zip'
     out.parent.mkdir(exist_ok=True);tmp=out.with_suffix('.tmp')
-    prefix='OGS_AxelSwap_QuickPatch_v20261102/'
+    prefix='OGS_AxelSwap_QuickPatch_v20261102.1/'
     with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
         for p in files:z.write(p,prefix+p.name)
     tmp.replace(out)
@@ -875,7 +929,7 @@ OGS_AxelSwap_QuickPatch.exe를 실행하고 원하는 옵션을 체크한 뒤 [�
 2. 오우카 생존 + 젠가 밸런스: 44화 양쪽 루트 오우카 합류·45화 후속 대사 및 다이젠가 강화 묶음.
 3. 자금 +20% · PP 2배: 적 격추 보상에 적용. 이벤트 지급은 변경하지 않습니다.
 4. 적 강화: 적 파일럿 격투·사격·기량·방어·명중·회피 각 +5,
-   적 기체·무기 기본 개조 +1단, 기본 HP20,000미만 적의 기본HP10% 추가. 원래 개조 상한은 유지합니다.
+   적 기체·무기 기본 개조 +2단, 기본 HP20,000미만 적의 기본HP10% 추가. 원래 개조 상한은 유지합니다.
 5. 액셀·제오라 정신기 변경:
    액셀 불굴 → 철벽(SP20), 트윈 예측 → 혼(SP50), 각성 SP50.
    제오라 저격 → 번뜩임(SP10), 철벽 → 가속(SP10).

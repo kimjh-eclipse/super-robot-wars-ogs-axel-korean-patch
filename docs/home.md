@@ -2,9 +2,9 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261102**
+현재 버전: **v20261102.1**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261102/SRWOGS_AxelRoleSwap_kr_v20261102.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261102) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261102.1/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261102.1) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 ## 적용 방법
 
@@ -18,17 +18,17 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 | 숨겨진 요소 자동 습득 (OG2) | 원래 획득 시점의 조건 해제 |
 | 오우카 생존 + 젠가 밸런스 | 44화 양쪽 루트 오우카 합류·45화 후속 대사, 다이젠가 강화·8무장 통합 |
 | 자금 +20% · PP 2배 | 적 격추 보상 증가 |
-| 적 강화 | 적 파일럿 6개 능력치 +5, 기체·무기 기본 개조 +1단, 기본 HP 20,000 미만 적 HP +10% |
+| 적 강화 | 적 파일럿 6개 능력치 +5, 기체·무기 기본 개조 +2단, 기본 HP 20,000 미만 적 HP +10% |
 | 액셀·제오라 정신기 변경 | 액셀 철벽·혼·각성 SP 조정, 제오라 번뜩임·가속 |
 | 베오울프 등장 | 알피미와 함께 적 등장·추가 시나리오, 6화 시험 배치 제외 |
 
 같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.
 
-기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
+기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
 
 ## 이번 업데이트
 
-11화 잉그램·R-GUN 리바레 합류와 추가 보상, 30화 발시온 개 지급을 추가했습니다. 11화 격납고 대사와 추가 이벤트 분기도 교정했습니다. 기존 여섯 옵션은 유지합니다.
+**OGs 액셀패치 완결판**입니다. OG1 기체 5종 동시 지급, 지원장치 각2개, 전 등급 무기 개조비용 조정과 리바레 비용등급0/1/2, 적 강화 +2단계를 반영했습니다. 전체 입수 시점은 릴리즈 노트에 표로 정리했습니다.
 
 ## 기본 적용 사항
 
@@ -49,15 +49,15 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261102.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261102.1.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261102.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261102.1.xdelta" "출력.iso"
 ```
 
 ## 검증
 
-64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 12,288개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
+64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 16,384개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
 
 모든 조합의 ISO 크기는 4,518,150,144바이트입니다. 각 결과 해시는 ZIP의 `옵션별_ISO_SHA256.json`에 있습니다.
 
