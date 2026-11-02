@@ -216,7 +216,7 @@ def validate_riese_night_head():
     (ART/'riese_night_head_validation.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
-def validate_story_blob(old,new,notes,ram):
+def validate_story_blob(old,new,notes,ram,allowed_commands=()):
     """Independent index/branch/text preservation checks, using native lookups."""
     from build_beowulf_prototype import u16
     from r5900_scalar_check import CPU
@@ -240,7 +240,7 @@ def validate_story_blob(old,new,notes,ram):
     desc=u32(old,0x34);ndesc=u32(new,0x34)
     for i in range(u32(old,0x30)):
         off=desc+i*16;kind=u32(old,off);target=u32(old,off+8)
-        expect=prefix+moved(target-prefix) if kind and target>=prefix else target
+        expect=moved(target) if kind else target
         assert new[ndesc+i*16:ndesc+i*16+8]==old[off:off+8]
         assert new[ndesc+i*16+12:ndesc+i*16+16]==old[off+12:off+16]
         assert u32(new,ndesc+i*16+8)==expect
@@ -276,7 +276,7 @@ def validate_story_blob(old,new,notes,ram):
         start=point+sum(v for p,v in inc.items() if p<point)
         for i in range(start,start+n):
             r=struct.unpack_from('<24I',new,co+i*96);added.append(r[0])
-            assert r[0] in (0x30,0x81)
+            assert r[0] in (0x30,0x81) or r in allowed_commands
             if r[0]==0x81:assert r[2:5]==(0x100a5,0x603,0xce)
     assert u32(new,4)==u32(new,0x6c)==len(new)
     return dict(passed=True,old_commands_preserved=count,relative_branch_fields_verified=branches,
@@ -488,6 +488,62 @@ def validate_spelling_profiles():
     print('PASS: 64 profiles differ from v20261101 only in Korean name spelling.',flush=True)
 
 
+def validate_ingram_profiles():
+    """Read the emitted pack independently; verify common Ingram data in all 64 profiles."""
+    import io
+    from build_beowulf_prototype import u16
+    from build_hidden_rewards import MAP
+    root=Path(__file__).resolve().parent;data=(root/'iso_quickpatch/OGS_beowulf_options.bin').read_bytes();f=io.BytesIO(data)
+    assert f.read(8)==b'OGSBEO02';size,count,nb=struct.unpack('<QII',f.read(16));assert count==64
+    pool=[]
+    for _ in range(nb):n=struct.unpack('<I',f.read(4))[0];pool.append(f.read(n));assert len(pool[-1])==n
+    current=__import__('build_hidden_rewards').Scripts();cp,cn=current.logos[79];chapter=current.data[cp:cp+cn]
+    verified=[]
+    with (root/'build/SRWOGS_K.iso').open('rb') as iso:
+        for mask in range(64):
+            assert struct.unpack('<I',f.read(4))[0]==mask;f.read(64);rows=[]
+            for _ in range(struct.unpack('<I',f.read(4))[0]):
+                at,n,a,b=struct.unpack('<QIII',f.read(20));assert len(pool[a])==len(pool[b])==n;rows.append((at,pool[b]))
+            def get(at,n):
+                iso.seek(at);out=bytearray(iso.read(n))
+                for p,b in rows:
+                    lo,hi=max(p,at),min(p+len(b),at+n)
+                    if lo<hi:out[lo-at:hi-at]=b[lo-p:hi-p]
+                return bytes(out)
+            for base in (0x5da000,0x83f000):
+                b=get(base,0x1a5800);h=0x11e800;ut,u,wt,w,pt,p=[h+u32(b,h+k) for k in (0x18,0x1c,0x20,0x24,0x28,0x2c)]
+                ui,pi=u16(b,ut+12+0x605*2),u16(b,pt+12+0x604*2);assert pi==382
+                unit=b[u+12+ui*100:u+12+(ui+1)*100];pilot=b[p+12+pi*148:p+12+(pi+1)*148]
+                assert u32(unit,0)==8300 and u16(unit,0x1a)==2100 and unit[0x53]==120
+                assert list(pilot[0x65:0x67])==[146,151]
+                assert (pilot[0x71],pilot[0x77],pilot[0x7d])==(6,15,16)
+                vi=u16(b,ut+12+0x606*2);valcion=b[u+12+vi*100:u+12+(vi+1)*100]
+                assert (u32(valcion,0),u16(valcion,0x18),u16(valcion,0x1a),valcion[0x53],u16(valcion,0x22))==(9000,300,2100,120,65535)
+                assert struct.unpack_from('<4H',valcion,0x24)==tuple(range(0xfa0,0xfa4))
+                for key,power in zip(range(0xfa0,0xfa4),(3900,5000,2700,3100)):
+                    wi=u16(b,wt+12+key*2);assert u16(b,w+12+wi*36+8)==power
+                assert struct.unpack_from('<3H',unit,0x24)==(0xf90,0xf91,0xf92)
+                for key,power in zip((0xf90,0xf91,0xf92),(3900,4100,4900)):
+                    wi=u16(b,wt+12+key*2);rec=b[w+12+wi*36:w+12+(wi+1)*36]
+                    assert u16(rec,8)==power and (rec[3]&63)==(1 if key==0xf92 else 0)
+                    if key==0xf91:assert rec[0x19]==15
+            wp=MAP+0x557f800;dp=get(wp+8+79*8,8);off,n=struct.unpack('<II',dp);got=get(wp+off,n)
+            assert got==chapter,'11화 공통 시나리오가 옵션에 따라 달라짐'
+            co=u32(got,0x2c);nr=u32(got,0x28);rs=[struct.unpack_from('<24I',got,co+i*96) for i in range(nr)]
+            assert sum(r[:4]==(0xc5,0xdeaddead,0x25,0xffffffff) for r in rs)==1
+            assert [(r[0],r[2]) for r in rs[-8:-3]]==[(0x5f,0xdac),(0x5f,0xdc2),(0x5f,0xdba),(0x5b,21),(0x5b,35)]
+            assert rs[-3][:4]==(0x9c,0xdeaddead,7,0);verified.append(mask)
+            dp=get(wp+8+96*8,8);off,n=struct.unpack('<II',dp);got=get(wp+off,n);orig,z=current.logos[96]
+            assert got==current.data[orig:orig+z]
+            co=u32(got,0x2c);nr=u32(got,0x28);last=[struct.unpack_from('<24I',got,co+i*96) for i in range(nr-4,nr)]
+            assert last[0][:3]==(0x5a,0xdeaddead,0x606) and last[1][:4]==(0x9c,0xdeaddead,24,0)
+    result=dict(passed=True,profiles_checked=len(verified),both_masters_verified=True,
+        ingram_recruitment_stats_spirits_weapons_preserved=True,chapter11_clear_rewards_preserved=True,
+        all_profile_chapter11_bytes_identical=True,valcion_refurbishment_and_chapter30_grant_verified=True,live_playthrough=False)
+    (root/'runtime/ingram_profiles_validation.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('PASS: Ingram/Rivale and episode11 rewards in all 64 patch profiles.',flush=True)
+
+
 def validate_patcher_e2e():
     import shutil,subprocess,time
     root=Path(__file__).resolve().parent
@@ -511,11 +567,28 @@ def validate_patcher_e2e():
         assert digest.lower()==profiles['hashes'][mask].lower(),(name,digest,profiles['hashes'][mask])
         cases.append(dict(name=name,mask=mask,sha256=digest,seconds=round(time.time()-start,2)))
         print('PASS actual ISO:',name,digest,flush=True)
-    # Reconstruct the actual previously released all-five-on profile using the
-    # reversible spelling journal, then exercise the compiled migration path.
+    # Reconstruct the public .1 profile by reversing only the local feature layers.
     spelling=json.loads((root/'runtime/beowulf_spelling_manifest.json').read_text(encoding='utf-8'))
     prior=next(x for x in spelling['files'] if Path(x['path']).name=='SRWOGS_K.iso')
     shutil.copyfile(root/'build/SRWOGS_K.iso',scratch)
+    ingram=json.loads((root/'runtime/ingram_rivale_manifest.json').read_text(encoding='utf-8'))
+    hangar=json.loads((root/'runtime/soulgain_hangar_dialogue.json').read_text(encoding='utf-8'))
+    with scratch.open('r+b') as f:
+        layers=[next(x['edits'] for x in ingram[layer]['files'] if Path(x['path']).name=='SRWOGS_K.iso') for layer in ('valcion_custom','mobility_fix','clear_bonus','balance_fix','loading_fix')]
+        layers+=[next(x['edits'] for x in hangar['plans'] if Path(x['path']).name=='SRWOGS_K.iso'),
+            next(x['edits'] for x in ingram['files'] if Path(x['path']).name=='SRWOGS_K.iso')]
+        for es in layers:
+            for e in es:
+                a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after'])
+                f.seek(e['offset']);assert f.read(len(b))==b;f.seek(e['offset']);f.write(a)
+    with scratch.open('rb') as f:assert hashlib.file_digest(f,'sha256').hexdigest()==prior['after_sha256']
+    for name,flags,expected in [('v20261101.1_upgrade',['--hidden','--bundle','--rewards','--enemy','--spirits','--beowulf'],profiles['hashes'][63]),
+                              ('restore_previous_release',['--restore'],prior['after_sha256'])]:
+        start=time.time();r=subprocess.run([str(exe),str(scratch),'--cli']+flags,cwd=exe.parent,capture_output=True,text=True)
+        assert r.returncode==0,(name,r.stdout,r.stderr)
+        with scratch.open('rb') as f:digest=hashlib.file_digest(f,'sha256').hexdigest()
+        assert digest.lower()==expected.lower();cases.append(dict(name=name,sha256=digest,seconds=round(time.time()-start,2)))
+        print('PASS actual ISO:',name,digest,flush=True)
     with scratch.open('r+b') as f:
         for e in prior['edits']:
             a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after'])
@@ -527,10 +600,10 @@ def validate_patcher_e2e():
     assert r.returncode==0,(r.stdout,r.stderr)
     with scratch.open('rb') as f:digest=hashlib.file_digest(f,'sha256').hexdigest()
     assert digest.upper()==profiles['hashes'][63]
-    cases.append(dict(name='v20261101_to_spelling_fix',mask=63,sha256=digest,seconds=round(time.time()-start,2)))
+    cases.append(dict(name='v20261101_upgrade',mask=63,sha256=digest,seconds=round(time.time()-start,2)))
     print('PASS actual ISO: v20261101 update',digest,flush=True)
     result=dict(passed=True,actual_iso_cases=cases,legacy_option_byte_transitions=5120,
-        beowulf_profile_hash_chains=8192,profile_count=64,baseline_and_legacy_anchors_verified=True,
+        beowulf_profile_hash_chains=12288,profile_count=64,baseline_and_legacy_anchors_verified=True,
         episode6_test_excluded=profiles['episode6_test_excluded'],gameplay_ISO_modified=False)
     (root/'runtime/beowulf_patcher_validation.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     # Only remove the explicitly named scratch artifacts created by this verifier.
@@ -541,7 +614,8 @@ def validate_patcher_e2e():
 
 if __name__=='__main__':
     import sys
-    if '--spelling-profiles' in sys.argv:validate_spelling_profiles()
+    if '--ingram-profiles' in sys.argv:validate_ingram_profiles()
+    elif '--spelling-profiles' in sys.argv:validate_spelling_profiles()
     elif '--patcher-e2e' in sys.argv:validate_patcher_e2e()
     elif '--story' in sys.argv:validate_story()
     elif '--balance' in sys.argv:validate_balance()

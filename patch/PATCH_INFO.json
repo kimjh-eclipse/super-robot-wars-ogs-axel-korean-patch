@@ -1,26 +1,26 @@
 {
-  "version": "v20261101.1",
-  "status": "RELEASED",
-  "previous": "v20261101",
-  "built": "2026-11-01",
+  "version": "v20261102",
+  "status": "PREPARED",
+  "previous": "v20261101.1",
+  "built": "2026-11-02",
   "base_iso": {
     "size": 4518150144,
     "sha256": "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C"
   },
   "result_iso": {
     "size": 4518150144,
-    "sha256": "DA87952538DC9A1C6E51CA4360C21CFDC776254BCF9F6A8BC7B1AECF9FAEF484"
+    "sha256": "474D4DB4DEF9BBFFB3DAE3BCC953E432D6A4BDD229165A5FF42F88CF0F7880EB"
   },
   "patch": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261101.1.xdelta",
-    "size": 6344562,
-    "sha256": "D92A31D0872B085A0858AE9AF90A7D31E431B5022A505FE0692E1898CE991D99",
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261102.xdelta",
+    "size": 6403123,
+    "sha256": "DD67AA6CEC3712165034F786D4A095C63D95F07881050C965392B0C867DFB87A",
     "verified": "xdelta decode SHA256 matches default profile"
   },
   "release_zip": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261101.1.zip",
-    "size": 121994533,
-    "sha256": "E4F5EF38F3AE457BF774AFD61B2431A278B24DBC5017CDBE44108CA46C6379BE"
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261102.zip",
+    "size": 127541063,
+    "sha256": "199785EABBCF746A3D43FD5B5E1262392DA308414FE93787207B443D2256F4C4"
   },
   "options": {
     "hidden": 1,
@@ -39,36 +39,46 @@
       {
         "name": "base_to_off",
         "mask": 0,
-        "sha256": "da87952538dc9a1c6e51ca4360c21cfdc776254bcf9f6a8bc7b1aecf9faef484",
-        "seconds": 10.63
+        "sha256": "474d4db4def9bbffb3dae3bcc953e432d6a4bdd229165a5ff42f88cf0f7880eb",
+        "seconds": 10.35
       },
       {
         "name": "off_to_all_on",
         "mask": 63,
-        "sha256": "44ef362e91ebb9d2404b2cc6c8858a3a0fab39325479f6f16fbb5cfce1ba81ea",
-        "seconds": 10.52
+        "sha256": "9c08d393bba6ea45dc351d288f4f58627efb3557b658c45b8d1f344bc23e62de",
+        "seconds": 12.84
       },
       {
         "name": "all_on_to_off",
         "mask": 0,
-        "sha256": "da87952538dc9a1c6e51ca4360c21cfdc776254bcf9f6a8bc7b1aecf9faef484",
-        "seconds": 10.76
+        "sha256": "474d4db4def9bbffb3dae3bcc953e432d6a4bdd229165a5ff42f88cf0f7880eb",
+        "seconds": 28.06
       },
       {
         "name": "restore",
         "mask": 63,
-        "sha256": "44ef362e91ebb9d2404b2cc6c8858a3a0fab39325479f6f16fbb5cfce1ba81ea",
-        "seconds": 6.38
+        "sha256": "9c08d393bba6ea45dc351d288f4f58627efb3557b658c45b8d1f344bc23e62de",
+        "seconds": 6.91
       },
       {
-        "name": "v20261101_to_spelling_fix",
+        "name": "v20261101.1_upgrade",
+        "sha256": "9c08d393bba6ea45dc351d288f4f58627efb3557b658c45b8d1f344bc23e62de",
+        "seconds": 11.06
+      },
+      {
+        "name": "restore_previous_release",
+        "sha256": "77b745a8082cede805fe39d38c02cecd859ed69d4765ca9ef76f51065411f7af",
+        "seconds": 6.14
+      },
+      {
+        "name": "v20261101_upgrade",
         "mask": 63,
-        "sha256": "44ef362e91ebb9d2404b2cc6c8858a3a0fab39325479f6f16fbb5cfce1ba81ea",
-        "seconds": 11.27
+        "sha256": "9c08d393bba6ea45dc351d288f4f58627efb3557b658c45b8d1f344bc23e62de",
+        "seconds": 9.97
       }
     ],
     "legacy_option_byte_transitions": 5120,
-    "beowulf_profile_hash_chains": 8192,
+    "beowulf_profile_hash_chains": 12288,
     "profile_count": 64,
     "baseline_and_legacy_anchors_verified": true,
     "episode6_test_excluded": true,
@@ -82,6 +92,10 @@
     "build_hidden_rewards.py",
     "validate_hidden_rewards.py",
     "release_build_v20261024.py",
-    "audit_shadowmirror_dialogue.py"
+    "audit_shadowmirror_dialogue.py",
+    "build_ingram_rivale.py",
+    "ogs_korean_codec.py",
+    "r5900_scalar_check.py",
+    "build_og2new_tone_pass26.py"
   ]
 }

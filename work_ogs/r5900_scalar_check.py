@@ -145,6 +145,18 @@ class CPU:
                 elif fn in (50,60,62): self.fcc={50:lambda:f(d)==f(t),60:lambda:f(d)<f(t),62:lambda:f(d)<=f(t)}[fn]()
                 else: raise NotImplementedError(f'COP1.S {pc:X}/{w:X}')
             else: raise NotImplementedError(f'COP1 {pc:X}/{w:X}')
+        elif op==28:  # Packed operations used by the native aligned strlen.
+            x,y=self.r[s]&MASK128,self.r[t]&MASK128
+            if fn==8 and sh==9:  # PSUBB: wrapping subtraction in sixteen byte lanes.
+                value=sum(((((x>>(i*8))&255)-((y>>(i*8))&255))&255)<<(i*8) for i in range(16))
+            elif fn==9 and sh==14:  # PCPYLD: low doublewords, RS above RT.
+                value=((x&MASK64)<<64)|(y&MASK64)
+            elif fn==41 and sh==14: # PCPYUD: upper doublewords, RT above RS.
+                value=((y>>64)<<64)|(x>>64)
+            elif fn==9 and sh==18:value=x&y  # PAND
+            elif fn==41 and sh==19:value=(~(x|y))&MASK128  # PNOR
+            else:raise NotImplementedError(f'MMI {pc:08X}: {w:08X}')
+            if d:self.r[d]=value
         elif op==49:self.fpr[t]=self.read(addr,4)  # lwc1, bit-preserving
         elif op==57:self.write(addr,self.fpr[t],4) # swc1, bit-preserving
         elif op in (31,40,41,43,63):

@@ -2,9 +2,9 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261101.1**
+현재 버전: **v20261102**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261101.1/SRWOGS_AxelRoleSwap_kr_v20261101.1.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261101.1) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261102/SRWOGS_AxelRoleSwap_kr_v20261102.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261102) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 ## 적용 방법
 
@@ -24,15 +24,16 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 
 같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.
 
-기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
+기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
 
 ## 이번 업데이트
 
-인물 이름을 베오울프로 통일했습니다. v20261101 적용본도 업데이트할 수 있습니다.
-
-럭키 발동률을 레벨당 3%로 조정하고, 타스크·아라드는 레벨 60에 럭키 9레벨을 달성하도록 변경했습니다. 47화 W16 장면의 레몬·라미아 호칭과 대사도 교정했습니다. 베오울프 등장은 선택 옵션입니다.
+11화 잉그램·R-GUN 리바레 합류와 추가 보상, 30화 발시온 개 지급을 추가했습니다. 11화 격납고 대사와 추가 이벤트 분기도 교정했습니다. 기존 여섯 옵션은 유지합니다.
 
 ## 기본 적용 사항
+
+- **11화 잉그램·R-GUN 리바레 합류** 및 클리어 후 무기·강화파츠 5종 지급.
+- **30화 종료 후 발시온 개 지급**. HP9000·EN300·장갑2100·운동성120·무장 공격력+700, 기체만 지급.
 
 - **아군 슬레이드겔미르** HP8300·장갑2100·6무장 공격력+200. 성체의태도 P/사거리1~2/배리어 관통. 적 원형은 유지합니다.
 - **44화 마지막 결전 후 워단(W15)이 생환하여 슬레이드겔미르에 합류**합니다. 기존 기체와 개조값을 재사용하며 다른 탑승 파일럿 기록은 유지합니다. 오우카 생존 옵션과 별개로 기본 적용됩니다.
@@ -48,15 +49,15 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261101.1.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261102.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261101.1.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261102.xdelta" "출력.iso"
 ```
 
 ## 검증
 
-64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 8,192개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
+64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 12,288개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
 
 모든 조합의 ISO 크기는 4,518,150,144바이트입니다. 각 결과 해시는 ZIP의 `옵션별_ISO_SHA256.json`에 있습니다.
 

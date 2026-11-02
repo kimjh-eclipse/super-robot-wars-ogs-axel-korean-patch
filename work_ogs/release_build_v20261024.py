@@ -588,56 +588,19 @@ def publish_options_release():
 def prepare_six_option_release():
     """Package the independently verified six-option patcher, not the gameplay ISO."""
     import zipfile
-    version='v20261101.1';repo=ROOT/'ogs-repo';dist=W/'dist'
+    version='v20261102';repo=ROOT/'ogs-repo';dist=W/'dist'
     profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
     tested=json.loads((W/'runtime/beowulf_patcher_validation.json').read_text(encoding='utf-8'))
     package=json.loads((W/'runtime/beowulf_patcher_package.json').read_text(encoding='utf-8'))
     assert tested['passed'] and profiles['profile_count']==64
     quick=Path(package['zip']);assert sha(quick).upper()==package['sha256'].upper()
-    scratch=W/'runtime/RELEASE_VERIFY.iso';decoded=W/'runtime/RELEASE_DECODE.iso'
-    assert not scratch.exists() and not decoded.exists()
-    baseline=W/'baseline/srwogs-v1.4.3s1.iso';xdelta=ROOT/'xdelta.exe'
     delta=dist/('SRWOGS_AxelRoleSwap_kr_'+version+'.xdelta')
-    shutil.copyfile(baseline,scratch)
-    exe=W/'iso_quickpatch/OGS_AxelSwap_QuickPatch.exe'
-    p=subprocess.run([str(exe),str(scratch),'--cli'],cwd=exe.parent,capture_output=True,text=True)
-    assert p.returncode==0,p.stdout+p.stderr
-    assert sha(scratch).upper()==profiles['hashes'][0]
-    print('Release default ISO verified',flush=True)
-    subprocess.run([str(xdelta),'-f','-e','-s',str(baseline),str(scratch),str(delta)],check=True,capture_output=True)
-    subprocess.run([str(xdelta),'-f','-d','-s',str(baseline),str(delta),str(decoded)],check=True,capture_output=True)
-    assert sha(decoded).upper()==profiles['hashes'][0]
-    print('xdelta decode verified',flush=True)
-    for p in [scratch,decoded,Path(str(scratch)+'.ogsbak')]:
-        assert p.resolve().parent==(W/'runtime').resolve()
-        if p.exists():p.unlink()
-    notes='''## 이번 교정
-
-인물 이름을 **베오울프**로 통일했습니다. 게임 안 이름·시나리오·전투 대사와 패처·문서에 반영했습니다. v20261101 적용본도 옵션 상태를 선택해 업데이트할 수 있습니다. 이름 외의 게임 동작은 유지합니다.
-
-## v20261101 변경사항 유지
-
-- **베오울프 등장**을 여섯 번째 선택 옵션으로 추가했습니다. 기본값은 꺼짐입니다. 알피미와 함께 적으로 등장하는 추가 시나리오, 전용 기체 이미지·초상화·컷인을 포함합니다. 전투 음성은 쿄스케의 것을 사용합니다.
-- 6화 아군 시험 배치는 배포본에 포함하지 않았습니다. 기존 무명·슬레이드겔미르의 데이터는 유지했습니다.
-- 럭키 발동률을 스킬 레벨당 **3%**로 조정했습니다. 9레벨은 27%이며 기존 에이스 보정 +10%p는 유지합니다.
-- **타스크·아라드만** 레벨 1/8/15/23/30/38/45/53/60에서 럭키가 1~9레벨로 성장하도록 변경했습니다.
-- 47화 W16 장면의 레몬·라미아 관련 호칭과 대사를 22곳 교정했습니다.
-- 기존 숨겨진 요소·오우카 생존/젠가 밸런스·자금/PP·적 강화·정신기 옵션은 유지합니다. 여섯 옵션은 각각 선택할 수 있으며 기본값은 모두 꺼짐입니다.
-
-## 설치
-
-ZIP을 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO와 옵션을 선택하세요. 기준 한글판 v1.4.3s1과 지원되는 이전 액셀 패치 ISO를 업데이트할 수 있습니다. 패처 옆 .bin 파일은 함께 두세요.
-
-xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 베오울프 등 선택 옵션은 빠른 패처를 이용해 주세요.
-
-**에뮬레이터를 완전히 종료한 뒤 패치하고, 새로 부팅하여 게임 내 메모리카드 세이브로 불러오세요. 이전 세이브 스테이트는 사용하지 마세요.** 이미 지나간 시나리오나 저장된 보유품·진행 상황은 옵션 전환으로 다시 작성되지 않습니다.
-
-## 검증
-
-기존 32개 배포 조합과 신규 64개 결과 ISO의 전체 SHA256, 기존 옵션 5,120개 바이트 전환, 신규·이전 버전 8,192개 전환 경로를 확인했습니다. 실제 ISO에서 기본 설치·전체 옵션 켜기/끄기·백업 복원과 xdelta 복호 결과도 검증했습니다. 새 시나리오 전체의 실기 플레이를 완료했다는 의미는 아닙니다.
-
-기존 누적 변경사항: [CHANGELOG.md](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
-'''
+    verified=json.loads((W/'runtime/ingram_xdelta_validation.json').read_text(encoding='utf-8'))
+    assert verified['version']==version and verified['roundtrip_verified']
+    assert sha(delta).upper()==verified['sha256'].upper()
+    assert verified['decoded_iso_sha256'].upper()==profiles['hashes'][0].upper()
+    assert tested['actual_iso_cases'][0]['sha256'].upper()==profiles['hashes'][0].upper()
+    notes='## 이번 업데이트\n\n### 잉그램·R-GUN 리바레 합류\n\n- OG2 11화에서 다른 차원의 잉그램이 R-GUN 리바레와 함께 등장합니다. 원래 세계에서 일찍 기억을 되찾아 아군과 싸웠지만, 최종결전 중 차원 이동으로 이 세계에 표류했다는 설정입니다.\n- 모의전이 끝난 뒤 기지 습격 장면에서 등장하며, 전투 후 정식 합류합니다. 11화 시작 직후 실행되는 이벤트는 아닙니다.\n- 리바레: HP 8,300, EN 500, 장갑 2,100, 운동성 120, 이동력 7. 잉그램 기본 격투 146·사격 151.\n- 로슈 블레이드 3,900 / 건슬레이브 4,100·탄수 15 / 아키시온 버스터 4,900. 원래 무장 연출을 유지합니다.\n- 무장 공격력 개조 상승 등급은 콜드 메탈 나이프와 같습니다. 비용은 앞의 두 무장 최저 등급, 아키시온 버스터는 한 단계 위입니다.\n- 잉그램의 직격을 집중(SP 15·Lv16)으로 변경했습니다. 다른 정신기와 트윈 예측은 유지합니다.\n\n### 30화 발시온 개 추가\n\n- OG1에서 회수한 기체를 개수했다는 정비진의 대사를 추가하고, OG2 30화 종료 후 발시온 개를 기체만 지급합니다.\n- HP 9,000, EN 300, 장갑 2,100, 운동성 120, 이동력 6. 범용 탑승을 지원합니다.\n- 무장 공격력: 디바인 암 3,900 / 크로스 스매셔 5,000 / 에너지 드레인 2,700 / 채프 그레네이드 3,100. 사거리·소모량·연출은 원형을 유지합니다.\n- 기존 OG1 기체와 적 기체의 데이터는 변경하지 않습니다.\n\n### 11화 보상·대사 교정\n\n- 11화 종료 후 G 임팩트 스테이크·네오 차크람 슈터·스텔스 부메랑·고성능 레이더·메가 제너레이터를 각각 1개 추가 지급합니다.\n- 11화 격납고에서 안쥬르그의 날개·스커트를 묘사하던 대사를 소울게인의 콧수염을 소재로 교정했습니다.\n- 추가 이벤트의 분기 참조를 바로잡아 11화 로딩 중 검은 화면에서 진행되지 않던 문제를 수정했습니다.\n\n## 옵션과 설치\n\n위 변경은 공통 적용됩니다. 기존 여섯 옵션(숨겨진 요소, 오우카 생존·젠가 밸런스, 자금·PP, 적 강화, 정신기, 베오울프 등장)은 유지하며 기본값은 모두 꺼짐입니다. 베오울프 6화 아군 시험 배치는 포함하지 않습니다.\n\nZIP을 모두 풀고 `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO와 옵션을 선택하세요. 기준 한글패치 v1.4.3s1 및 지원되는 이전 배포본을 업데이트할 수 있습니다. v20261101·v20261101.1 적용본도 지원합니다. 패처 옆 파일은 함께 두세요.\n\nxdelta는 기준 한글판 전용이며 여섯 옵션을 모두 끈 결과를 만듭니다.\n\n**에뮬레이터를 완전히 종료하고 패치한 뒤 새로 부팅하여 게임 내 메모리카드 세이브로 불러오세요. 이전 세이브 스테이트는 사용하지 마세요.** 이미 지나간 화의 합류와 보상은 소급 지급하지 않습니다.\n\n## 검증\n\n64개 옵션 조합의 데이터·전체 해시, 기존 옵션 5,120개 바이트 전환과 12,288개 해시 전환 경로를 확인했습니다. 실제 ISO 설치·업데이트·옵션 전환·백업 복원 7개 사례와 xdelta 복호 결과도 검증했습니다. 전체 시나리오의 실플레이 검증을 완료했다는 의미는 아닙니다.\n\n[누적 변경사항](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)\n'
     release_note=W/'runtime/beowulf_release_notes.md';release_note.write_text(notes,encoding='utf-8')
     hashes=dict(version=version,iso_size=4518150144,options=profiles['bits'],defaults=0,
         profiles=[dict(mask=i,sha256=h) for i,h in enumerate(profiles['hashes'])])
@@ -664,26 +627,26 @@ xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를
     # Update public source and documents without touching historical changelog entries.
     sources=['iso_quickpatch/OgsAxelQuickPatch.cs','iso_quickpatch/build_range_pack.py',
         'build_beowulf_prototype.py','validate_beowulf_prototype.py','build_hidden_rewards.py',
-        'validate_hidden_rewards.py','release_build_v20261024.py','audit_shadowmirror_dialogue.py']
+        'validate_hidden_rewards.py','release_build_v20261024.py','audit_shadowmirror_dialogue.py','build_ingram_rivale.py','ogs_korean_codec.py','r5900_scalar_check.py','build_og2new_tone_pass26.py']
     for name in sources:
         dest=repo/'work_ogs'/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(W/name,dest)
-    for name in ['beowulf_options_profiles.json','beowulf_patcher_validation.json','beowulf_spelling_profiles_validation.json']:
+    for name in ['beowulf_options_profiles.json','beowulf_patcher_validation.json','ingram_profiles_validation.json','ingram_xdelta_validation.json']:
         shutil.copyfile(W/'runtime'/name,repo/'work_ogs/validation'/name)
     shutil.copyfile(delta,repo/'patch'/delta.name)
     change=repo/'CHANGELOG.md';old=change.read_text(encoding='utf-8-sig')
-    header='# 변경 내역\n\n## '+version+' (2026-11-01)\n\n'+notes+'\n'
+    header='# 변경 내역\n\n## '+version+' (2026-11-02)\n\n'+notes+'\n'
     assert '## '+version not in old
     change.write_text(header+old.removeprefix('# 변경 내역\n'),encoding='utf-8')
     for name in ['README.md','docs/home.md']:
-        path=repo/name;t=path.read_text(encoding='utf-8-sig').replace('v20261101',version).replace('다섯 옵션','여섯 옵션').replace('\ubca0\uc5b4\uc6b8\ud504','베오울프')
+        path=repo/name;t=path.read_text(encoding='utf-8-sig').replace('v20261101.1',version).replace('다섯 옵션','여섯 옵션').replace('\ubca0\uc5b4\uc6b8\ud504','베오울프')
         marker='| 액셀·제오라 정신기 변경 | 액셀 철벽·혼·각성 SP 조정, 제오라 번뜩임·가속 |'
         if '| 베오울프 등장 |' not in t:
             t=t.replace(marker,marker+'\n| 베오울프 등장 | 알피미와 함께 적 등장·추가 시나리오, 6화 시험 배치 제외 |')
         t=t.replace('새 32개 조합','새 64개 조합').replace('32개 결과 ISO 전체 해시, 5,120개 옵션 전환, 실제 ISO의 32개 조합 적용과 대표 백업 복원을 검증했습니다.','64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 8,192개 전환 경로, 실제 ISO 대표 조합 적용 및 백업 복원을 검증했습니다.')
-        t=t.replace('## 이번 업데이트\n','## 이번 업데이트\n\n인물 이름을 베오울프로 통일했습니다. v20261101 적용본도 업데이트할 수 있습니다.\n',1)
+        start=t.index('## 이번 업데이트');end=t.index('## 기본 적용 사항',start);t=t[:start]+'## 이번 업데이트\n\n11화 잉그램·R-GUN 리바레 합류와 추가 보상, 30화 발시온 개 지급을 추가했습니다. 11화 격납고 대사와 추가 이벤트 분기도 교정했습니다. 기존 여섯 옵션은 유지합니다.\n\n'+t[end:]
         path.write_text(t,encoding='utf-8')
     pn=repo/'docs/patch-notes.md';pn.write_text('# '+version+' 업데이트\n\n'+notes+'\n---\n\n'+pn.read_text(encoding='utf-8-sig'),encoding='utf-8')
-    metadata=dict(version=version,status='PREPARED',previous='v20261101',built='2026-11-01',
+    metadata=dict(version=version,status='PREPARED',previous='v20261101.1',built='2026-11-02',
         base_iso=dict(size=4518150144,sha256='9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C'),
         result_iso=dict(size=4518150144,sha256=profiles['hashes'][0]),
         patch=dict(file=delta.name,size=delta.stat().st_size,sha256=sha(delta),verified='xdelta decode SHA256 matches default profile'),
@@ -697,7 +660,7 @@ xdelta는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를
 
 def publish_six_option_release():
     import urllib.error
-    version='v20261101.1';repo=ROOT/'ogs-repo'
+    version='v20261102';repo=ROOT/'ogs-repo'
     m=json.loads((W/'runtime/beowulf_release_metadata.json').read_text(encoding='utf-8'))
     assert m['version']==version
     assert not subprocess.check_output(['git','status','--porcelain'],cwd=repo).strip(),'Commit release files first'
@@ -717,7 +680,7 @@ def publish_six_option_release():
     except urllib.error.HTTPError as e:
         if e.code!=404:raise
         rel=api('POST',base+'/releases',json.dumps(dict(tag_name=version,target_commitish=head,
-            name='OGs 액셀 역할 교체 패치 '+version+' — 베오울프 표기 통일',
+            name='OGs 액셀 역할 교체 패치 '+version+' — 잉그램·리바레 합류, 발시온 개 추가',
             body=body,draft=True,prerelease=False),ensure_ascii=False).encode())
     files=[W/'dist'/m['release_zip']['file'],W/'dist'/m['patch']['file']]
     for file in files:

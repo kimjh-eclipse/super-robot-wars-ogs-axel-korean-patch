@@ -189,8 +189,95 @@ def correct_scene(apply=False):
     report.write_text(json.dumps(dict(status='applied_and_verified',plans=plans),ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps([dict(path=p['path'],changes=len(p['edits']),sha256=p['sha256_after']) for p in plans],ensure_ascii=False,indent=2))
 
+HANGAR_SOULGAIN={
+ 503:'류세이：아、그거！@나도　신경쓰이더라、@그　콧수염　달린　로봇！',
+ 507:'류세이：저　늠름한　콧수염！@주먹으로　밀어붙이는　것도@정말　멋지더라！',
+ 508:'라투니（콧수염……@　그런　게　취향인　건가……）',
+ 509:'류세이：Ｒ－３에도　저런　수염을@달면、좀　더　위엄이　생길　텐데……',
+ 510:'아야：어～라、위엄이　없어서@정말　미안하네요。',
+ 512:'비렛타：……그　수염에@무슨　특별한　기능이라도　있나？',
+ 513:'쿄스케：그건　모르겠습니다만、@이스루기　중공의　시작기입니다。@기체명은　소울게인입니다。',
+ 514:'로버트：이스루기의？@저런　무투파　기체도　만들었나……',
+ 517:'엑셀렌：기체의　콧수염과는　달리、@파일럿은　수염　없는　미남이에용。',
+}
+
+
+def correct_soulgain_hangar(apply=False):
+    import hashlib,os,psutil
+    from ogs_korean_codec import encode
+    from r5900_scalar_check import CPU
+    expected={'SRWOGS_K.iso':'22788c87e3c1933a9aa621657c181b644d3f877efe5a9d1c4abc68c2c9e68e2b',
+      'SRWOGS_BEOWULF_TEST.iso':'9f17e5372d3fc6b3d233708b6e5b98893010cb64a702c1c080769c7e2e98827d'}
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2 before applying'
+    plans=[];ram=(ROOT/'runtime/beowulf/current_user_ram.bin').read_bytes()
+    for name,digest in expected.items():
+        path=ROOT/'build'/name
+        with path.open('rb') as f:assert hashlib.file_digest(f,'sha256').hexdigest()==digest
+        s=Scripts(path);at,size=s.logos[79];old=bytes(s.data[at:at+size]);b=bytearray(old);ts,refs=references(s,79);changes=[]
+        assert '예쁜' in ts[503][1] and '날개' in ts[507][1] and '스커트' in ts[508][1]
+        assert '발시오네' in ts[512][1] and '소울게인' in ts[513][1]
+        for key,text in HANGAR_SOULGAIN.items():
+            assert key in refs and sp(text)==sp(ts[key][1])
+            assert len(text.split('@'))<=3 and all(len(x)<=20 for x in text.split('@')),(key,text)
+            enc=encode(text);assert decode(enc)==text
+            struct.pack_into('<I',b,u32(b,0x54)+key*4,len(b)-u32(b,0x4c));b.extend(enc+b'\0')
+            changes.append(dict(text_index=key,before=ts[key][1],after=text))
+        b.extend(bytes((-len(b))%4));struct.pack_into('<I',b,4,len(b));struct.pack_into('<I',b,0x6c,len(b))
+        # No command, branch, event descriptor, history or Japanese pointer moves.
+        normalized=bytearray(b[:len(old)]);normalized[4:8]=old[4:8];normalized[0x6c:0x70]=old[0x6c:0x70]
+        for key in HANGAR_SOULGAIN:
+            p=u32(old,0x54)+key*4;normalized[p:p+4]=old[p:p+4]
+        assert normalized==old
+        assert not any(s.data[at+size:at+len(b)]),'No verified space to grow LOGO'
+        c=CPU(ram);ctx,base=0x1600000,0x1800000
+        c.mem[base:base+len(b)]=b;c.run(0x2b5c90,[ctx,base]);nc=u32(b,0x40)
+        for key,text in HANGAR_SOULGAIN.items():
+            c.run(0x2baf90,[ctx,0,nc+key]);enc=encode(text)
+            assert bytes(c.mem[ctx+0x85a0:ctx+0x85a0+len(enc)])==enc
+        edits=[]
+        with path.open('rb') as f:
+            edits.append(dict(offset=MAP+at,before=read(f,MAP+at,len(b)).hex(),after=b.hex()))
+            off=MAP+0x557f800+12+79*8;edits.append(dict(offset=off,before=read(f,off,4).hex(),after=struct.pack('<I',len(b)).hex()))
+            off=MAP+0x800+8+14*8+4;before=read(f,off,4);span=max(u32(before,0),at+len(b)-0x557e800)
+            if span!=u32(before,0):edits.append(dict(offset=off,before=before.hex(),after=struct.pack('<I',span).hex()))
+        edits.sort(key=lambda e:e['offset'])
+        plans.append(dict(path=str(path),before_sha256=digest,changes=changes,edits=edits,native_text_checks=9,
+            command_and_event_bytes_unchanged=True,ingram_join_preserved=True))
+    report=dict(applied=False,chapter=11,script=79,plans=plans)
+    journal=ROOT/'runtime/soulgain_hangar_dialogue.json';journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        for plan in plans:
+            path=Path(plan['path'])
+            try:
+                with path.open('r+b') as f:
+                    for e in plan['edits']:
+                        a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);f.seek(e['offset']);assert f.read(len(a))==a;f.seek(e['offset']);f.write(b)
+                    f.flush();os.fsync(f.fileno())
+                inverse=hashlib.sha256();actual=hashlib.sha256();pos=0
+                with path.open('rb') as f:
+                    for e in plan['edits']:
+                        a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after'])
+                        while pos<e['offset']:
+                            raw=f.read(min(4<<20,e['offset']-pos));assert raw;inverse.update(raw);actual.update(raw);pos+=len(raw)
+                        assert f.read(len(b))==b;inverse.update(a);actual.update(b);pos+=len(b)
+                    while raw:=f.read(4<<20):inverse.update(raw);actual.update(raw)
+                assert inverse.hexdigest()==plan['before_sha256'];plan['after_sha256']=actual.hexdigest()
+                check=Scripts(path)
+                for key,text in HANGAR_SOULGAIN.items():assert check.texts(79)[key][1]==text
+            except Exception:
+                with path.open('r+b') as f:
+                    for e in plan['edits']:f.seek(e['offset']);f.write(bytes.fromhex(e['before']))
+                raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    text=['11화 격납고 대화 — 소울게인에 맞춘 교정','']
+    for e in plans[0]['changes']:text+=['기존: '+e['before'].replace('　',' ').replace('@',' / '),'수정: '+e['after'].replace('　',' ').replace('@',' / '),'']
+    (ROOT/'runtime/11화_소울게인_격납고_대사수정.txt').write_text('\n'.join(text),encoding='utf-8-sig')
+    print(json.dumps(dict(applied=report['applied'],files=[dict(path=x['path'],changes=len(x['changes']),sha256=x.get('after_sha256')) for x in plans]),ensure_ascii=False,indent=2))
+
+
 if __name__=='__main__':
     import sys
-    if '--apply-scene' in sys.argv:correct_scene(True)
+    if '--soulgain-hangar' in sys.argv:correct_soulgain_hangar('--apply' in sys.argv)
+    elif '--apply-scene' in sys.argv:correct_scene(True)
     elif '--plan-scene' in sys.argv:correct_scene(False)
     else:analyse()

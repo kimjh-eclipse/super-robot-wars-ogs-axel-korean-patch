@@ -24,7 +24,7 @@ using System.Windows.Forms;
 //   rangeCount x { u64 offset, u32 length, length bytes }
 internal static class OgsAxelQuickPatch
 {
-    private const string VersionText = "v20261101.1";
+    private const string VersionText = "v20261102";
     private const string PatchResourceName = "OGS_ISO_ranges.bin";
     private const string HiddenResourceName = "OGS_hidden_rewards.bin";
     private const string OukaResourceName = "OGS_ouka_zengar.bin";
@@ -403,13 +403,13 @@ internal static class OgsAxelQuickPatch
                 result.On[mask] = on; result.Off[mask] = off;
             }
             int aliases = r.ReadInt32();
-            if (aliases != 64) throw new InvalidDataException("이전 버전 조합 수 오류");
+            if (aliases < 64 || aliases > 4096 || aliases % 64 != 0) throw new InvalidDataException("이전 버전 조합 수 오류");
             for (int j = 0; j < aliases; j++)
             {
                 int mask = r.ReadInt32(); byte[] source = r.ReadBytes(32), anchor = r.ReadBytes(32);
-                if (mask != j || source.Length != 32 || anchor.Length != 32 || Hex(anchor) != Hex(fix.Hashes[mask & 31]))
+                if (mask != j % 64 || source.Length != 32 || anchor.Length != 32 || Hex(anchor) != Hex(fix.Hashes[mask & 31]))
                     throw new InvalidDataException("이전 버전 기준 오류");
-                Pack legacy = new Pack { Title = "v20261101 표기 교정 업데이트", IsoSize = full.IsoSize,
+                Pack legacy = new Pack { Title = "이전 여섯 옵션 버전 업데이트", IsoSize = full.IsoSize,
                     SourceHash = source, TargetHash = anchor, Ranges = new List<PatchRange>() };
                 int ranges = r.ReadInt32(); long end = 0;
                 if (ranges < 1 || ranges > 1000000) throw new InvalidDataException("이전 구간 수 오류");

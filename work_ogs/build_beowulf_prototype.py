@@ -891,18 +891,21 @@ def beowulf_story_scenes():
     }
 
 
-def rebuild_beowulf_story_logo(old,scenes):
+def rebuild_beowulf_story_logo(old,scenes,speaker_context=False):
     from build_hidden_rewards import DEAD,command
     count,co=u32(old,0x28),u32(old,0x2c);prefix=u32(old,0x20)
     nc,kc,hc=u32(old,0x40),u32(old,0x50),u32(old,0x38)
     records=[list(struct.unpack_from('<24I',old,co+i*96)) for i in range(count)]
-    template=next(r for r in records if r[0]==0x30 and r[4]==0x41f and r[13]==0x100a5)
+    template=next((r for r in records if r[0]==0x30 and r[4]==0x41f and r[13]==0x100a5),None)
+    if template is None:template=next(r for r in records if r[0]==0x30)
     inserts={};messages=[];scene_notes=[];next_label=hc
     for point,title,lines in sorted(scenes):
         assert 0<point<count and point not in inserts
         added=[]
         local=next((r for r in reversed(records[:point]) if r[0]==0x30),template)
         for speaker,text in lines:
+            if speaker=='command':
+                assert len(text)==24;added.append(list(text));continue
             if speaker=='retire':
                 added.append(command(0x81,0x100a5,PILOT,0xce,0xdeaddeed));continue
             text=text.replace('@',' ').replace(' ','　')
@@ -914,7 +917,11 @@ def rebuild_beowulf_story_logo(old,scenes):
             text='@'.join(wrapped+[text]);assert len(text.split('@'))<=3
             assert not any('\u3040'<=ch<='\u30ff' or '\u4e00'<=ch<='\u9fff' for ch in text),'Untranslated draft'
             encoded=encode(text);assert decode(encoded)==text
-            r=list(local);r[1]=next_label;r[2]=nc+kc-1+len(messages);r[4]=speaker
+            context=local
+            if speaker_context:
+                context=next((r for r in reversed(records[:point]) if r[0]==0x30 and r[4]==speaker),
+                    next((r for r in records if r[0]==0x30 and r[4]==speaker),local))
+            r=list(context);r[1]=next_label;r[2]=nc+kc-1+len(messages);r[4]=speaker
             r[5]=8 if speaker in (0x41f,0x420) else 1 if speaker==0x446 else 0
             added.append(r);messages.append(dict(label=next_label,speaker=speaker,text=text,encoded=encoded.hex()))
             next_label+=1
@@ -937,11 +944,12 @@ def rebuild_beowulf_story_logo(old,scenes):
     struct.pack_into('<I',b,0x28,len(out_records))
     for field in (0x34,0x3c,0x44,0x4c,0x54,0x5c):
         assert u32(old,field)>=endcode;struct.pack_into('<I',b,field,u32(old,field)+extra)
-    # Named branch descriptors contain combined prefix/main command indices.
+    # Native 0x2B5928..0x2B5940 adds the prefix count when kind != 0.
+    # These targets are MAIN-relative, unlike the combined history indices.
     desc=u32(b,0x34)
     for i in range(u32(old,0x30)):
         at=desc+i*16;kind=u32(b,at);target=u32(b,at+8)
-        if kind and target>=prefix:struct.pack_into('<I',b,at+8,prefix+moved(target-prefix))
+        if kind:struct.pack_into('<I',b,at+8,moved(target))
     history=[u32(old,u32(old,0x3c)+i*4) for i in range(hc)]
     history=[prefix+moved(i-prefix) if i>=prefix else i for i in history]
     history.extend(new_labels[i] for i in range(hc,next_label))
@@ -1047,7 +1055,11 @@ def release_beowulf_master(old, tested):
     other={k:h+u32(tested,h+k) for k in fields}
     tables={k:bytearray(old[p:(starts[i+1] if i+1<len(starts) else end)]) for i,(k,p) in enumerate(zip(fields,starts))}
     uc,wc=u32(tables[0x1c],8),u32(tables[0x24],8)
-    assert (uc,wc)==(429,1636)
+    assert uc in (429,430,431) and wc in (1636,1639,1643)
+    if uc==431:assert u16(tables[0x18],12+0x606*2)==430
+    if wc==1643:assert all(u16(tables[0x20],12+k*2)==1639+i for i,k in enumerate(range(0xfa0,0xfa4)))
+    if wc==1639:assert all(u16(tables[0x20],12+k*2)==1636+i for i,k in enumerate(range(0xf90,0xf93)))
+    if uc==430:assert u16(tables[0x18],12+0x605*2)==429
     assert u16(tables[0x18],12+UNIT*2)==0xffff
     assert all(u16(tables[0x20],12+k*2)==0xffff for k in range(0xf80,0xf86))
     assert u16(tables[0x28],12+PILOT*2)==0xffff
