@@ -2,7 +2,7 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261102.1**
+현재 버전: **v20261102.1 — OGs 액셀패치 완결판**
 
 [패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261102.1/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261102.1) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
@@ -29,6 +29,8 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 ## 이번 업데이트
 
 **OGs 액셀패치 완결판**입니다. OG1 기체 5종 동시 지급, 지원장치 각2개, 전 등급 무기 개조비용 조정과 리바레 비용등급0/1/2, 적 강화 +2단계를 반영했습니다. 전체 입수 시점은 릴리즈 노트에 표로 정리했습니다.
+
+[추가 기체·무기·강화파츠 입수 시점](acquisition.md) · [개조비용·적 강화](acquisition.md?id=무기-개조비용) · [완결판 패치노트](patch-notes.md)
 
 ## 기본 적용 사항
 
