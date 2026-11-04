@@ -679,6 +679,14 @@ def build_beowulf_extension():
             if mask&8:v.apply(enemy2)
             off=v.clone();on=v.clone()
             for a,data in assets:on.put(a,data)
+            # Startup compaction and its embedded retreat helper are indivisible.
+            # The enemy-OFF profile used to restore the original prefix while
+            # leaving the retreat helper in its fall-through path (masks32..39,48..55).
+            from build_beowulf_prototype import retirement_hook
+            with SOURCE.open('rb') as native_source:
+                startup_closure,_=retirement_hook(native_source)
+            for at,code,label in startup_closure:on.put(at,code)
+            for at,code,label in startup_closure:assert on.read(at,len(code))==code
             for base in master_test:on.put(base,release_beowulf_master(on.read(base,0x1a5800),master_test[base]))
             # Rebuild each UNTD from this profile's current rows; omit episode6.
             # Keep the optional Beowulf pool clear of Ingram's 8E20000/8E30000 assets.
@@ -797,6 +805,340 @@ def build_beowulf_extension():
             unique_blobs=len(pool),legacy_32_full_hashes_verified=True,previous_profiles_supported=len(aliases))
         (ROOT/'runtime/beowulf_options_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         print('Six-option pack ready:',dest,report['pack_size'],flush=True)
+
+
+def build_november_maintenance():
+    """Compose new common features over each SHIPPED profile; never copy an all-ON master."""
+    import sys,io,json,zipfile,concurrent.futures
+    sys.path.insert(0,str(ROOT))
+    import build_ingram_rivale as inc
+    from build_beowulf_prototype import u16,u32,read,retirement_hook,rebuild_beowulf_story_logo
+    from build_hidden_rewards import MAP
+    from validate_beowulf_prototype import validate_story_blob
+    from validate_hidden_rewards import ram as fixture
+    from r5900_scalar_check import CPU
+    version='v20261105';release=ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip'
+    assert file_hash(release)=='07835B71F605D082B921E31618EBBC2BC781E092975D90CEB73B8A5CB83517EE'
+    z=zipfile.ZipFile(release)
+    def U(f):return struct.unpack('<I',f.read(4))[0]
+    def triples(f):
+        rr=[]
+        for _ in range(U(f)):
+            at,n=struct.unpack('<QI',f.read(12));a,b=f.read(n),f.read(n);assert len(a)==len(b)==n;rr.append((at,a,b))
+        return rr
+    def option(name):
+        f=io.BytesIO(z.read('patcher/'+name));assert f.read(8)==b'OGSHID01';f.read(72);return triples(f)
+    f=io.BytesIO(z.read('patcher/OGS_ISO_ranges.bin'));assert f.read(9)==b'OGSAXLRNG';assert U(f)==1
+    f.read(struct.unpack('<H',f.read(2))[0]);size=struct.unpack('<Q',f.read(8))[0];sourcehash=f.read(32);f.read(32);base=[]
+    for _ in range(U(f)):
+        at,n=struct.unpack('<QI',f.read(12));base.append((at,f.read(n)))
+    hidden,bundle,both=[option(n) for n in ('OGS_hidden_rewards.bin','OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin')]
+    f=io.BytesIO(z.read('patcher/OGS_optional_features.bin'));assert f.read(8)==b'OGSOPT02';f.read(40);assert U(f)==32;f.read(32*36);assert U(f)==3
+    features={}
+    for _ in range(3):bit=U(f);features[bit]=triples(f)
+    f=io.BytesIO(z.read('patcher/OGS_common_fix.bin'));assert f.read(8)==b'OGSFIX02';f.read(8);assert U(f)==32;common=[];anchors=[]
+    for mask in range(32):assert U(f)==mask;f.read(32);anchors.append(f.read(32));common.append(triples(f))
+    f=io.BytesIO(z.read('patcher/OGS_beowulf_options.bin'));assert f.read(8)==b'OGSBEO02';assert struct.unpack('<Q',f.read(8))[0]==size;assert U(f)==64
+    pool=[f.read(U(f)) for _ in range(U(f))];oldprofiles=[]
+    for mask in range(64):
+        assert U(f)==mask;anchor=f.read(32);digest=f.read(32);rr=[]
+        for _ in range(U(f)):
+            at,n,a,b=struct.unpack('<QIII',f.read(20));assert len(pool[a])==len(pool[b])==n;rr.append((at,pool[a],pool[b]))
+        assert anchor==anchors[mask&31];oldprofiles.append((digest,rr))
+    aliases=[]
+    for j in range(U(f)):
+        mask=U(f);source=f.read(32);anchor=f.read(32);rr=[]
+        for _ in range(U(f)):
+            at,n,b=struct.unpack('<QII',f.read(16));assert len(pool[b])==n;rr.append((at,pool[b]))
+        aliases.append((mask,source,anchor,rr))
+    assert f.tell()==len(f.getbuffer())
+    # All public profiles remain recognized, including the 16 broken boot profiles.
+    aliases.extend((mask,digest,anchors[mask&31],[(at,a) for at,a,b in rr]) for mask,(digest,rr) in enumerate(oldprofiles))
+    class View:
+        def __init__(self,file,es=()):
+            self.file=file;self.es=[];self.bins={};self.pos=0
+            for at,b in es:self.put(at,b)
+        def put(self,at,b):
+            b=bytes(b);idx=len(self.es);self.es.append((at,b))
+            for block in range(at>>16,((at+len(b)-1)>>16)+1):self.bins.setdefault(block,[]).append(idx)
+        def get(self,at,n):
+            self.file.seek(at);out=bytearray(self.file.read(n));assert len(out)==n;indices=set()
+            for block in range(at>>16,((at+n-1)>>16)+1):indices.update(self.bins.get(block,()))
+            for idx in sorted(indices):
+                p,b=self.es[idx];lo,hi=max(p,at),min(p+len(b),at+n)
+                if lo<hi:out[lo-at:hi-at]=b[lo-p:hi-p]
+            return bytes(out)
+        def apply(self,rr):
+            for at,a,b in rr:assert self.get(at,len(a))==a,('source guard',hex(at));self.put(at,b)
+        def clone(self):return View(self.file,self.es)
+        def seek(self,at):self.pos=at
+        def read(self,n):b=self.get(self.pos,n);self.pos+=n;return b
+    class MapData:
+        def __init__(self,v):self.v=v
+        def __getitem__(self,s):assert isinstance(s,slice) and s.step is None;return self.v.get(MAP+s.start,s.stop-s.start)
+    class ScriptView:
+        def __init__(self,v):
+            self.v=v;self.data=MapData(v);self.refresh()
+        def refresh(self):
+            wp=0x557f800;b=self.v.get(MAP+wp,8);assert b[:4]==b'Wpbb'
+            self.logos=[]
+            for n in range(u32(b,4)):
+                q=self.v.get(MAP+wp+8+n*8,8);self.logos.append((wp+u32(q),u32(q,4)))
+        def records(self,n):
+            at,z=self.logos[n];b=self.v.get(MAP+at,z);co=u32(b,0x2c)
+            return [(at+co+i*96,struct.unpack_from('<24I',b,co+i*96)) for i in range(u32(b,0x28))]
+        def texts(self,n):
+            at,z=self.logos[n];b=self.v.get(MAP+at,z);pool=u32(b,0x4c);table=u32(b,0x54);out=[]
+            for i in range(u32(b,0x50)):
+                q=pool+u32(b,table+i*4);out.append((at+q,inc.decode(b[q:b.index(0,q)])))
+            return out
+    def spans(es):
+        out=[]
+        for at,b in sorted(es,key=lambda e:e[0]):
+            end=at+len(b)
+            if out and at<=out[-1][1]+64:out[-1][1]=max(out[-1][1],end)
+            else:out.append([at,end])
+        return out
+    def differences(a,b,regions):
+        rr=[]
+        for lo,hi in regions:
+            x=a.get(lo,hi-lo);y=b.get(lo,hi-lo);positions=np.flatnonzero(np.frombuffer(x,np.uint8)!=np.frombuffer(y,np.uint8))
+            if not len(positions):continue
+            cuts=np.flatnonzero(np.diff(positions)>65);starts=np.r_[0,cuts+1];ends=np.r_[cuts,len(positions)-1]
+            for i,j in zip(starts,ends):
+                p,q=int(positions[i]),int(positions[j])+1;rr.append((lo+p,x[p:q],y[p:q]))
+        return rr
+    journal=json.loads((ROOT/'runtime/ingram_rivale_manifest.json').read_text(encoding='utf-8'))
+    old30=next(e for e in journal['valcion_custom']['files'][0]['edits'] if e['offset']==MAP+0x557f800+8+96*8)['before']
+    textlayers=[journal[k]['files'][0]['stories'] for k in ('granzon_join','granzon_dialogue_followup')]
+    proof_cache={};native_cache={};results=[];plans=[];views=[];flatpool={};flatviews=[]
+    production=file_hash(TARGET)
+    with SOURCE.open('rb') as bf:
+        assert file_hash(SOURCE)==sourcehash.hex().upper();closure,helper=retirement_hook(bf);baseline_elf=read(bf,0x94880,0x482980)
+        for mask in range(64):
+            anchor=View(bf,base)
+            if mask&1:anchor.apply(hidden)
+            if mask&2:anchor.apply(both if mask&1 else bundle)
+            for bit,rr in features.items():
+                if mask&bit:anchor.apply(rr)
+            anchor.apply(common[mask&31]);v=anchor.clone();v.apply(oldprofiles[mask][1]);sv=ScriptView(v)
+            # Each option gets its own preserved master and independent record indices.
+            for base_at in (0x5da000,0x83f000):
+                original=v.get(base_at,0x1a5800);b,restored=inc.restoration_master(original);b,notes=inc.refurbishment_master(b);v.put(base_at,b)
+            if mask&8:
+                for e in inc.enemy_deployment_edits(v):v.put(e['offset'],bytes.fromhex(e['after']))
+            if mask&32:
+                for at,code,label in closure:v.put(at,code)
+            rivale_pair=(429,restored['restored_record'],36)
+            hooks=inc.refurbishment_hook(v,notes,rivale_pair)
+            for e in hooks:v.put(e['offset'],bytes.fromhex(e['after']))
+            key=tuple((n['weak_record'],n['full_record']) for n in notes)+(rivale_pair,)
+            if key not in native_cache:native_cache[key]=inc.refurbishment_validation(TARGET,b,hooks,notes)
+            # Allocate only verified empty gaps outside all live LOGO/UNTD entries.
+            low,high=0x8e60000,0x9600000;free=bytearray(v.get(MAP+low,high-low))
+            occupied=list(sv.logos);wp=0x5071000;count=u32(v.get(MAP+wp,8),4)
+            for i in range(count):
+                d=v.get(MAP+wp+8+i*8,8);occupied.append((wp+u32(d),u32(d,4)))
+            for at,n in occupied:
+                lo,hi=max(at,low),min(at+n,high)
+                if lo<hi:free[lo-low:hi-low]=b'\xff'*(hi-lo)
+            def allocate(raw):
+                start=0
+                while True:
+                    q=free.find(bytes(len(raw)),start);assert q>=0,('No safe MAP hole',mask,len(raw))
+                    at=(low+q+2047)&~2047;offset=at-low
+                    if offset+len(raw)<=len(free) and not any(free[offset:offset+len(raw)]):break
+                    start=q+1
+                assert not any(v.get(MAP+at,len(raw)));free[offset:offset+len(raw)]=b'\xff'*len(raw);v.put(MAP+at,raw);return at
+            def expand(slot,end):
+                off=MAP+0x800+8+slot*8+4;start=0x557e800 if slot==14 else 0x5070000
+                v.put(off,struct.pack('<I',max(u32(v.get(off,4)),end-start)))
+            def putlogo(n,raw):
+                at=allocate(raw);v.put(MAP+0x557f800+8+n*8,struct.pack('<II',at-0x557f800,len(raw)));expand(14,at+len(raw));sv.refresh()
+            def add_scenes(defs):
+                for n,scenes in defs.items():
+                    at,z=sv.logos[n];old=v.get(MAP+at,z);new,info=rebuild_beowulf_story_logo(old,scenes,speaker_context=True)
+                    allowed=tuple(tuple(r) for _,_,lines in scenes for who,r in lines if who=='command')
+                    fingerprint=hashlib.sha256(old+new).digest()
+                    if fingerprint not in proof_cache:proof_cache[fingerprint]=validate_story_blob(old,new,info,fixture,allowed_commands=allowed)
+                    putlogo(n,new)
+            add_scenes(inc.restoration_scenes(sv));add_scenes(inc.refurbishment_scenes(sv))
+            v.put(MAP+0x557f800+8+96*8,bytes.fromhex(old30));sv.refresh()
+            # Actual permanent recruitment row; preserves existing Ouka/Wodan/Beowulf rows.
+            wp=0x5071000;dp=MAP+wp+8+110*8;d=v.get(dp,8);at=wp+u32(d);old=v.get(MAP+at,u32(d,4));cnt=u32(old,40)
+            assert all(u32(old,44+i*336+4)!=0x27 for i in range(cnt))
+            d=v.get(MAP+wp+8+124*8,8);at=wp+u32(d);row=bytearray(v.get(MAP+at+44+78*336,336));assert (u32(row),u32(row,32))==(0x456,0x45d)
+            for off,value in ((4,0x27),(8,0),(16,0),(20,0),(24,0),(28,1)):struct.pack_into('<I',row,off,value)
+            untd=bytearray(old+row);struct.pack_into('<I',untd,40,cnt+1);at=allocate(untd);v.put(dp,struct.pack('<II',at-wp,len(untd)));expand(13,at+len(untd))
+            for layer in textlayers:
+                for story in layer:
+                    n=story['script'];msgs=story['replacements'];at,z=sv.logos[n];old=v.get(MAP+at,z);co=u32(old,0x2c);tb=u32(old,0x44);po=u32(old,0x4c)
+                    hits=[]
+                    for i,(_,r) in enumerate(sv.records(n)):
+                        if r[0]==0x30:
+                            q=po+u32(old,tb+r[2]*4)
+                            if inc.decode(old[q:old.index(0,q)])==msgs[0]['before']:hits.append(i)
+                    assert len(hits)==1,(mask,n,'text anchor',hits)
+                    replacements={hits[0]+m['record']-msgs[0]['record']:(m['before'],m['after']) for m in msgs}
+                    new,changed=inc.granzon_dialogue(old,replacements)
+                    if n==106:
+                        i=next(i for i,(_,r) in reversed(list(enumerate(sv.records(n)))) if r[0]==0x9c)
+                        canonical=new;new,info=rebuild_beowulf_story_logo(canonical,[(i,'슈우와 그랑존 정식 합류',[('command',inc.command(0x5e,0x27))])])
+                        fingerprint=hashlib.sha256(canonical+new).digest()
+                        if fingerprint not in proof_cache:proof_cache[fingerprint]=validate_story_blob(canonical,new,info,fixture,allowed_commands=(tuple(inc.command(0x5e,0x27)),))
+                    putlogo(n,new)
+            # Independently inspect every final profile's phases, bounds and native boot.
+            blob=v.get(0x5da000,0x1a5800);h=0x11e800;ut=h+u32(blob,h+0x18);units=h+u32(blob,h+0x1c)
+            assert u32(blob,units+8)==(436 if mask&32 else 435)
+            assert u16(blob,ut+12+0x605*2)==429 and u16(blob,ut+12+0x60c*2)==restored['restored_record']
+            assert all(u16(blob,ut+12+k*2)!=65535 for k in (0x600,0x605,0x606,0x60c,0x60d,0x60e))
+            if mask&32:assert u16(blob,ut+12+0x604*2)==432
+            elf=v.get(0x94880,0x482980);machines=[]
+            for code in (baseline_elf,elf):
+                c=CPU(fixture);c.mem[0x100000:0x582980]=code
+                for reg in range(2,11):c.r[reg]=0x540000
+                c.fpr=[0x13570000+i for i in range(32)];c.run(0x200104,stop=0x200270,limit=10000);machines.append(c)
+            a,c=machines;assert a.r==c.r and a.fpr==c.fpr
+            for at,n in {(at,n) for obj in machines for at,n,pc in obj.writes}:assert a.mem[at:at+n]==c.mem[at:at+n]
+            if mask&32:assert c.visits[helper]==0
+            # Hidden reward ON/OFF and existing options remain the profile's own data.
+            b89=sv.records(89);condition=b89[1184][1];assert condition[0]==0x8c
+            assert (condition[2:5]==(1,0x8000,1))==bool(mask&1)
+            rr=differences(anchor,v,spans(v.es+anchor.es));plans.append(rr);views.append(v)
+            flat=[]
+            for lo,hi in spans(v.es):
+                data=v.get(lo,hi-lo);digest=hashlib.sha256(data).digest();cached=flatpool.setdefault(digest,data);assert cached==data;flat.append((lo,cached))
+            flatviews.append(flat)
+            results.append(dict(mask=mask,unit_count=u32(blob,units+8),rivale_restored_index=restored['restored_record'],mumyou_full_index=notes[0]['full_record'],valsion_full_index=notes[1]['full_record'],native_boot_equivalent=True,hidden_option_preserved=True))
+            print('Maintenance profile ready',mask+1,'/64',flush=True)
+        hashes=[hashlib.sha256() for _ in range(64)];bf.seek(0);offset=0;last=-1
+        def feed(args):
+            hasher,es,raw,pos=args;out=None
+            for at,b in es:
+                lo,hi=max(at,pos),min(at+len(b),pos+len(raw))
+                if lo<hi:
+                    if out is None:out=bytearray(raw)
+                    out[lo-pos:hi-pos]=b[lo-at:hi-at]
+            hasher.update(raw if out is None else out)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            while raw:=bf.read(16<<20):
+                list(executor.map(feed,[(h,es,raw,offset) for h,es in zip(hashes,flatviews)]));offset+=len(raw)
+                progress=offset*10//size
+                if progress!=last:print('Verify64 full ISO hashes',progress*10,'%',flush=True);last=progress
+        hashes=[h.digest() for h in hashes];assert len(set(hashes))==64
+        # Stage one scratch ISO for real installer/xdelta validation, never the game ISO.
+        scratch=ROOT/'runtime/BEOWULF_PATCHER_VERIFY.iso';assert not scratch.exists();bf.seek(0)
+        with scratch.open('wb') as out:
+            while raw:=bf.read(16<<20):out.write(raw)
+        with scratch.open('r+b') as out:
+            for at,b in flatviews[0]:out.seek(at);out.write(b)
+        assert bytes.fromhex(file_hash(scratch))==hashes[0]
+    newpool=[];ids={}
+    def ident(b):
+        digest=hashlib.sha256(b).digest()
+        if digest not in ids:ids[digest]=len(newpool);newpool.append(b)
+        assert newpool[ids[digest]]==b;return ids[digest]
+    entries=[[(at,len(a),ident(a),ident(b)) for at,a,b in rr] for rr in plans]
+    alias_rows=[(mask,source,anchor,[(at,len(b),ident(b)) for at,b in rr]) for mask,source,anchor,rr in aliases]
+    dest=HERE/'OGS_beowulf_options.bin';tmp=dest.with_suffix('.tmp')
+    with tmp.open('wb') as out:
+        out.write(b'OGSBEO02'+struct.pack('<QII',size,64,len(newpool)))
+        for b in newpool:out.write(struct.pack('<I',len(b)));out.write(b)
+        for mask,rr in enumerate(entries):
+            out.write(struct.pack('<I',mask)+anchors[mask&31]+hashes[mask]+struct.pack('<I',len(rr)))
+            for row in rr:out.write(struct.pack('<QIII',*row))
+        out.write(struct.pack('<I',len(alias_rows)))
+        for mask,source,anchor,rr in alias_rows:
+            out.write(struct.pack('<I',mask)+source+anchor+struct.pack('<I',len(rr)))
+            for row in rr:out.write(struct.pack('<QII',*row))
+        out.flush();os.fsync(out.fileno())
+    tmp.replace(dest)
+    report=dict(version=version,bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),defaults=0,
+        hashes=[h.hex().upper() for h in hashes],anchors=[h.hex().upper() for h in anchors],profile_count=64,
+        profiles=results,native_phase_variants=list(native_cache.values()),unique_story_checks=len(proof_cache),
+        production_sha256=production,gameplay_ISO_read_only=True,pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,
+        previous_profiles_supported=len(aliases),episode6_test_excluded=True,source_release='v20261102.1',
+        public_startup_fix=True,enemy_real_deployment_fix=True,scratch_default_iso=str(scratch))
+    assert file_hash(TARGET)==production
+    (ROOT/'runtime/beowulf_options_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    (ROOT/'runtime/ingram_profiles_validation.json').write_text(json.dumps(dict(passed=True,profiles_checked=64,validation=results,live_playthrough=False),ensure_ascii=False,indent=2),encoding='utf-8')
+    print('New maintenance pack ready',dest,report['pack_size'],flush=True)
+
+
+
+def add_working_iso_alias():
+    # Also accept this session's already tested, unpublished all-five-options ISO.
+    import io,json,zipfile
+    meta=ROOT/'runtime/beowulf_options_profiles.json';report=json.loads(meta.read_text(encoding='utf-8'));source=bytes.fromhex(file_hash(TARGET))
+    if report.get('working_iso_supported')==source.hex().upper():return
+    dest=HERE/'OGS_beowulf_options.bin';raw=dest.read_bytes();f=io.BytesIO(raw);assert f.read(8)==b'OGSBEO02';size,count,nb=struct.unpack('<QII',f.read(16));pool=[]
+    for _ in range(nb):n=struct.unpack('<I',f.read(4))[0];pool.append(f.read(n))
+    profile_start=f.tell();anchors=[]
+    for mask in range(64):
+        assert struct.unpack('<I',f.read(4))[0]==mask;anchors.append(f.read(32));f.read(32);n=struct.unpack('<I',f.read(4))[0];f.seek(n*20,1)
+    aliaspos=f.tell();aliases=struct.unpack('<I',f.read(4))[0];oldaliases=raw[f.tell():]
+    with zipfile.ZipFile(ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip') as z:old=io.BytesIO(z.read('patcher/OGS_beowulf_options.bin'))
+    assert old.read(8)==b'OGSBEO02';old.read(12);n=struct.unpack('<I',old.read(4))[0];opool=[]
+    for _ in range(n):k=struct.unpack('<I',old.read(4))[0];opool.append(old.read(k))
+    previous=[]
+    for mask in range(64):
+        assert struct.unpack('<I',old.read(4))[0]==mask;anchor=old.read(32);digest=old.read(32);rr=[]
+        for _ in range(struct.unpack('<I',old.read(4))[0]):
+            at,n,a,b=struct.unpack('<QIII',old.read(20));rr.append((at,opool[a],opool[b]))
+        previous.append((digest,rr));assert anchor==anchors[mask]
+    journal=json.loads((ROOT/'runtime/ingram_rivale_manifest.json').read_text(encoding='utf-8'));changes=[];chain=source.hex()
+    with TARGET.open('rb') as game:
+        def get(at,n):
+            game.seek(at);out=bytearray(game.read(n));assert len(out)==n
+            for p,b in changes:
+                lo,hi=max(p,at),min(p+len(b),at+n)
+                if lo<hi:out[lo-at:hi-at]=b[lo-p:hi-p]
+            return bytes(out)
+        for key in ('granzon_dialogue_followup','granzon_join','refurbishment','enemy_deployment_fix','restoration'):
+            item=next(x for x in journal[key]['files'] if Path(x['path']).name==TARGET.name);assert item['after_sha256']==chain
+            for e in reversed(item['edits']):
+                a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert get(e['offset'],len(b))==b;changes.append((e['offset'],a))
+            chain=item['before_sha256']
+        assert chain==previous[31][0].hex()
+        for at,a,b in reversed(previous[31][1]):assert get(at,len(b))==b;changes.append((at,a))
+        spans=[]
+        for at,b in sorted(changes,key=lambda x:x[0]):
+            if spans and at<=spans[-1][1]+64:spans[-1][1]=max(spans[-1][1],at+len(b))
+            else:spans.append([at,at+len(b)])
+        normalized=[]
+        for lo,hi in spans:
+            game.seek(lo);before=game.read(hi-lo);after=get(lo,hi-lo)
+            if before!=after:normalized.append((lo,after))
+        h=hashlib.sha256();position=0
+        for at,b in normalized:
+            game.seek(position)
+            while position<at:
+                chunk=game.read(min(4<<20,at-position));assert chunk;h.update(chunk);position+=len(chunk)
+            h.update(b);position=at+len(b)
+        game.seek(position)
+        while chunk:=game.read(4<<20):h.update(chunk)
+        assert h.digest()==anchors[31],'Working ISO normalization did not match public anchor'
+    ids={hashlib.sha256(b).digest():i for i,b in enumerate(pool)}
+    def ident(b):
+        k=hashlib.sha256(b).digest()
+        if k not in ids:ids[k]=len(pool);pool.append(b)
+        assert pool[ids[k]]==b;return ids[k]
+    rows=[]
+    for mask,(digest,rr) in enumerate(previous):
+        target=[(at,a) for at,a,b in rr]
+        if mask==31:digest=source;target=normalized
+        rows.append((mask,digest,anchors[mask],[(at,len(b),ident(b)) for at,b in target]))
+    tmp=dest.with_suffix('.tmp')
+    with tmp.open('wb') as out:
+        out.write(b'OGSBEO02'+struct.pack('<QII',size,64,len(pool)))
+        for b in pool:out.write(struct.pack('<I',len(b)));out.write(b)
+        out.write(raw[profile_start:aliaspos]);out.write(struct.pack('<I',aliases+64));out.write(oldaliases)
+        for mask,digest,anchor,rr in rows:
+            out.write(struct.pack('<I',mask)+digest+anchor+struct.pack('<I',len(rr)))
+            for row in rr:out.write(struct.pack('<QII',*row))
+    tmp.replace(dest);report.update(working_iso_supported=source.hex().upper(),pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,previous_profiles_supported=aliases+64)
+    meta.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');print('Working gameplay ISO update alias verified',source.hex(),flush=True)
+
 
 def package_beowulf_options():
     import json,zipfile
@@ -974,7 +1316,9 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
 
 if __name__ == "__main__":
     import sys
-    if "--package-beowulf" in sys.argv:package_beowulf_options()
+    if "--working-alias" in sys.argv:add_working_iso_alias()
+    elif "--november-maintenance" in sys.argv:build_november_maintenance()
+    elif "--package-beowulf" in sys.argv:package_beowulf_options()
     elif "--beowulf-options" in sys.argv:build_beowulf_extension()
     elif "--maintenance-common" in sys.argv:build_maintenance_common()
     elif "--story-common" in sys.argv:build_story_common()

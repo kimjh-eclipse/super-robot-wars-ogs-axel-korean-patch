@@ -154,6 +154,8 @@ class CPU:
             elif fn==41 and sh==14: # PCPYUD: upper doublewords, RT above RS.
                 value=((y>>64)<<64)|(x>>64)
             elif fn==9 and sh==18:value=x&y  # PAND
+            elif fn==0x28 and sh==24:  # PADDUB, unsigned saturated byte addition.
+                value=sum(min(255,((x>>(i*8))&255)+((y>>(i*8))&255))<<(i*8) for i in range(16))
             elif fn==41 and sh==19:value=(~(x|y))&MASK128  # PNOR
             else:raise NotImplementedError(f'MMI {pc:08X}: {w:08X}')
             if d:self.r[d]=value

@@ -707,8 +707,88 @@ def publish_six_option_release():
     print(json.dumps(result,ensure_ascii=False,indent=2),flush=True)
 
 
+
+def prepare_november_maintenance():
+    # Package locally; never publish or overwrite the gameplay ISO.
+    import zipfile,time
+    run(sys.executable,'-X','utf8',QP/'build_range_pack.py','--working-alias')
+    version='v20261105';profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'));assert profiles['version']==version
+    expected=profiles['hashes'];scratch=W/'runtime/BEOWULF_PATCHER_VERIFY.iso';assert sha(scratch)==expected[0]
+    original_game=sha(ISO);cs=QP/'OgsAxelQuickPatch.cs';text=cs.read_text(encoding='utf-8')
+    text=re.sub(r'private const string VersionText = "[^"]+";',f'private const string VersionText = "{version}";',text);cs.write_text(text,encoding='utf-8')
+    run(Path('C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe'),'/nologo','/target:winexe','/platform:anycpu','/optimize+',
+        '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/out:'+str(QP/'OGS_AxelSwap_QuickPatch.exe'),cs)
+    cases=[];exe=QP/'OGS_AxelSwap_QuickPatch.exe'
+    def invoke(path,flags):
+        r=subprocess.run([str(exe),str(path),'--cli']+flags,cwd=QP,capture_output=True,text=True,encoding='utf-8',errors='replace')
+        assert r.returncode==0,(r.stdout[-4000:],r.stderr);return r.stdout+r.stderr
+    for arg in ('--self-test-options','--self-test-beowulf'):
+        r=subprocess.run([str(exe),arg],cwd=QP,capture_output=True,text=True,encoding='utf-8',errors='replace');assert r.returncode==0,(r.stdout,r.stderr)
+        (W/'runtime'/('maintenance_'+arg[2:]+'.log')).write_text(r.stdout+r.stderr,encoding='utf-8');print(arg,r.stdout.strip(),flush=True)
+    delta=DIST/('SRWOGS_AxelRoleSwap_kr_'+version+'.xdelta')
+    run(XD,'-e','-9','-f','-B','536870912','-s',BASE,scratch,delta)
+    assert scratch.resolve().parent==(W/'runtime').resolve();scratch.unlink()
+    run(XD,'-d','-s',BASE,delta,scratch);assert sha(scratch)==expected[0]
+    delta_check=dict(version=version,file=str(delta),size=delta.stat().st_size,sha256=sha(delta),decoded_iso_sha256=expected[0],roundtrip_verified=True,options=0)
+    (W/'runtime/ingram_xdelta_validation.json').write_text(json.dumps(delta_check,indent=2),encoding='utf-8')
+    shutil.copyfile(BASE,scratch);flags55=['--hidden','--bundle','--rewards','--spirits','--beowulf'];flags63=flags55+['--enemy']
+    tests=[('base_to_off',[],0),('off_to_beowulf_only',['--beowulf'],32),('enemy_off_beowulf_on',flags55,55),
+           ('all_on',flags63,63),('all_off',[],0),('restore_previous',['--restore'],63)];logs=[]
+    for name,flags,mask in tests:
+        start=time.time();logs.append(invoke(scratch,flags));digest=sha(scratch);assert digest==expected[mask],(name,digest,expected[mask])
+        cases.append(dict(name=name,mask=mask,sha256=digest,seconds=round(time.time()-start,2)));print('Actual installer PASS',name,flush=True)
+    olddir=W/'runtime/public_patcher_verify';assert not olddir.exists();olddir.mkdir()
+    with zipfile.ZipFile(DIST/'SRWOGS_AxelRoleSwap_kr_v20261102.1.zip') as z:
+        oldhashes=json.loads(z.read('옵션별_ISO_SHA256.json'))
+        for name in z.namelist():
+            if name.startswith('patcher/'):(olddir/Path(name).name).write_bytes(z.read(name))
+    scratch.unlink();run(XD,'-d','-s',BASE,DIST/'SRWOGS_AxelRoleSwap_kr_v20261102.1.xdelta',scratch)
+    oldexe=olddir/exe.name;r=subprocess.run([str(oldexe),str(scratch),'--cli']+flags55,cwd=olddir,capture_output=True,text=True,encoding='utf-8',errors='replace');assert r.returncode==0,(r.stdout,r.stderr)
+    public55=oldhashes['profiles'][55]['sha256'];assert sha(scratch)==public55
+    logs.append(invoke(scratch,flags55));assert sha(scratch)==expected[55];cases.append(dict(name='public_broken55_to_fixed55',mask=55,sha256=expected[55]))
+    logs.append(invoke(scratch,['--restore']));assert sha(scratch)==public55;cases.append(dict(name='restore_public55',mask=55,sha256=public55))
+    logs.append(invoke(scratch,[]));assert sha(scratch)==expected[0];cases.append(dict(name='public55_to_new_default',mask=0,sha256=expected[0]))
+    shutil.copyfile(ISO,scratch)
+    logs.append(invoke(scratch,['--hidden','--bundle','--rewards','--enemy','--spirits']));assert sha(scratch)==expected[31];cases.append(dict(name='working_iso_to_new31',mask=31,sha256=expected[31]))
+    logs.append(invoke(scratch,['--restore']));assert sha(scratch)==original_game;cases.append(dict(name='restore_working_iso',sha256=original_game))
+    (W/'runtime/maintenance_patcher_e2e.log').write_text('\n\n'.join(logs),encoding='utf-8')
+    tested=dict(passed=True,version=version,profile_count=64,actual_iso_cases=cases,gameplay_ISO_modified=False,
+        all_profile_startup_native_equivalence=True,phase_native_variants=profiles['native_phase_variants'],whole_game_playthrough=False)
+    (W/'runtime/beowulf_patcher_validation.json').write_text(json.dumps(tested,ensure_ascii=False,indent=2),encoding='utf-8')
+    notes=(W/'runtime/beowulf_release_notes.md').read_text(encoding='utf-8')
+    readme=notes.replace('# OGs 액셀 역할 교체 패치 v20261105','슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261105')
+    (QP/'읽어주세요.txt').write_text(readme,encoding='utf-8-sig')
+    files=[p for p in QP.iterdir() if p.suffix=='.bin']+[exe,QP/'읽어주세요.txt']
+    sums=QP/'SHA256SUMS.txt';sums.write_text(''.join(sha(p)+'  '+p.name+'\n' for p in sorted(files)),encoding='utf-8-sig')
+    payload={'patcher/'+p.name:p.read_bytes() for p in files};payload[delta.name]=delta.read_bytes()
+    payload['읽어주세요.txt']=readme.encode('utf-8-sig');payload['변경사항.md']=notes.encode('utf-8-sig')
+    payload['옵션별_ISO_SHA256.json']=json.dumps(dict(version=version,iso_size=4518150144,options=profiles['bits'],defaults=0,profiles=[dict(mask=i,sha256=h) for i,h in enumerate(expected)]),ensure_ascii=False,indent=2).encode('utf-8')
+    payload['SHA256SUMS.txt']=''.join(hashlib.sha256(b).hexdigest().upper()+'  '+n+'\n' for n,b in sorted(payload.items())).encode('utf-8-sig')
+    out=DIST/('SRWOGS_AxelRoleSwap_kr_'+version+'.zip');tmp=out.with_suffix('.tmp')
+    with zipfile.ZipFile(tmp,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for name,b in payload.items():z.writestr(name,b)
+    tmp.replace(out)
+    with zipfile.ZipFile(out) as z:
+        assert z.testzip() is None
+        for name,b in payload.items():assert z.read(name)==b
+    assert sha(ISO)==original_game
+    metadata=dict(version=version,status='PREPARED_NOT_PUBLISHED',previous='v20261102.1',built='2026-11-05',
+        release_zip=dict(file=out.name,path=str(out),size=out.stat().st_size,sha256=sha(out)),patch=delta_check,
+        result_iso=dict(size=4518150144,sha256=expected[0]),base_iso=dict(size=4518150144,sha256=BASE_SHA),
+        options=profiles['bits'],defaults=0,profile_count=64,validation=tested,gameplay_ISO_sha256=original_game)
+    (W/'runtime/beowulf_release_metadata.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding='utf-8')
+    for p in (scratch,Path(str(scratch)+'.ogsbak')):
+        assert p.resolve().parent==(W/'runtime').resolve()
+        if p.exists():p.unlink()
+    assert olddir.resolve().parent==(W/'runtime').resolve()
+    for p in olddir.iterdir():assert p.is_file();p.unlink()
+    olddir.rmdir()
+    print('LOCAL PACKAGE READY',json.dumps(metadata['release_zip'],ensure_ascii=False),flush=True)
+
+
 if __name__ == "__main__":
-    if "--release-six" in sys.argv:prepare_six_option_release()
+    if "--november-maintenance" in sys.argv:prepare_november_maintenance()
+    elif "--release-six" in sys.argv:prepare_six_option_release()
     elif "--publish-six" in sys.argv:publish_six_option_release()
     elif "--common-xdelta" in sys.argv:build_common_xdelta()
     elif "--release-options" in sys.argv:prepare_options_release()

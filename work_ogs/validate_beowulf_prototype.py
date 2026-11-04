@@ -657,9 +657,137 @@ def validate_patcher_e2e():
         if p.exists():p.unlink()
 
 
+
+def validate_public_startup():
+    """Audit the shipped ZIP, never the later in-development gameplay ISO."""
+    import io,zipfile
+    from r5900_scalar_check import CPU
+    root=Path(__file__).resolve().parent;zip_path=root/'dist/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip'
+    with zip_path.open('rb') as f:zip_hash=hashlib.file_digest(f,'sha256').hexdigest()
+    assert zip_hash=='07835b71f605d082b921e31618ebbc2bc781e092975d90ceb73b8a5cb83517ee'
+    z=zipfile.ZipFile(zip_path);verified=[]
+    for line in z.read('SHA256SUMS.txt').decode('utf-8-sig').splitlines():
+        if not line.strip():continue
+        digest,name=line.split(None,1);name=name.strip();assert hashlib.sha256(z.read(name)).hexdigest()==digest.lower(),name;verified.append(name)
+    def U(f):return struct.unpack('<I',f.read(4))[0]
+    def rows(f):
+        out=[];end=0
+        for _ in range(U(f)):
+            at,n=struct.unpack('<QI',f.read(12));a,b=f.read(n),f.read(n)
+            assert at>=end and n>0 and at+n<=4518150144 and len(a)==len(b)==n
+            out.append((at,a,b));end=at+n
+        return out
+    def option(name):
+        f=io.BytesIO(z.read('patcher/'+name));assert f.read(8)==b'OGSHID01';f.read(72);r=rows(f);assert f.tell()==len(f.getbuffer());return r
+    f=io.BytesIO(z.read('patcher/OGS_ISO_ranges.bin'));assert f.read(9)==b'OGSAXLRNG';assert U(f)==1
+    f.read(struct.unpack('<H',f.read(2))[0]);size=struct.unpack('<Q',f.read(8))[0];source=f.read(32);target=f.read(32);base=[]
+    for _ in range(U(f)):
+        at,n=struct.unpack('<QI',f.read(12));b=f.read(n);assert len(b)==n;base.append((at,b))
+    assert f.tell()==len(f.getbuffer()) and size==4518150144
+    hidden,bundle,both=[option(n) for n in ('OGS_hidden_rewards.bin','OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin')]
+    f=io.BytesIO(z.read('patcher/OGS_optional_features.bin'));assert f.read(8)==b'OGSOPT02';f.read(40);assert U(f)==32;f.read(36*32);assert U(f)==3
+    features={}
+    for _ in range(3):bit=U(f);features[bit]=rows(f)
+    f=io.BytesIO(z.read('patcher/OGS_common_fix.bin'));assert f.read(8)==b'OGSFIX02';f.read(8);assert U(f)==32;common=[];anchors=[]
+    for mask in range(32):assert U(f)==mask;f.read(32);anchors.append(f.read(32));common.append(rows(f))
+    f=io.BytesIO(z.read('patcher/OGS_beowulf_options.bin'));assert f.read(8)==b'OGSBEO02';assert struct.unpack('<Q',f.read(8))[0]==size;assert U(f)==64
+    pool=[f.read(U(f)) for _ in range(U(f))];profiles=[]
+    for mask in range(64):
+        assert U(f)==mask;anchor=f.read(32);digest=f.read(32);rr=[];end=0
+        for _ in range(U(f)):
+            at,n,a,b=struct.unpack('<QIII',f.read(20));assert at>=end and at+n<=size and len(pool[a])==len(pool[b])==n
+            rr.append((at,pool[a],pool[b]));end=at+n
+        assert anchor==anchors[mask&31];profiles.append((digest,rr))
+    class View:
+        def __init__(self,f,es):
+            self.f=f;self.es=[];self.bins={}
+            for at,b in es:self.put(at,b)
+        def put(self,at,data):
+            idx=len(self.es);self.es.append((at,data))
+            for block in range(at>>16,((at+len(data)-1)>>16)+1):self.bins.setdefault(block,[]).append(idx)
+        def get(self,at,n):
+            self.f.seek(at);b=bytearray(self.f.read(n));assert len(b)==n
+            indices=set()
+            for block in range(at>>16,((at+n-1)>>16)+1):indices.update(self.bins.get(block,()))
+            for idx in sorted(indices):
+                p,data=self.es[idx];lo,hi=max(at,p),min(at+n,p+len(data))
+                if lo<hi:b[lo-at:hi-at]=data[lo-p:hi-p]
+            return bytes(b)
+        def apply(self,rs):
+            for at,a,b in rs:assert self.get(at,len(a))==a,('guard',hex(at));self.put(at,b)
+    findings=[];details=[];fixed_checks=0;fixture=(root/'runtime/beowulf/current_user_ram.bin').read_bytes()
+    with (root/'baseline/srwogs-v1.4.3s1.iso').open('rb') as bf:
+        baseline_elf=read(bf,0x94880,0x482980)
+        from build_beowulf_prototype import retirement_hook
+        closure,helper=retirement_hook(bf)
+        for mask in range(64):
+            v=View(bf,base)
+            if mask&1:v.apply(hidden)
+            if mask&2:v.apply(both if mask&1 else bundle)
+            for bit,rr in features.items():
+                if mask&bit:v.apply(rr)
+            v.apply(common[mask&31]);v.apply(profiles[mask][1]);elf=v.get(0x94880,0x482980)
+            # Native compressed initializer must exactly preserve all output state.
+            result=[]
+            for seed in (0,1,93):
+                a=CPU(fixture);b=CPU(fixture)
+                errors=[]
+                for c,code in ((a,baseline_elf),(b,elf)):
+                    c.mem[0x100000:0x582980]=code
+                    c.r=[((i+seed+1)<<64)|(i*151+seed) for i in range(32)]
+                    c.r[0]=0;c.r[28]=0x5879f0
+                    for reg in range(2,11):c.r[reg]=(c.r[reg]&(~((1<<64)-1)))|0x540000
+                    c.fpr=[(i*0x1010123+seed)&0xffffffff for i in range(32)]
+                    try:
+                        broken=(code[0x100104:0x100114]==baseline_elf[0x100104:0x100114] and code[0x1001b4:0x1001c4]!=baseline_elf[0x1001b4:0x1001c4])
+                        c.run(0x200104,stop=0x2001b4 if broken else 0x200270,limit=20000)
+                        if broken:errors.append('Startup falls through into Alfimi retreat helper at 002001B4')
+                    except RuntimeError as error:errors.append(str(error))
+                badregs=[i for i in range(32) if a.r[i]!=b.r[i]];badfpr=[i for i in range(32) if a.fpr[i]!=b.fpr[i]]
+                # Code bytes differ by construction, compare every actual store's destination.
+                addresses={(p,n) for c in (a,b) for p,n,pc in c.writes}
+                badmemory=[(hex(p),n) for p,n in addresses if a.mem[p:p+n]!=b.mem[p:p+n]]
+                result.append(dict(seed=seed,execution_errors=errors,gpr_differences=badregs,fpr_differences=badfpr,memory_differences=badmemory))
+            if any(r['execution_errors'] or r['gpr_differences'] or r['fpr_differences'] or r['memory_differences'] for r in result):findings.append(dict(mask=mask,initializer=result))
+            # Replay the fixed, indivisible startup+retreat block independently.
+            fixed=bytearray(elf)
+            if mask&32:
+                for at,code,label in closure:fixed[at-0x94880:at-0x94880+len(code)]=code
+            for seed in (0,1,93):
+                machines=[]
+                for code in (baseline_elf,fixed):
+                    c=CPU(fixture);c.mem[0x100000:0x582980]=code
+                    c.r=[((i+seed+1)<<64)|(i*151+seed) for i in range(32)];c.r[0]=0;c.r[28]=0x5879f0
+                    for reg in range(2,11):c.r[reg]=(c.r[reg]&(~((1<<64)-1)))|0x540000
+                    c.fpr=[(i*0x1010123+seed)&0xffffffff for i in range(32)]
+                    c.run(0x200104,stop=0x200270,limit=10000);machines.append(c)
+                a,b=machines;assert a.r==b.r and a.fpr==b.fpr,(mask,'fixed register mismatch')
+                for at,n in {(p,n) for c in machines for p,n,pc in c.writes}:assert a.mem[at:at+n]==b.mem[at:at+n]
+                if mask&32:assert b.visits[helper]==0,(mask,'retreat helper executed during startup')
+                fixed_checks+=1
+            # Check table offset/count/lookup integrity for both master copies.
+            master=[]
+            for at in (0x5da000,0x83f000):
+                blob=v.get(at,0x1a5800);h=0x11e800;fields=list(range(0x18,0x8c,4));pts=[h+u32(blob,h+k) for k in fields];end=h+u32(blob,0x11e00c)
+                assert pts==sorted(pts) and pts[0]>=h+0x8c and end<=len(blob)
+                for lookup,table,stride in ((0x18,0x1c,100),(0x20,0x24,36),(0x28,0x2c,148)):
+                    lp=h+u32(blob,h+lookup);tp=h+u32(blob,h+table);count=u32(blob,tp+8)
+                    assert u32(blob,tp+4)==12+count*stride
+                    for i in range(u32(blob,lp+8)):
+                        idx=struct.unpack_from('<H',blob,lp+12+i*2)[0];assert idx==65535 or idx<count,(mask,hex(lookup),i,idx,count)
+                master.append(dict(copy=hex(at),payload_end=hex(end),unit_count=u32(blob,h+u32(blob,h+0x1c)+8)))
+            details.append(dict(mask=mask,sha256=profiles[mask][0].hex(),initializer=result,master=master))
+            if mask%16==15:print('Public startup/static profiles checked',mask+1,'/64',flush=True)
+    report=dict(version='v20261102.1',zip_sha256=zip_hash,zip_member_checksums_verified=len(verified),profiles_checked=64,
+        findings=findings,profiles=details,fixed_initializer_equivalence_cases=fixed_checks,actual_emulator_boot_test=False,gameplay_iso_modified=False)
+    (root/'runtime/public_startup_audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('Initializer differences',json.dumps(findings[:2]),'total profiles',len(findings),flush=True)
+
+
 if __name__=='__main__':
     import sys
-    if '--ingram-profiles' in sys.argv:validate_ingram_profiles()
+    if '--public-startup' in sys.argv:validate_public_startup()
+    elif '--ingram-profiles' in sys.argv:validate_ingram_profiles()
     elif '--spelling-profiles' in sys.argv:validate_spelling_profiles()
     elif '--patcher-e2e' in sys.argv:validate_patcher_e2e()
     elif '--story' in sys.argv:validate_story()
