@@ -6,6 +6,17 @@ PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트�
 
 [패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261105/SRWOGS_AxelRoleSwap_kr_v20261105.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261105) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
+
+## 베오울프·Mk-Ⅲ HD 추가팩 (선택 설치)
+
+[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261105/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
+
+PCSX2 텍스처 검색 폴더 아래 `SLPS-25733/replacements/beowulf_mk3`에 PNG 27개를 넣고 Graphics → Texture Replacement의 **Load Textures**를 켭니다. 기본 검색 경로라면 ZIP의 textures 폴더를 에뮬레이터 폴더에 합쳐 넣으세요. 기존 전체 HD팩은 포함하지 않으며 기존 replacements 폴더를 삭제하면 안 됩니다. 베오울프의 적 등장은 ISO 패처에서 별도로 켭니다. 자세한 설명은 ZIP의 설치방법.txt에도 있습니다.
+
+파일: SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip (18,808,437바이트)
+
+SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
+
 ## 적용 방법
 
 1. ZIP을 폴더째 풉니다.

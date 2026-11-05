@@ -1,10 +1,11 @@
-[PS2] 슈퍼로봇대전 OGs 액셀 패치 v20261105 — 시작 오류 수정·기체 개수·슈우 합류
+[PS2] 슈퍼로봇대전 OGs 액셀 패치 완결편의 마지막 — 시작 오류 수정·기체 개수·슈우 합류
 
 이클립스입니다.
 
-OGs 액셀 역할 교체 패치 v20261105를 배포합니다.
+OGs 액셀 역할 교체 패치 완결편의 마지막 버전을 배포합니다.
 이번에는 시작 시 튕김과 적 강화 적용 누락을 수정하고, 무명·R-GUN 리바레·발시온 개의 수복·개수 이벤트 및 슈우·그랑존의 정식 합류를 추가했습니다.
 기존 역할 교체, 대사 교정, 밸런스 조정과 여섯 가지 선택 옵션은 그대로 유지됩니다.
+제보된 스타버튼을 눌렀을 때 오류도 수정되었습니다. 
 
 ■ 다운로드
 https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261105
@@ -113,3 +114,27 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases
 https://cafe.naver.com/f-e/cafes/30417439/articles/51116
 
 제보와 테스트에 함께해 주셔서 감사합니다.
+
+■ HD 추가팩 (2026-11-06)
+
+베오울프·게슈펜스트 Mk-Ⅲ의 HD 텍스처를 별도 추가했습니다. 위 다운로드 페이지의 Assets에서 아래 파일을 받으시면 됩니다. 기존 ISO 패치 ZIP은 그대로이며, HD를 원하시는 분만 추가 설치해 주세요.
+
+SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip
+크기: 18,808,437바이트
+SHA256: F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206
+
+직접 다운로드
+https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261105/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip
+
+기체 16개·베오울프 초상화 3개·컷인 8개, 총 27개 PNG이며 붉은 외곽선 보정본입니다. 전체 OGs HD팩을 포함하는 파일은 아닙니다.
+
+설치 방법 (PCSX2 1.7.4005 기준)
+1. 설정 → 그래픽 → Texture Replacement에서 Search Directory(검색 폴더)를 확인합니다.
+2. PCSX2를 종료하고 ZIP을 풉니다. 기본 textures 경로를 쓰면 ZIP의 textures 폴더를 에뮬레이터 폴더에 합쳐 넣으세요. 검색 폴더를 별도로 지정했다면 textures 안의 SLPS-25733 폴더를 그 검색 폴더에 넣습니다.
+3. 최종 경로가 <검색 폴더>/SLPS-25733/replacements/beowulf_mk3/*.png인지 확인합니다. 기존 replacements 폴더를 삭제하지 말고 합쳐 주세요. PNG 이름도 바꾸지 마세요.
+4. Texture Replacement의 Load Textures를 켜고 하드웨어 렌더러로 실행합니다. 게임별 설정도 확인해 주세요. Dump Textures는 켤 필요가 없습니다.
+5. 새로 부팅해 확인합니다. ISO 패치도 갱신했다면 이전 스테이트 대신 게임 내 세이브를 불러오세요.
+
+베오울프의 적 등장은 ISO 패처의 ‘베오울프 등장’ 옵션으로 켭니다. 이 HD팩 자체는 등장 여부나 시나리오를 바꾸지 않습니다.
+제거하려면 PCSX2를 종료하고 beowulf_mk3 폴더만 텍스처 검색 폴더 밖으로 옮기면 됩니다. ISO와 세이브는 바뀌지 않습니다.
+자세한 설치·문제 해결·제거 방법은 ZIP 안의 설치방법.txt에도 넣었습니다.
