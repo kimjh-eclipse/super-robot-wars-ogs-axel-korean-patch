@@ -712,7 +712,7 @@ def prepare_november_maintenance():
     # Package locally; never publish or overwrite the gameplay ISO.
     import zipfile,time
     run(sys.executable,'-X','utf8',QP/'build_range_pack.py','--working-alias')
-    version='v20261105';profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'));assert profiles['version']==version
+    version='v20261106';profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'));assert profiles['version']==version
     expected=profiles['hashes'];scratch=W/'runtime/BEOWULF_PATCHER_VERIFY.iso';assert sha(scratch)==expected[0]
     original_game=sha(ISO);cs=QP/'OgsAxelQuickPatch.cs';text=cs.read_text(encoding='utf-8')
     text=re.sub(r'private const string VersionText = "[^"]+";',f'private const string VersionText = "{version}";',text);cs.write_text(text,encoding='utf-8')
@@ -726,6 +726,7 @@ def prepare_november_maintenance():
         r=subprocess.run([str(exe),arg],cwd=QP,capture_output=True,text=True,encoding='utf-8',errors='replace');assert r.returncode==0,(r.stdout,r.stderr)
         (W/'runtime'/('maintenance_'+arg[2:]+'.log')).write_text(r.stdout+r.stderr,encoding='utf-8');print(arg,r.stdout.strip(),flush=True)
     delta=DIST/('SRWOGS_AxelRoleSwap_kr_'+version+'.xdelta')
+    assert not delta.exists() and not (DIST/('SRWOGS_AxelRoleSwap_kr_'+version+'.zip')).exists(),'Never overwrite a published package'
     run(XD,'-e','-9','-f','-B','536870912','-s',BASE,scratch,delta)
     assert scratch.resolve().parent==(W/'runtime').resolve();scratch.unlink()
     run(XD,'-d','-s',BASE,delta,scratch);assert sha(scratch)==expected[0]
@@ -748,6 +749,24 @@ def prepare_november_maintenance():
     logs.append(invoke(scratch,flags55));assert sha(scratch)==expected[55];cases.append(dict(name='public_broken55_to_fixed55',mask=55,sha256=expected[55]))
     logs.append(invoke(scratch,['--restore']));assert sha(scratch)==public55;cases.append(dict(name='restore_public55',mask=55,sha256=public55))
     logs.append(invoke(scratch,[]));assert sha(scratch)==expected[0];cases.append(dict(name='public55_to_new_default',mask=0,sha256=expected[0]))
+    # Reproduce the immediately previous public release, preserving its six options.
+    previous_dir=W/'runtime/maintenance_previous_verify';assert not previous_dir.exists();previous_dir.mkdir()
+    with zipfile.ZipFile(DIST/'SRWOGS_AxelRoleSwap_kr_v20261105.zip') as z:
+        previous_hashes=json.loads(z.read('옵션별_ISO_SHA256.json'))
+        for name in z.namelist():
+            if name.startswith('patcher/'):(previous_dir/Path(name).name).write_bytes(z.read(name))
+    shutil.copyfile(BASE,scratch)
+    previous_exe=previous_dir/exe.name
+    for mask,flags in ((0,[]),(55,flags55),(63,flags63)):
+        r=subprocess.run([str(previous_exe),str(scratch),'--cli']+flags,cwd=previous_dir,capture_output=True,text=True,encoding='utf-8',errors='replace');assert r.returncode==0,(r.stdout,r.stderr)
+        previous_hash=previous_hashes['profiles'][mask]['sha256'];assert sha(scratch)==previous_hash
+        logs.append(invoke(scratch,flags));assert sha(scratch)==expected[mask]
+        cases.append(dict(name='v20261105_to_new_'+str(mask),mask=mask,sha256=expected[mask]))
+        logs.append(invoke(scratch,['--restore']));assert sha(scratch)==previous_hash
+        cases.append(dict(name='restore_v20261105_'+str(mask),mask=mask,sha256=previous_hash))
+    assert previous_dir.resolve().parent==(W/'runtime').resolve()
+    for p in previous_dir.iterdir():assert p.is_file();p.unlink()
+    previous_dir.rmdir()
     shutil.copyfile(ISO,scratch)
     logs.append(invoke(scratch,['--hidden','--bundle','--rewards','--enemy','--spirits']));assert sha(scratch)==expected[31];cases.append(dict(name='working_iso_to_new31',mask=31,sha256=expected[31]))
     logs.append(invoke(scratch,['--restore']));assert sha(scratch)==original_game;cases.append(dict(name='restore_working_iso',sha256=original_game))
@@ -756,7 +775,7 @@ def prepare_november_maintenance():
         all_profile_startup_native_equivalence=True,phase_native_variants=profiles['native_phase_variants'],whole_game_playthrough=False)
     (W/'runtime/beowulf_patcher_validation.json').write_text(json.dumps(tested,ensure_ascii=False,indent=2),encoding='utf-8')
     notes=(W/'runtime/beowulf_release_notes.md').read_text(encoding='utf-8')
-    readme=notes.replace('# OGs 액셀 역할 교체 패치 v20261105','슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261105')
+    readme=notes.replace('# OGs 액셀 역할 교체 패치 v20261106','슈퍼로봇대전 OGs 액셀 역할 교체 빠른 패처 v20261106')
     (QP/'읽어주세요.txt').write_text(readme,encoding='utf-8-sig')
     files=[p for p in QP.iterdir() if p.suffix=='.bin']+[exe,QP/'읽어주세요.txt']
     sums=QP/'SHA256SUMS.txt';sums.write_text(''.join(sha(p)+'  '+p.name+'\n' for p in sorted(files)),encoding='utf-8-sig')
@@ -772,7 +791,7 @@ def prepare_november_maintenance():
         assert z.testzip() is None
         for name,b in payload.items():assert z.read(name)==b
     assert sha(ISO)==original_game
-    metadata=dict(version=version,status='PREPARED_NOT_PUBLISHED',previous='v20261102.1',built='2026-11-05',
+    metadata=dict(version=version,status='PREPARED_NOT_PUBLISHED',previous='v20261105',built='2026-11-06',
         release_zip=dict(file=out.name,path=str(out),size=out.stat().st_size,sha256=sha(out)),patch=delta_check,
         result_iso=dict(size=4518150144,sha256=expected[0]),base_iso=dict(size=4518150144,sha256=BASE_SHA),
         options=profiles['bits'],defaults=0,profile_count=64,validation=tested,gameplay_ISO_sha256=original_game)

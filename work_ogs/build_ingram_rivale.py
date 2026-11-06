@@ -1562,8 +1562,173 @@ def granzon_dialogue_followup(apply=False):
     with (ROOT/'runtime/슈우_그랑존_정식합류_대사.txt').open('a',encoding='utf-8') as f:f.write('\n'+'\n'.join(readable))
 
 
+def refurbishment_backfill_code():
+    """Before the verified change-menu initializer; never mutate a built list."""
+    from build_beowulf_prototype import Asm
+    pc=0x49b400;a=Asm(pc)
+    a.i(9,29,29,-0x90)
+    for i,r in enumerate(range(16,22)):a.i(0x1f,29,r,i*16)
+    a.i(0x3f,29,31,0x60);a.i(0x1f,29,4,0x70)
+    a.move(16,17) # original s1 is the save passed to the menu
+    a.i(15,0,2,0x5a);a.i(0x23,2,17,-0x2c94)
+    a.branch(4,17,0,'done');a.emit(0)
+    a.i(0x23,2,3,-0x2c9c);a.branch(5,16,3,'done');a.emit(0)
+    a.i(0x23,17,3,0xf5c);a.i(9,0,2,1);a.branch(5,3,2,'done');a.emit(0)
+    a.i(0x23,17,18,0xf74)
+    for key,full,threshold,label in ((0x600,0x60d,6,'mum'),(0x606,0x60e,21,'val'),(0x605,0x60c,11,'riv')):
+        a.i(10,18,2,threshold);a.branch(5,2,0,label+'_end');a.emit(0)
+        for k in (key,full):
+            a.move(4,16);a.i(9,0,5,k);a.move(6,0);a.jump(0x1abc50,True);a.move(7,0)
+            a.branch(1,2,1,label+'_exists');a.emit(0)
+        a.move(4,16);a.i(9,0,5,key);a.jump(0x1b2070,True);a.move(6,0)
+        a.branch(1,2,0,label+'_end');a.move(19,2)
+        a.move(4,16);a.i(9,0,5,2);a.move(6,19);a.i(9,0,7,1);a.jump(0x1af000,True);a.move(8,0)
+        a.branch(4,0,0,label+'_owned');a.emit(0)
+        a.label(label+'_exists');a.move(19,2)
+        a.label(label+'_owned')
+        if label=='riv':
+            a.move(4,16);a.i(9,0,5,PILOT);a.jump(0x1ab6f0,True);a.i(9,0,6,1)
+            a.branch(1,2,1,'riv_end');a.emit(0) # existing pilot never moved/reset
+            a.move(4,16);a.i(9,0,5,PILOT);a.jump(0x1b1fd0,True);a.move(6,0)
+            a.branch(1,2,0,'riv_end');a.move(20,2)
+            a.move(4,16);a.i(9,0,5,2);a.move(6,20);a.i(9,0,7,1);a.jump(0x1aebc0,True);a.move(8,0)
+            a.move(4,16);a.move(5,19);a.jump(0x1b1300,True);a.move(6,0)
+            a.branch(1,2,1,'riv_end');a.emit(0) # never eject another pilot
+            a.move(4,16);a.move(5,20);a.move(6,19);a.jump(0x1b13d0,True);a.move(7,0)
+        a.label(label+'_end')
+    a.label('done')
+    for i,r in enumerate(range(16,22)):a.i(0x1e,29,r,i*16)
+    a.i(0x37,29,31,0x60);a.i(0x1e,29,4,0x70)
+    a.jump(0x49a6f4);a.i(9,29,29,0x90) # continue the original Ashsaber backfill + initializer
+    code=a.data();assert len(code)<=0x800
+    return pc,code
+
+
+def refurbishment_backfill_validation(path,edits):
+    from validate_hidden_rewards import VM,ram as vr
+    from r5900_scalar_check import CPU
+    from test_ashsaber_verified_acquisition import records
+    pc,code=refurbishment_backfill_code()
+    with path.open('rb') as f:
+        executable=read(f,0x94880,0x482980);blob=read(f,0x5da000,0x1a5800)
+    master=u32(vr,0x59d360);save=u32(vr,0x59d364);glob=u32(vr,0x59d36c)
+    def setup():
+        c=CPU(vr);c.mem[0x100000:0x582980]=executable
+        for e in edits:
+            va=e['offset']-0x94880+0x100000;raw=bytes.fromhex(e['after']);c.mem[va:va+len(raw)]=raw
+        h=0x11e800;p=0x1100000;c.mem[p:p+len(blob[h:])]=blob[h:]
+        for i,k in enumerate(range(0x18,0x8c,4)):
+            q=p+u32(blob,h+k)
+            for off,v in ((0,q),(4,c.read(q,4)),(8,c.read(q+4,4)),(12,c.read(q+8,4)),(16,q),(20,q+12)):c.write(master+0x28+i*24+off,v,4)
+        # These are absent in the original pre-addition snapshot.
+        assert all(c.run(0x1abc50,[save,k,0,0])==-1 for k in (0x600,0x605,0x606,0x60c,0x60d,0x60e))
+        c.write(glob+0xf5c,1,4)
+        return c
+    def call(c,cleared,part=1):
+        c.write(glob+0xf5c,part,4);c.write(glob+0xf74,cleared,4)
+        saved={i:(0x1234000000000000+i)<<64|0x8899000000000000+i for i in range(16,22)}
+        for i,v in saved.items():c.r[i]=v
+        c.r[17]=save;saved[17]=save
+        c.r[18]=0;saved[18]=0 # original hook delay slot explicitly initializes s2
+        c.run(0x431778,[0x5c8610+0x2c260],stop=0x49a6f4,limit=5000000)
+        assert all(c.r[i]==v for i,v in saved.items()),'Live menu callee-saved GPR changed'
+        assert c.r[4]==0x5c8610+0x2c260
+    cases=[]
+    for cleared in (0,5,6,10,11,20,21,33,35,36,37,38,50):
+        c=setup();before=records(c,save);pilots=bytes(c.mem[save+0x25cfc:save+0x314fc]);call(c,cleared)
+        slots={k:c.run(0x1abc50,[save,k,0,0]) for k in (0x600,0x605,0x606)}
+        for k,t in ((0x600,6),(0x605,11),(0x606,21)):
+            assert (slots[k]>=0)==(cleared>=t),(cleared,hex(k),slots)
+            if slots[k]>=0:assert c.run(0x1a9b70,[save,slots[k],1])==1,(cleared,hex(k),slots[k],c.run(0x1af860,[save,2,slots[k],0]))
+        after=records(c,save);assert all(after[k]==v for k,v in before.items())
+        if cleared>=11:
+            pilot=c.run(0x1ab6f0,[save,PILOT,1]);assert pilot>=0
+            assert c.run(0x1b1300,[save,slots[0x605],0])==pilot
+            assert [c.run(0x1ac800,[save,p,pilot]) for p in (0xe7,0xe8,0xe9)]==[0,0,0]
+        else:assert bytes(c.mem[save+0x25cfc:save+0x314fc])==pilots
+        for k,weak,full,t in ((0x600,5670,6300,36),(0x605,7470,8300,36),(0x606,8550,9000,38)):
+            if slots[k]>=0:assert c.run(0x1a7d40,[master,k])==(full if cleared>=t else weak)
+        snapshot=bytes(c.mem[save:save+0x3b400]);call(c,cleared);assert bytes(c.mem[save:save+0x3b400])==snapshot
+        cases.append(dict(cleared=cleared,unit_slots={hex(k):v for k,v in slots.items()},repeat_idempotent=True))
+    # Existing full-key aliases, upgrades and pilots are protected.
+    c=setup()
+    for key in (0x60d,0x60c,0x60e):
+        slot=c.run(0x1b2070,[save,key,0]);assert slot>=0;c.run(0x1af000,[save,2,slot,1,0])
+        for p in range(0xd,0x11):c.run(0x1af000,[save,p,slot,7,0])
+    pilot=c.run(0x1b1fd0,[save,PILOT,0]);c.run(0x1aebc0,[save,2,pilot,1,0])
+    before=bytes(c.mem[save:save+0x3b400]);call(c,50);assert bytes(c.mem[save:save+0x3b400])==before
+    # Neither non-OG2 parts nor roster exhaustion may delete or alter units.
+    for part in (0,2):
+        c=setup();before=bytes(c.mem[save:save+0x3b400]);call(c,50,part);assert bytes(c.mem[save:save+0x3b400])==before
+    c=setup()
+    for i in range(4):c.write(save+0x3b2fc+i*4,0xffffffff,4)
+    before=bytes(c.mem[save:save+0x3b400]);call(c,50);assert bytes(c.mem[save:save+0x3b400])==before
+    # Preserve an occupied Rivale and its pilot while recovering a missing Ingram.
+    c=setup();unit=c.run(0x1b2070,[save,0x605,0]);c.run(0x1af000,[save,2,unit,1,0])
+    other=next(i for i in range(128) if c.run(0x1ac800,[save,1,i])>0)
+    c.run(0x1b13d0,[save,other,unit,0]);before=records(c,save)
+    call(c,33);assert c.run(0x1b1300,[save,unit,0])==other
+    assert all(records(c,save)[k]==v for k,v in before.items())
+    assert c.run(0x1ab6f0,[save,PILOT,1])>=0
+    # An already-owned Ingram is never reset or pulled out of another machine.
+    c=setup();pilot=c.run(0x1b1fd0,[save,PILOT,0]);c.run(0x1aebc0,[save,2,pilot,1,0])
+    pilots=bytes(c.mem[save+0x25cfc:save+0x314fc]);call(c,33)
+    assert bytes(c.mem[save+0x25cfc:save+0x314fc])==pilots
+    # Continue through the existing Ashsaber helper and displaced initializer.
+    c=setup();c.write(glob+0xf74,33,4);c.r[17]=save;c.r[19]=0x5c8610
+    c.run(0x431778,[0x5c8610+0x2c260],stop=0x431780,limit=5000000)
+    assert all(c.run(0x1abc50,[save,k,0,0])>=0 for k in (0x600,0x605,0x606))
+    return dict(passed=True,chapter_cases=cases,old_slots_and_upgrades_preserved=True,full_key_duplicates_prevented=True,
+        non_OG2_bypass=True,full_roster_non_destructive=True,menu_registers_preserved=True,
+        occupied_Rivale_pilot_preserved=True,existing_Ingram_record_preserved=True,original_Ashsaber_chain_verified=True,live_gameplay=False)
+
+
+def refurbishment_backfill(apply=False):
+    import psutil
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    journal=json.loads(JOURNAL.read_text(encoding='utf-8'));prior=journal['granzon_dialogue_followup'];assert prior['applied']
+    assert not journal.get('refurbishment_backfill',{}).get('applied'),'Already applied'
+    path=ROOT/'build/SRWOGS_K.iso';expected=next(x['after_sha256'] for x in prior['files'] if Path(x['path']).name==path.name)
+    pc,code=refurbishment_backfill_code();off=lambda a:0x94880+a-0x100000
+    edits=[dict(offset=off(0x431778),before=struct.pack('<II',2<<26|0x49a6f4>>2,0x0000902d).hex(),
+        after=struct.pack('<II',2<<26|pc>>2,0x0000902d).hex()),dict(offset=off(pc),before=bytes(len(code)).hex(),after=code.hex())]
+    edits.sort(key=lambda e:e['offset'])
+    with path.open('rb') as f:
+        assert hashlib.file_digest(f,'sha256').hexdigest()==expected
+        for e in edits:assert read(f,e['offset'],len(bytes.fromhex(e['before'])))==bytes.fromhex(e['before'])
+    native=refurbishment_backfill_validation(path,edits)
+    report=dict(applied=False,trigger='Before change-unit menu initialization',thresholds={'Mumyou':6,'Rivale_and_Ingram':11,'Valsion_Custom':21},
+        code_bytes=len(code),native_validation=native,files=[dict(path=str(path),before_sha256=expected,edits=edits)])
+    journal['refurbishment_backfill']=report;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        with path.open('r+b') as f:
+            assert hashlib.file_digest(f,'sha256').hexdigest()==expected
+            try:
+                for e in edits:
+                    before=bytes.fromhex(e['before']);assert read(f,e['offset'],len(before))==before
+                    f.seek(e['offset']);f.write(bytes.fromhex(e['after']))
+                f.flush();os.fsync(f.fileno());f.seek(0);target=hashlib.file_digest(f,'sha256').hexdigest()
+                # Inverse ranges must reconstruct the entire exact previous ISO.
+                h=hashlib.sha256();pos=0
+                for e in edits:
+                    f.seek(pos)
+                    while pos<e['offset']:
+                        raw=f.read(min(4<<20,e['offset']-pos));assert raw;h.update(raw);pos+=len(raw)
+                    old=bytes.fromhex(e['before']);h.update(old);pos+=len(old)
+                f.seek(pos)
+                while raw:=f.read(4<<20):h.update(raw)
+                assert h.hexdigest()==expected
+            except Exception:
+                for e in edits:f.seek(e['offset']);f.write(bytes.fromhex(e['before']))
+                f.flush();os.fsync(f.fileno());raise
+        report['applied']=True;report['files'][0]['after_sha256']=target
+        JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='files'},ensure_ascii=False,indent=2))
+
+
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--repair-loading',action='store_true');ap.add_argument('--balance',action='store_true');ap.add_argument('--finisher-cost',action='store_true');ap.add_argument('--clear-bonus',action='store_true');ap.add_argument('--valcion-custom',action='store_true');ap.add_argument('--legacy-recruitment',action='store_true');ap.add_argument('--weapon-cost-rebalance',action='store_true');ap.add_argument('--enemy-upgrade-plus2',action='store_true');ap.add_argument('--upgrade-report',action='store_true');ap.add_argument('--restoration',action='store_true');ap.add_argument('--enemy-deployment-fix',action='store_true');ap.add_argument('--refurbishment',action='store_true');ap.add_argument('--granzon-join',action='store_true');ap.add_argument('--granzon-dialogue',action='store_true');args=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--repair-loading',action='store_true');ap.add_argument('--balance',action='store_true');ap.add_argument('--finisher-cost',action='store_true');ap.add_argument('--clear-bonus',action='store_true');ap.add_argument('--valcion-custom',action='store_true');ap.add_argument('--legacy-recruitment',action='store_true');ap.add_argument('--weapon-cost-rebalance',action='store_true');ap.add_argument('--enemy-upgrade-plus2',action='store_true');ap.add_argument('--upgrade-report',action='store_true');ap.add_argument('--restoration',action='store_true');ap.add_argument('--enemy-deployment-fix',action='store_true');ap.add_argument('--refurbishment',action='store_true');ap.add_argument('--granzon-join',action='store_true');ap.add_argument('--granzon-dialogue',action='store_true');ap.add_argument('--refurbishment-backfill',action='store_true');args=ap.parse_args()
+    if '--refurbishment-backfill' in __import__('sys').argv:return refurbishment_backfill(args.apply)
     if args.granzon_dialogue:return granzon_dialogue_followup(args.apply)
     if args.granzon_join:return granzon_join(args.apply)
     if args.refurbishment:return refurbishment(args.apply)

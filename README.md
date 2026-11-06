@@ -2,14 +2,14 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261105**
+현재 버전: **v20261106**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261105/SRWOGS_AxelRoleSwap_kr_v20261105.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261105) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261106/SRWOGS_AxelRoleSwap_kr_v20261106.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261106) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 
 ## 베오울프·Mk-Ⅲ HD 추가팩 (선택 설치)
 
-[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261105/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
+[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261106/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
 
 PCSX2 텍스처 검색 폴더 아래 `SLPS-25733/replacements/beowulf_mk3`에 PNG 27개를 넣고 Graphics → Texture Replacement의 **Load Textures**를 켭니다. 기본 검색 경로라면 ZIP의 textures 폴더를 에뮬레이터 폴더에 합쳐 넣으세요. 기존 전체 HD팩은 포함하지 않으며 기존 replacements 폴더를 삭제하면 안 됩니다. 베오울프의 적 등장은 ISO 패처에서 별도로 켭니다. 자세한 설명은 ZIP의 설치방법.txt에도 있습니다.
 
@@ -35,13 +35,13 @@ SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
 
 같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.
 
-기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102·v20261102.1 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
+기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102·v20261102.1·v20261105 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
 
 ## 이번 업데이트
 
-베오울프 ON·적 강화 OFF 조합의 시작 오류와 적 개조 +2의 실제 전투 배치 누락을 수정했습니다. 무명·리바레는 36화 종료 후, 발시온 개는 38화 종료 후 수복·개수되며, 슈우·그랑존은 40화 종료 후 최종전까지 협력합니다. 기존 여섯 옵션은 유지합니다.
+**입수 이벤트를 지나친 세이브의 무명·리바레·발시온 개를 보충 지급합니다.** 새로 부팅해 게임 내 세이브를 불러온 뒤 인터미션의 **갈아타기**에 한 번 들어가세요. 6화/11화/21화 종료 이후 미보유분을 지급하고, 이미 가진 기체·개조·탑승 기록은 유지합니다. 무명·리바레는 36화, 발시온 개는 38화 종료를 기준으로 손상형/완성형 성능이 적용됩니다. 33화 세이브도 발시온 개를 받을 수 있습니다. 지급 후 게임 내 세이브를 해주세요.
 
-[이번 변경과 전체 입수 시점](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261105)
+v20261105의 시작 오류·적 개조 적용 수정, 기체 수복·개수, 슈우·그랑존 정식 합류와 기존 여섯 옵션은 유지합니다.
 
 ## 기본 적용 사항
 
@@ -58,14 +58,14 @@ SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
 - 소울게인·바이사가 무장별 대사·음성 연결 수정, 시나리오 대사·호칭·문자 깨짐 교정, 적 라미아·안쥬르그 조정 유지.
 - 아우센자이터 무장 공격력 +200 및 배리어 관통, 알트아이젠 리제 배리어 관통, 공용 시시오 블레이드·암검살·스태그 비틀 크래셔 사거리 조정 등 유지.
 
-전체 수치와 획득 시점은 아래 누적 릴리즈 노트에 정리했습니다. **지나간 화의 보상은 소급 지급하지 않습니다.** 오우카 생존은 44화 결말 이전부터 진행해야 합니다. 적 기본 개조는 적이 생성될 때 적용됩니다.
+전체 수치와 획득 시점은 아래 누적 릴리즈 노트에 정리했습니다. **무명·리바레·발시온 개와 잉그램은 위 보충 지급을 지원합니다. 다른 지나간 화의 보상은 소급 지급하지 않습니다.** 오우카 생존은 44화 결말 이전부터 진행해야 합니다. 적 기본 개조는 적이 생성될 때 적용됩니다.
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261105.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261106.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261105.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261106.xdelta" "출력.iso"
 ```
 
 ## 검증

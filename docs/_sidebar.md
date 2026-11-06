@@ -13,7 +13,7 @@
   - [🔧 개발 기록](dev-log.md)
 
 - **다운로드**
-  - [⬇️ 완결판 v20261102.1 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)
+  - [⬇️ v20261106 보충 지급 수정판 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/latest)
 
 - **관련 패치**
   - [🦾 OG2 ExcelVir2 한국어 패치](https://kimjh-eclipse.github.io/super-robot-wars-og2-axel-korean-patch/)

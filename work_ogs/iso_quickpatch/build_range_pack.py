@@ -817,7 +817,7 @@ def build_november_maintenance():
     from validate_beowulf_prototype import validate_story_blob
     from validate_hidden_rewards import ram as fixture
     from r5900_scalar_check import CPU
-    version='v20261105';release=ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip'
+    version='v20261106';release=ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261102.1.zip'
     assert file_hash(release)=='07835B71F605D082B921E31618EBBC2BC781E092975D90CEB73B8A5CB83517EE'
     z=zipfile.ZipFile(release)
     def U(f):return struct.unpack('<I',f.read(4))[0]
@@ -854,6 +854,26 @@ def build_november_maintenance():
     assert f.tell()==len(f.getbuffer())
     # All public profiles remain recognized, including the 16 broken boot profiles.
     aliases.extend((mask,digest,anchors[mask&31],[(at,a) for at,a,b in rr]) for mask,(digest,rr) in enumerate(oldprofiles))
+    # Recognize all 64 v20261105 results, plus its working-ISO alias group.
+    published=ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261105.zip'
+    assert file_hash(published)=='9401C560AD7077411567D1FAC7A1D82420A00A31114331126FC0202C0A2832AB'
+    with zipfile.ZipFile(published) as previous_zip:g=io.BytesIO(previous_zip.read('patcher/OGS_beowulf_options.bin'))
+    assert g.read(8)==b'OGSBEO02';assert struct.unpack('<Q',g.read(8))[0]==size;assert U(g)==64
+    previous_pool=[g.read(U(g)) for _ in range(U(g))]
+    for mask in range(64):
+        assert U(g)==mask;anchor=g.read(32);digest=g.read(32);rr=[]
+        for _ in range(U(g)):
+            at,n,a,b=struct.unpack('<QIII',g.read(20));assert len(previous_pool[a])==len(previous_pool[b])==n
+            rr.append((at,previous_pool[a]))
+        assert anchor==anchors[mask&31];aliases.append((mask,digest,anchor,rr))
+    previous_aliases=[]
+    for _ in range(U(g)):
+        mask=U(g);source=g.read(32);anchor=g.read(32);rr=[]
+        for _ in range(U(g)):
+            at,n,b=struct.unpack('<QII',g.read(16));assert len(previous_pool[b])==n;rr.append((at,previous_pool[b]))
+        previous_aliases.append((mask,source,anchor,rr))
+    assert g.tell()==len(g.getbuffer()) and len(previous_aliases)==320
+    aliases.extend(previous_aliases[-64:])
     class View:
         def __init__(self,file,es=()):
             self.file=file;self.es=[];self.bins={};self.pos=0
@@ -932,6 +952,13 @@ def build_november_maintenance():
             rivale_pair=(429,restored['restored_record'],36)
             hooks=inc.refurbishment_hook(v,notes,rivale_pair)
             for e in hooks:v.put(e['offset'],bytes.fromhex(e['after']))
+            # Shared missed-unit recovery runs before the existing Ashsaber initializer.
+            backfill_pc,backfill_code=inc.refurbishment_backfill_code()
+            executable_at=lambda pc:0x94880+pc-0x100000
+            assert v.get(executable_at(0x431778),8)==struct.pack('<II',2<<26|0x49a6f4>>2,0x0000902d)
+            assert not any(v.get(executable_at(backfill_pc),len(backfill_code)))
+            v.put(executable_at(backfill_pc),backfill_code)
+            v.put(executable_at(0x431778),struct.pack('<II',2<<26|backfill_pc>>2,0x0000902d))
             key=tuple((n['weak_record'],n['full_record']) for n in notes)+(rivale_pair,)
             if key not in native_cache:native_cache[key]=inc.refurbishment_validation(TARGET,b,hooks,notes)
             # Allocate only verified empty gaps outside all live LOGO/UNTD entries.
@@ -1058,7 +1085,7 @@ def build_november_maintenance():
         profiles=results,native_phase_variants=list(native_cache.values()),unique_story_checks=len(proof_cache),
         production_sha256=production,gameplay_ISO_read_only=True,pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,
         previous_profiles_supported=len(aliases),episode6_test_excluded=True,source_release='v20261102.1',
-        public_startup_fix=True,enemy_real_deployment_fix=True,scratch_default_iso=str(scratch))
+        public_startup_fix=True,enemy_real_deployment_fix=True,refurbishment_backfill=True,scratch_default_iso=str(scratch))
     assert file_hash(TARGET)==production
     (ROOT/'runtime/beowulf_options_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     (ROOT/'runtime/ingram_profiles_validation.json').write_text(json.dumps(dict(passed=True,profiles_checked=64,validation=results,live_playthrough=False),ensure_ascii=False,indent=2),encoding='utf-8')
@@ -1094,7 +1121,7 @@ def add_working_iso_alias():
                 lo,hi=max(p,at),min(p+len(b),at+n)
                 if lo<hi:out[lo-at:hi-at]=b[lo-p:hi-p]
             return bytes(out)
-        for key in ('granzon_dialogue_followup','granzon_join','refurbishment','enemy_deployment_fix','restoration'):
+        for key in ('refurbishment_backfill','granzon_dialogue_followup','granzon_join','refurbishment','enemy_deployment_fix','restoration'):
             item=next(x for x in journal[key]['files'] if Path(x['path']).name==TARGET.name);assert item['after_sha256']==chain
             for e in reversed(item['edits']):
                 a,b=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert get(e['offset'],len(b))==b;changes.append((e['offset'],a))
