@@ -1726,7 +1726,199 @@ def refurbishment_backfill(apply=False):
     print(json.dumps({k:v for k,v in report.items() if k!='files'},ensure_ascii=False,indent=2))
 
 
+def vysaga_backfill_code():
+    """Hidden-option-only missed Vysaga recovery, before every existing helper."""
+    from build_beowulf_prototype import Asm
+    pc=0x49b800;a=Asm(pc)
+    a.i(9,29,29,-0x60)
+    for i,r in enumerate(range(16,20)):a.i(0x1f,29,r,i*16)
+    a.i(0x3f,29,31,0x40);a.i(0x1f,29,4,0x50)
+    a.move(16,17)
+    a.i(15,0,2,0x5a);a.i(0x23,2,17,-0x2c94)
+    a.branch(4,17,0,'done');a.emit(0)
+    a.i(0x23,2,3,-0x2c9c);a.branch(5,16,3,'done');a.emit(0)
+    a.i(0x23,17,3,0xf5c);a.i(9,0,2,1);a.branch(5,3,2,'done');a.emit(0)
+    a.i(0x23,17,3,0xf74);a.i(10,3,2,35);a.branch(5,2,0,'done');a.emit(0)
+    a.move(4,16);a.i(9,0,5,0x42d);a.move(6,0);a.jump(0x1abc50,True);a.move(7,0)
+    a.branch(1,2,1,'done');a.emit(0)
+    a.move(4,16);a.i(9,0,5,0x42d);a.jump(0x1b2070,True);a.move(6,0)
+    a.branch(1,2,0,'done');a.move(18,2)
+    a.move(4,16);a.i(9,0,5,2);a.move(6,18);a.i(9,0,7,1);a.jump(0x1af000,True);a.move(8,0)
+    a.label('done')
+    for i,r in enumerate(range(16,20)):a.i(0x1e,29,r,i*16)
+    a.i(0x37,29,31,0x40);a.i(0x1e,29,4,0x50)
+    a.jump(0x49b400);a.i(9,29,29,0x60)
+    code=a.data();assert len(code)<=0x400
+    return pc,code
+
+
+def vysaga_scenes(s):
+    rs=s.records(101)
+    point=next(i for i,(_,r) in reversed(list(enumerate(rs))) if r[0]==0x9c)
+    assert any(r[0]==0x7c and r[2]==0x42d for _,r in rs[:point])
+    return {101:[(point,'バイサーガ automatic ownership',[('command',command(0x5a,0x42d))])]}
+
+
+def vysaga_grant_patch(f):
+    from build_beowulf_prototype import Asm
+    off=lambda pc:0x94880+pc-0x100000
+    old=read(f,off(0x114f88),56)
+    expected=struct.pack('<14I',0x8e280008,0x2508f9fa,0x2d080006,0x15000005,0x8e280008,0x39080600,0x2d080003,0x11000002,0,0x24070001,0x0806bc00,0x0000402d,0,0)
+    assert old==expected,'Existing permanent grant helper changed'
+    pc=0x49ba00;a=Asm(pc)
+    a.i(0x23,17,8,8);a.i(14,8,8,0x42d);a.branch(5,8,0,'original');a.emit(0)
+    a.jump(0x1af000);a.i(9,0,7,1)
+    a.label('original');a.emit(*struct.unpack('<14I',old));code=a.data()
+    assert not any(read(f,off(pc),len(code)))
+    return [dict(offset=off(0x114f88),before=old[:8].hex(),after=struct.pack('<II',2<<26|pc>>2,0).hex()),
+        dict(offset=off(pc),before=bytes(len(code)).hex(),after=code.hex())]
+
+
+def vysaga_validation(path,edits,story=None):
+    from validate_hidden_rewards import VM,ram as vr
+    from r5900_scalar_check import CPU
+    from test_ashsaber_verified_acquisition import records
+    with path.open('rb') as f:
+        elf=read(f,0x94880,0x482980);blob=read(f,0x5da000,0x1a5800)
+    save=u32(vr,0x59d364);glob=u32(vr,0x59d36c);master=u32(vr,0x59d360)
+    def setup():
+        c=CPU(vr);c.mem[0x100000:0x582980]=elf
+        for e in edits:
+            if 0x94880<=e['offset']<0x517200:
+                at=e['offset']-0x94880+0x100000;b=bytes.fromhex(e['after']);c.mem[at:at+len(b)]=b
+        p=0x1100000;h=0x11e800;c.mem[p:p+len(blob[h:])]=blob[h:]
+        for i,k in enumerate(range(0x18,0x8c,4)):
+            q=p+u32(blob,h+k)
+            for off,v in ((0,q),(4,c.read(q,4)),(8,c.read(q+4,4)),(12,c.read(q+8,4)),(16,q),(20,q+12)):c.write(master+0x28+i*24+off,v,4)
+        assert c.run(0x1abc50,[save,0x42d,0,0])==-1
+        return c
+    def call(c,cleared,part=1,chain=False):
+        c.write(glob+0xf5c,part,4);c.write(glob+0xf74,cleared,4)
+        saved={i:((0x1234567800000000+i)<<64)|i for i in range(16,20)}
+        for i,v in saved.items():c.r[i]=v
+        c.r[17]=save;saved[17]=save;c.r[18]=0;saved[18]=0
+        if chain:c.r[19]=0x5c8610
+        c.run(0x431778,[0x5c8610+0x2c260],stop=0x431780 if chain else 0x49b400,limit=5000000)
+        if not chain:assert all(c.r[i]==v for i,v in saved.items()) and c.r[4]==0x5c8610+0x2c260
+    cases=[]
+    for cleared in (0,34,35,36,40,50):
+        c=setup();before=records(c,save);pilots=bytes(c.mem[save+0x25cfc:save+0x314fc]);call(c,cleared)
+        slot=c.run(0x1abc50,[save,0x42d,0,0]);assert (slot>=0)==(cleared>=35)
+        if slot>=0:
+            assert c.run(0x1a9b70,[save,slot,1])==1
+            assert c.run(0x1b1300,[save,slot,0])==-1
+        assert all(records(c,save)[k]==v for k,v in before.items())
+        assert bytes(c.mem[save+0x25cfc:save+0x314fc])==pilots
+        state=bytes(c.mem[save:save+0x3b400]);call(c,cleared);assert bytes(c.mem[save:save+0x3b400])==state
+        cases.append(dict(cleared=cleared,slot=slot))
+    c=setup();slot=c.run(0x1b2070,[save,0x42d,0]);c.run(0x1af000,[save,2,slot,1,0])
+    for p in range(0xd,0x11):c.run(0x1af000,[save,p,slot,7,0])
+    pilot=next(i for i in range(128) if c.run(0x1ac800,[save,1,i])>0)
+    c.run(0x1b13d0,[save,pilot,slot,0]);state=bytes(c.mem[save:save+0x3b400]);call(c,50)
+    assert bytes(c.mem[save:save+0x3b400])==state
+    for part in (0,2):
+        c=setup();state=bytes(c.mem[save:save+0x3b400]);call(c,50,part);assert bytes(c.mem[save:save+0x3b400])==state
+    c=setup()
+    for i in range(4):c.write(save+0x3b2fc+i*4,0xffffffff,4)
+    state=bytes(c.mem[save:save+0x3b400]);call(c,50);assert bytes(c.mem[save:save+0x3b400])==state
+    c=setup();call(c,40,chain=True)
+    assert all(c.run(0x1abc50,[save,k,0,0])>=0 for k in (0x42d,0x600,0x605,0x606))
+    c=setup()
+    for key in (0x41c,0x427,0x428,0x42d,0x499,0x600,0x601,0x602,0x603,0x604,0x605,0x606,0x60b,0x60c,0x60e):
+        rec=0x1900000;c.write(rec+8,key,4);c.r[17]=rec;c.r[7]=31;c.run(0x114f88,stop=0x1af000)
+        assert c.r[7]==(1 if key==0x42d or 0x600<=key<=0x602 or 0x606<=key<=0x60b else 31)
+    # The same native script grant used at the chapter's final clear point.
+    vm=VM();vm.cpu=setup();vm.op(command(0x5a,0x42d));slot=vm.cpu.run(0x1abc50,[save,0x42d,0,0])
+    assert slot>=0 and vm.cpu.run(0x1a9b70,[save,slot,1])==1
+    assert [vm.cpu.run(0x1aca50,[save,p,slot]) for p in (0x37,0x38,0x39,0x59)]==[0,0,0,65535]
+    assert vm.cpu.run(0x1b1300,[save,slot,0])==-1
+    stable=bytes(vm.cpu.mem[save:save+0x3b400]);vm.op(command(0x5a,0x42d));assert bytes(vm.cpu.mem[save:save+0x3b400])==stable
+    vm.cpu=setup()
+    for i in range(4):vm.cpu.write(save+0x3b2fc+i*4,0xffffffff,4)
+    stable=bytes(vm.cpu.mem[save:save+0x3b400]);vm.op(command(0x5a,0x42d));assert bytes(vm.cpu.mem[save:save+0x3b400])==stable
+    if story:
+        from validate_beowulf_prototype import validate_story_blob
+        old,new,notes=story
+        validate_story_blob(old,new,notes,vr,allowed_commands=(tuple(command(0x5a,0x42d)),))
+        script=new
+    else:
+        scripts=Scripts(path);at,size=scripts.logos[101];script=scripts.data[at:at+size]
+    rs=[struct.unpack_from('<24I',script,u32(script,0x2c)+i*96) for i in range(u32(script,0x28))]
+    point=next(i for i,r in enumerate(rs) if r[0]==0x5a and r[2]==0x42d)
+    assert rs[1366][0]==0x8e and rs[point+1][0]==0x9c
+    for f6 in (0,1):
+        for f7 in (0,1):assert point in VM().trace(rs,1366,len(rs),{(0xd,6):f6,(0xd,7):f7})
+    return dict(passed=True,chapter_cases=cases,native_clear_grant=True,duplicate_prevention=True,
+        existing_pilot_and_upgrades_preserved=True,full_roster_safe=True,non_OG2_bypass=True,
+        complete_initializer_chain=True,registers_preserved=True,selection_gates_pass=True,native_clear_full_roster_safe=True,
+        original_clear_flag_paths_verified=4,other_native_grant_affiliations_preserved=True,live_playthrough=False)
+
+
+def vysaga_auto(apply=False):
+    import psutil
+    from validate_hidden_rewards import ram as vr
+    from validate_beowulf_prototype import validate_story_blob
+    if apply:assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    journal=json.loads(JOURNAL.read_text(encoding='utf-8'));assert journal['refurbishment_backfill']['applied']
+    assert not journal.get('vysaga_auto',{}).get('applied'),'Already applied'
+    path=ROOT/'build/SRWOGS_K.iso';expected=journal['refurbishment_backfill']['files'][0]['after_sha256']
+    s=Scripts(path);n=101;at,size=s.logos[n];old=s.data[at:at+size]
+    new,notes=rebuild_beowulf_story_logo(old,vysaga_scenes(s)[n],speaker_context=True)
+    proof=validate_story_blob(old,new,notes,vr,allowed_commands=(tuple(command(0x5a,0x42d)),))
+    low,high=0x8e60000,0x9600000;free=bytearray(s.data[low:high]);occupied=list(s.logos);wp=0x5071000
+    for i in range(u32(s.data,wp+4)):
+        dp=wp+8+i*8;occupied.append((wp+u32(s.data,dp),u32(s.data,dp+4)))
+    for p,z in occupied:
+        lo,hi=max(p,low),min(p+z,high)
+        if lo<hi:free[lo-low:hi-low]=b'\xff'*(hi-lo)
+    start=0
+    while True:
+        q=free.find(bytes(len(new)),start);assert q>=0
+        dest=(low+q+2047)&~2047
+        if dest+len(new)<=high and not any(free[dest-low:dest-low+len(new)]):break
+        start=q+1
+    pc,code=vysaga_backfill_code();off=lambda a:0x94880+a-0x100000
+    changes=[(off(0x431778),struct.pack('<II',2<<26|pc>>2,0x902d)),(off(pc),code),
+        (MAP+dest,new),(MAP+0x557f800+8+n*8,struct.pack('<II',dest-0x557f800,len(new)))]
+    parent=MAP+0x800+8+14*8+4
+    with path.open('rb') as f:
+        assert hashlib.file_digest(f,'sha256').hexdigest()==expected
+        assert read(f,off(0x431778),8)==struct.pack('<II',2<<26|0x49b400>>2,0x902d)
+        assert not any(read(f,off(pc),len(code))) and not any(read(f,MAP+dest,len(new)))
+        grant_edits=vysaga_grant_patch(f)
+        changes.append((parent,struct.pack('<I',max(u32(read(f,parent,4)),dest+len(new)-0x557e800))))
+        edits=sorted([dict(offset=p,before=read(f,p,len(b)).hex(),after=b.hex()) for p,b in changes]+grant_edits,key=lambda e:e['offset'])
+    native=vysaga_validation(path,edits,(old,new,notes))
+    report=dict(applied=False,hidden_option_only=True,chapter=35,unit_key=0x42d,native_validation=native,
+        story_validation=proof,files=[dict(path=str(path),before_sha256=expected,edits=edits)])
+    journal['vysaga_auto']=report;JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        with path.open('r+b') as f:
+            assert hashlib.file_digest(f,'sha256').hexdigest()==expected
+            try:
+                for e in edits:
+                    a=bytes.fromhex(e['before']);assert read(f,e['offset'],len(a))==a
+                    f.seek(e['offset']);f.write(bytes.fromhex(e['after']))
+                f.flush();os.fsync(f.fileno());f.seek(0);target=hashlib.file_digest(f,'sha256').hexdigest()
+                inverse=hashlib.sha256();pos=0
+                for e in edits:
+                    f.seek(pos)
+                    while pos<e['offset']:
+                        raw=f.read(min(4<<20,e['offset']-pos));assert raw;inverse.update(raw);pos+=len(raw)
+                    a=bytes.fromhex(e['before']);inverse.update(a);pos+=len(a)
+                f.seek(pos)
+                while raw:=f.read(4<<20):inverse.update(raw)
+                assert inverse.hexdigest()==expected
+            except Exception:
+                for e in edits:f.seek(e['offset']);f.write(bytes.fromhex(e['before']))
+                f.flush();os.fsync(f.fileno());raise
+        report['applied']=True;report['files'][0]['after_sha256']=target
+        JOURNAL.write_text(json.dumps(journal,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='files'},ensure_ascii=False,indent=2),flush=True)
+
+
 def main():
+    if '--vysaga-auto' in __import__('sys').argv:return vysaga_auto('--apply' in __import__('sys').argv)
     ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--repair-loading',action='store_true');ap.add_argument('--balance',action='store_true');ap.add_argument('--finisher-cost',action='store_true');ap.add_argument('--clear-bonus',action='store_true');ap.add_argument('--valcion-custom',action='store_true');ap.add_argument('--legacy-recruitment',action='store_true');ap.add_argument('--weapon-cost-rebalance',action='store_true');ap.add_argument('--enemy-upgrade-plus2',action='store_true');ap.add_argument('--upgrade-report',action='store_true');ap.add_argument('--restoration',action='store_true');ap.add_argument('--enemy-deployment-fix',action='store_true');ap.add_argument('--refurbishment',action='store_true');ap.add_argument('--granzon-join',action='store_true');ap.add_argument('--granzon-dialogue',action='store_true');ap.add_argument('--refurbishment-backfill',action='store_true');args=ap.parse_args()
     if '--refurbishment-backfill' in __import__('sys').argv:return refurbishment_backfill(args.apply)
     if args.granzon_dialogue:return granzon_dialogue_followup(args.apply)

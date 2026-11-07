@@ -2,14 +2,14 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261106**
+현재 버전: **v20261107**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261106/SRWOGS_AxelRoleSwap_kr_v20261106.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261106) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261107/SRWOGS_AxelRoleSwap_kr_v20261107.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261107) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 
 ## 베오울프·Mk-Ⅲ HD 추가팩 (선택 설치)
 
-[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261106/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
+[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261107/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
 
 PCSX2 텍스처 검색 폴더 아래 `SLPS-25733/replacements/beowulf_mk3`에 PNG 27개를 넣고 Graphics → Texture Replacement의 **Load Textures**를 켭니다. 기본 검색 경로라면 ZIP의 textures 폴더를 에뮬레이터 폴더에 합쳐 넣으세요. 기존 전체 HD팩은 포함하지 않으며 기존 replacements 폴더를 삭제하면 안 됩니다. 베오울프의 적 등장은 ISO 패처에서 별도로 켭니다. 자세한 설명은 ZIP의 설치방법.txt에도 있습니다.
 
@@ -26,7 +26,7 @@ SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
 
 | 독립 선택 옵션 | 내용 |
 |---|---|
-| 숨겨진 요소 자동 습득 (OG2) | 원래 획득 시점의 조건 해제 |
+| 숨겨진 요소 자동 습득 (OG2) | 획득 조건 해제·35화 바이사가 지급·35화 이후 미보유분 보충 |
 | 오우카 생존 + 젠가 밸런스 | 44화 양쪽 루트 오우카 합류·45화 후속 대사, 다이젠가 강화·8무장 통합 |
 | 자금 +20% · PP 2배 | 적 격추 보상 증가 |
 | 적 강화 | 적 파일럿 6개 능력치 +5, 기체·무기 기본 개조 +2단, 기본 HP 20,000 미만 적 HP +10% |
@@ -35,9 +35,16 @@ SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
 
 같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.
 
-기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102·v20261102.1·v20261105 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
+기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102·v20261102.1·v20261105·v20261106 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
 
 ## 이번 업데이트
+
+- 숨겨진 요소 자동 습득 옵션을 켜면 OG2 35화 종료 후 바이사가를 조건 없이 아군 기체로 지급합니다.
+- 이미 35화를 지난 미보유 세이브도 해당 옵션을 켠 새 ISO로 부팅하고 게임 내 세이브 로드 → 인터미션 → 갈아타기에 진입하면 보충됩니다. 지급 후 게임 내 저장을 해주세요.
+- 기존 바이사가의 개조·탑승 기록을 유지하며 중복 지급하지 않습니다. 액셀을 현재 기체에서 강제로 옮기지 않습니다.
+- 옵션 OFF에서는 기존 획득 조건을 유지합니다. 기본 적용인 무명·리바레·발시온 개 보충 및 기존 여섯 옵션·대사·밸런스 수정은 유지합니다.
+- HD 추가팩은 기존 v20261106과 같은 파일입니다. 재설치하지 않아도 됩니다.
+
 
 **입수 이벤트를 지나친 세이브의 무명·리바레·발시온 개를 보충 지급합니다.** 새로 부팅해 게임 내 세이브를 불러온 뒤 인터미션의 **갈아타기**에 한 번 들어가세요. 6화/11화/21화 종료 이후 미보유분을 지급하고, 이미 가진 기체·개조·탑승 기록은 유지합니다. 무명·리바레는 36화, 발시온 개는 38화 종료를 기준으로 손상형/완성형 성능이 적용됩니다. 33화 세이브도 발시온 개를 받을 수 있습니다. 지급 후 게임 내 세이브를 해주세요.
 
@@ -62,15 +69,15 @@ v20261105의 시작 오류·적 개조 적용 수정, 기체 수복·개수, 슈
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261106.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261107.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261106.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261107.xdelta" "출력.iso"
 ```
 
 ## 검증
 
-64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 24,576개 전환 경로, 실제 ISO 설치·업데이트·옵션 전환·백업 복원 11건을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
+64개 결과 ISO 전체 해시, 기존 5,120개 옵션 전환과 신규·이전 버전 40,960개 전환 경로, 실제 ISO 설치·업데이트·옵션 전환·백업 복원 22건을 검증했습니다. 전체 시나리오의 실플레이 검증을 새로 완료한 것은 아닙니다.
 
 모든 조합의 ISO 크기는 4,518,150,144바이트입니다. 각 결과 해시는 ZIP의 `옵션별_ISO_SHA256.json`에 있습니다.
 
