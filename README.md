@@ -19,6 +19,13 @@ SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
 
 ## 적용 방법
 
+먼저 일본판 원본에 **OGs 한글패치 v1.4.3s1**을 적용한 뒤 이 액셀 역할 교체 패치를 적용하세요.
+
+- [기준 한글패치 다운로드 — OGs-v1.4.3s1.7z](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z)
+- [기준 한글패치 배포 페이지·안내](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/tag/SRWOGS) · [적용 안내](https://github.com/z3oo3z/PS2-SRWOGS-KPatch#readme)
+
+적용 순서: **일본판 원본 → 한글패치 v1.4.3s1 → 액셀 역할 교체 패치**. 기준 한글패치는 별도 제작자가 배포하는 파일이며 이 패치 ZIP에는 포함하지 않습니다.
+
 1. ZIP을 폴더째 풉니다.
 2. `patcher/OGS_AxelSwap_QuickPatch.exe`에서 ISO를 선택합니다.
 3. 원하는 옵션을 체크하고 [패치 적용]을 누릅니다. **여섯 옵션의 기본값은 모두 꺼짐**입니다.

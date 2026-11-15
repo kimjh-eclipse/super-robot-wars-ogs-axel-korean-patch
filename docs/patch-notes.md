@@ -1,3 +1,10 @@
+## 기준 한글패치 다운로드·적용 순서
+
+- [OGs 한글패치 v1.4.3s1 다운로드 — OGs-v1.4.3s1.7z](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z)
+- [기준 한글패치 배포 페이지](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/tag/SRWOGS) · [적용 안내](https://github.com/z3oo3z/PS2-SRWOGS-KPatch#readme)
+
+**일본판 원본 → 한글패치 v1.4.3s1 → 액셀 역할 교체 패치** 순서로 적용합니다. 기준 한글패치는 별도 제작자가 배포하는 파일이며 액셀 역할 교체 패치 ZIP에는 포함하지 않습니다.
+
 ## v20261107 — 바이사가 자동 입수 수정 (2026-11-07)
 
 - 숨겨진 요소 자동 습득 옵션을 켜면 OG2 35화 종료 후 바이사가를 조건 없이 아군 기체로 지급합니다.

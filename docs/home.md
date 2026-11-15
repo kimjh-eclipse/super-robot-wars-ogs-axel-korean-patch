@@ -42,6 +42,10 @@ v20261105의 시작 오류 수정, 실제 적 기체·무기 개조 +2 적용, �
 
 ## 설치·업데이트
 
+기준 한글패치가 없다면 [OGs-v1.4.3s1.7z 다운로드](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z)를 이용하세요. [배포 페이지](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/tag/SRWOGS)와 [적용 안내](https://github.com/z3oo3z/PS2-SRWOGS-KPatch#readme)도 함께 확인해 주세요.
+
+적용 순서는 **일본판 원본 → 한글패치 v1.4.3s1 → 액셀 역할 교체 패치**입니다. 기준 한글패치는 별도 제작자가 배포하며 이 패치 ZIP에는 포함하지 않습니다.
+
 1. 에뮬레이터를 종료하고 ZIP을 폴더째 풉니다.
 2. patcher/OGS_AxelSwap_QuickPatch.exe에서 ISO와 옵션을 선택하고 패치 적용을 누릅니다. 실행파일 옆 .bin 파일은 모두 함께 두세요.
 3. v20261105를 포함한 지원되는 이전 적용본은 그대로 업데이트할 수 있습니다. 작업 직전 상태는 .ogsbak으로 백업되며 패처에서 복원할 수 있습니다.
