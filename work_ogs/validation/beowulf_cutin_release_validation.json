@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "version": "v20261116",
+  "profile_count": 64,
+  "actual_iso_cases": [
+    {
+      "name": "base_to_beowulf",
+      "mask": 32,
+      "sha256": "F3BBB41B90F6CF0B22761B293C99A9C1614B237C2F9768ED905FD14875F6263C",
+      "seconds": 19.64
+    },
+    {
+      "name": "all_on",
+      "mask": 63,
+      "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF",
+      "seconds": 22.14
+    },
+    {
+      "name": "all_off",
+      "mask": 0,
+      "sha256": "5DAFC92932D32776A66B350C64E04A00E41A3F6656844ABF588E8394D592350B",
+      "seconds": 23.02
+    },
+    {
+      "name": "restore",
+      "mask": 63,
+      "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF",
+      "seconds": 10.26
+    },
+    {
+      "name": "v20261107_to_new63",
+      "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF"
+    },
+    {
+      "name": "restore_v20261107",
+      "sha256": "F180D4CEA8FDF1C6C16146536D98EF91B65456D459EFF2A158EA9D7948B3BE8B"
+    }
+  ],
+  "private_changes_excluded": true,
+  "source_public_release": "v20261107",
+  "all_OFF_unchanged": true,
+  "live_gameplay_verified": false
+}

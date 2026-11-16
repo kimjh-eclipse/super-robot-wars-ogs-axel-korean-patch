@@ -2,20 +2,20 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261107**
+현재 버전: **v20261116**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261107/SRWOGS_AxelRoleSwap_kr_v20261107.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261107) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_AxelRoleSwap_kr_v20261116.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261116) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 
 ## 베오울프·Mk-Ⅲ HD 추가팩 (선택 설치)
 
-[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261107/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
+[HD 추가팩 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip) · [설치·제거 안내](work_ogs/HD_INSTALL.txt)
 
-PCSX2 텍스처 검색 폴더 아래 `SLPS-25733/replacements/beowulf_mk3`에 PNG 27개를 넣고 Graphics → Texture Replacement의 **Load Textures**를 켭니다. 기본 검색 경로라면 ZIP의 textures 폴더를 에뮬레이터 폴더에 합쳐 넣으세요. 기존 전체 HD팩은 포함하지 않으며 기존 replacements 폴더를 삭제하면 안 됩니다. 베오울프의 적 등장은 ISO 패처에서 별도로 켭니다. 자세한 설명은 ZIP의 설치방법.txt에도 있습니다.
+PCSX2 텍스처 검색 폴더 아래 `SLPS-25733/replacements/beowulf_mk3`에 PNG 31개를 넣고 Graphics → Texture Replacement의 **Load Textures**를 켭니다. 기본 검색 경로라면 ZIP의 textures 폴더를 에뮬레이터 폴더에 합쳐 넣으세요. 기존 전체 HD팩은 포함하지 않으며 기존 replacements 폴더를 삭제하면 안 됩니다. 베오울프의 적 등장은 ISO 패처에서 별도로 켭니다. 자세한 설명은 ZIP의 설치방법.txt에도 있습니다.
 
-파일: SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip (18,808,437바이트)
+파일: SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip (22,594,476바이트)
 
-SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
+SHA256: `8E469B518804C8E74FCD91963DF004F2EFF6D3708E967A5F5540876F5B20FCF3`
 
 ## 적용 방법
 
@@ -46,16 +46,33 @@ SHA256: `F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206`
 
 ## 이번 업데이트
 
-- 숨겨진 요소 자동 습득 옵션을 켜면 OG2 35화 종료 후 바이사가를 조건 없이 아군 기체로 지급합니다.
-- 이미 35화를 지난 미보유 세이브도 해당 옵션을 켠 새 ISO로 부팅하고 게임 내 세이브 로드 → 인터미션 → 갈아타기에 진입하면 보충됩니다. 지급 후 게임 내 저장을 해주세요.
-- 기존 바이사가의 개조·탑승 기록을 유지하며 중복 지급하지 않습니다. 액셀을 현재 기체에서 강제로 옮기지 않습니다.
-- 옵션 OFF에서는 기존 획득 조건을 유지합니다. 기본 적용인 무명·리바레·발시온 개 보충 및 기존 여섯 옵션·대사·밸런스 수정은 유지합니다.
-- HD 추가팩은 기존 v20261106과 같은 파일입니다. 재설치하지 않아도 됩니다.
+- 베오울프 파일럿 컷인을 이미지 생성으로 새로 제작했습니다. 두 종류의 원본 배치에 맞춰 등록하고, 외곽·투명 영역·부품 배치·UV 및 연출 명령은 유지했습니다.
+- 일반 쿄스케 원본 컷인은 보존합니다. 베오울프 등장 옵션을 켠 경우에만 새 ISO 컷인이 적용됩니다.
+- HD 추가팩도 같은 그림으로 갱신했습니다. 기체 16개·초상화 3개·컷인 및 호환 파일 12개, 총 PNG 31개입니다. 기존 ISO/새 ISO의 텍스처 파일명을 함께 지원합니다.
+- 기존 여섯 옵션·바이사가 지급·입수 및 개수 이벤트·게임 밸런스를 유지합니다. 베오울프 OFF의 32개 ISO 결과는 v20261107과 동일합니다.
 
+## 이번 버전 다운로드
 
-**입수 이벤트를 지나친 세이브의 무명·리바레·발시온 개를 보충 지급합니다.** 새로 부팅해 게임 내 세이브를 불러온 뒤 인터미션의 **갈아타기**에 한 번 들어가세요. 6화/11화/21화 종료 이후 미보유분을 지급하고, 이미 가진 기체·개조·탑승 기록은 유지합니다. 무명·리바레는 36화, 발시온 개는 38화 종료를 기준으로 손상형/완성형 성능이 적용됩니다. 33화 세이브도 발시온 개를 받을 수 있습니다. 지급 후 게임 내 세이브를 해주세요.
+- [ISO 패처 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_AxelRoleSwap_kr_v20261116.zip)
+- [HD 텍스처 이미지 세트 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip)
 
-v20261105의 시작 오류·적 개조 적용 수정, 기체 수복·개수, 슈우·그랑존 정식 합류와 기존 여섯 옵션은 유지합니다.
+두 파일은 별도입니다. ISO나 전체 OGs HD팩은 포함하지 않습니다.
+
+## 적용 방법
+
+1. PCSX2를 종료합니다. 일본판 원본 → [한글패치 v1.4.3s1](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z) → 이 액셀 패치 순서로 적용합니다. 기존 공개 액셀 패치 적용본도 새 패처로 갱신할 수 있습니다.
+2. ISO 패처 ZIP을 풀고 patcher/OGS_AxelSwap_QuickPatch.exe에서 ISO를 선택합니다. 원하는 옵션을 체크해 적용하세요. 베오울프를 사용하려면 ‘베오울프 등장’을 켭니다. 여섯 옵션 기본값은 모두 꺼짐입니다.
+3. HD를 사용하는 분은 HD ZIP도 받으세요. 기존 beowulf_mk3 폴더는 텍스처 검색 폴더 밖에 백업한 뒤 새 파일로 교체합니다. 다른 replacements 폴더나 전체 HD팩은 유지하세요.
+4. 기본 경로라면 HD ZIP의 textures 폴더를 에뮬레이터 폴더에 병합합니다. 최종 위치는 <검색 폴더>/SLPS-25733/replacements/beowulf_mk3/*.png입니다. PNG 파일명은 바꾸지 마세요.
+5. Graphics → Texture Replacement → Load Textures를 켭니다. PCSX2 1.7.4005를 그대로 사용할 수 있으며 하드웨어 렌더러를 사용하세요. Dump Textures는 필요하지 않습니다.
+6. 새로 부팅해 게임 내 메모리카드 세이브로 불러옵니다. ISO 갱신 후 예전 세이브 스테이트는 사용하지 마세요.
+
+HD 제거 시 beowulf_mk3 폴더만 검색 폴더 밖으로 옮기면 됩니다. 자세한 안내는 HD ZIP의 설치방법.txt에 있습니다.
+
+## 검증 범위
+
+64개 옵션 결과 전체 SHA256, 컷인 외곽·알파·원본 리소스 보존, PNG 파일명·RGBA/GS 알파와 ZIP 무결성을 검사했습니다. 실제 모든 무장의 전투 연출을 새로 실플레이한 검증은 아닙니다.
+
 
 ## 기본 적용 사항
 
@@ -76,10 +93,10 @@ v20261105의 시작 오류·적 개조 적용 수정, 기체 수복·개수, 슈
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261107.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261116.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261107.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261116.xdelta" "출력.iso"
 ```
 
 ## 검증

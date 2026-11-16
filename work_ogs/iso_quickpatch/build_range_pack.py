@@ -1371,9 +1371,160 @@ PCSX2를 완전히 종료한 뒤 패치하세요.
     (ROOT/'runtime/optional_features_package.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
+def build_cutin_release():
+    """Incremental public cut-in update, composed exclusively from shipped data."""
+    import io,json,zipfile,concurrent.futures,sys
+    sys.path.insert(0,str(ROOT))
+    from build_beowulf_prototype import Archive,pages,sha
+    version='v20261116';revision=ROOT/'runtime/beowulf/cutin_revision_20261116'
+    z=zipfile.ZipFile(ROOT/'dist/SRWOGS_AxelRoleSwap_kr_v20261107.zip')
+    def U(f):return struct.unpack('<I',f.read(4))[0]
+    def triples(f):
+        rows=[]
+        for _ in range(U(f)):
+            at,n=struct.unpack('<QI',f.read(12));a,b=f.read(n),f.read(n);assert len(a)==len(b)==n;rows.append((at,a,b))
+        return rows
+    def option(name):
+        f=io.BytesIO(z.read('patcher/'+name));assert f.read(8)==b'OGSHID01';f.read(72);return triples(f)
+    f=io.BytesIO(z.read('patcher/OGS_ISO_ranges.bin'));assert f.read(9)==b'OGSAXLRNG' and U(f)==1
+    f.read(struct.unpack('<H',f.read(2))[0]);size=struct.unpack('<Q',f.read(8))[0];sourcehash=f.read(32);f.read(32);base=[]
+    for _ in range(U(f)):
+        at,n=struct.unpack('<QI',f.read(12));base.append((at,f.read(n)))
+    hidden,bundle,both=[option(n) for n in ('OGS_hidden_rewards.bin','OGS_ouka_zengar.bin','OGS_ouka_zengar_hidden.bin')]
+    f=io.BytesIO(z.read('patcher/OGS_optional_features.bin'));assert f.read(8)==b'OGSOPT02';f.read(40);assert U(f)==32;f.read(32*36);assert U(f)==3
+    features={}
+    for _ in range(3):bit=U(f);features[bit]=triples(f)
+    f=io.BytesIO(z.read('patcher/OGS_common_fix.bin'));assert f.read(8)==b'OGSFIX02';f.read(8);assert U(f)==32;common=[];anchors=[]
+    for mask in range(32):assert U(f)==mask;f.read(32);anchors.append(f.read(32));common.append(triples(f))
+    f=io.BytesIO(z.read('patcher/OGS_beowulf_options.bin'));assert f.read(8)==b'OGSBEO02';assert struct.unpack('<Q',f.read(8))[0]==size and U(f)==64
+    pool=[f.read(U(f)) for _ in range(U(f))];oldprofiles=[]
+    for mask in range(64):
+        assert U(f)==mask;anchor=f.read(32);digest=f.read(32);rr=[]
+        for _ in range(U(f)):
+            at,n,a,b=frow=struct.unpack('<QIII',f.read(20));assert len(pool[a])==len(pool[b])==n;rr.append((at,pool[a],pool[b]))
+        assert anchor==anchors[mask&31];oldprofiles.append((digest,rr))
+    aliases=[]
+    for j in range(U(f)):
+        mask=U(f);source=f.read(32);anchor=f.read(32);rr=[]
+        for _ in range(U(f)):
+            at,n,b=struct.unpack('<QII',f.read(16));assert len(pool[b])==n;rr.append((at,pool[b]))
+        aliases.append((mask,source,anchor,rr))
+    assert f.tell()==len(f.getbuffer()) and len(aliases)%64==0
+    aliases.extend((mask,digest,anchors[mask&31],[(at,a) for at,a,b in rr]) for mask,(digest,rr) in enumerate(oldprofiles))
+    class View:
+        def __init__(self,file,es=()):
+            self.file=file;self.es=[];self.bins={};self.pos=0
+            for at,b in es:self.put(at,b)
+        def put(self,at,b):
+            b=bytes(b);idx=len(self.es);self.es.append((at,b))
+            for block in range(at>>16,((at+len(b)-1)>>16)+1):self.bins.setdefault(block,[]).append(idx)
+        def get(self,at,n):
+            self.file.seek(at);out=bytearray(self.file.read(n));assert len(out)==n;ids=set()
+            for block in range(at>>16,((at+n-1)>>16)+1):ids.update(self.bins.get(block,()))
+            for idx in sorted(ids):
+                p,b=self.es[idx];lo,hi=max(p,at),min(p+len(b),at+n)
+                if lo<hi:out[lo-at:hi-at]=b[lo-p:hi-p]
+            return bytes(out)
+        def apply(self,rr):
+            for at,a,b in rr:assert self.get(at,len(a))==a,('source guard',hex(at));self.put(at,b)
+        def seek(self,at):self.pos=at
+        def read(self,n):b=self.get(self.pos,n);self.pos+=n;return b
+    def spans(es):
+        out=[]
+        for at,b in sorted(es):
+            end=at+len(b)
+            if out and at<=out[-1][1]+64:out[-1][1]=max(out[-1][1],end)
+            else:out.append([at,end])
+        return out
+    def differences(a,b,regions):
+        rr=[]
+        for lo,hi in regions:
+            x=a.get(lo,hi-lo);y=b.get(lo,hi-lo);p=np.flatnonzero(np.frombuffer(x,np.uint8)!=np.frombuffer(y,np.uint8))
+            if not len(p):continue
+            cuts=np.flatnonzero(np.diff(p)>65)
+            for i,j in zip(np.r_[0,cuts+1],np.r_[cuts,len(p)-1]):
+                l,r=int(p[i]),int(p[j])+1;rr.append((lo+l,x[l:r],y[l:r]))
+        return rr
+    info=json.loads((revision/'manifest.json').read_text(encoding='utf-8'));native={r['clone']:r for r in info['resources']}
+    plans=[];flatviews=[];flatpool={};changed_counts=[]
+    assert file_hash(SOURCE)==sourcehash.hex().upper()
+    production=file_hash(TARGET)
+    with SOURCE.open('rb') as bf:
+        for mask in range(64):
+            anchor=View(bf,base)
+            if mask&1:anchor.apply(hidden)
+            if mask&2:anchor.apply(both if mask&1 else bundle)
+            for bit,rr in features.items():
+                if mask&bit:anchor.apply(rr)
+            anchor.apply(common[mask&31]);v=View(bf,anchor.es);v.apply(oldprofiles[mask][1]);updates=[]
+            if mask&32:
+                archive=Archive(v,0x758d1000);assert archive.count==649
+                for key,r in native.items():
+                    old=archive.get(v,key);new=(revision/f'{key}.bin').read_bytes()
+                    assert sha(old)==r['prior_sha256'] and sha(new)==r['native_sha256'] and len(old)==len(new)
+                    start=archive.entries[archive.mapping[key]][0]
+                    regions=[(start+at,start+at+1024+im.shape[0]*256) for _,at,im in pages(old)]
+                    assert all(any(lo<=start+i<hi for lo,hi in regions) for i in np.flatnonzero(np.frombuffer(old,np.uint8)!=np.frombuffer(new,np.uint8)))
+                    if old!=new:v.put(start,new);updates.append((start,new))
+                rr=differences(anchor,v,spans([(at,a) for at,a,b in oldprofiles[mask][1]]+updates))
+            else:rr=oldprofiles[mask][1]
+            plans.append(rr);flat=[]
+            for lo,hi in spans(v.es):
+                data=v.get(lo,hi-lo);key=hashlib.sha256(data).digest();data=flatpool.setdefault(key,data);flat.append((lo,data))
+            flatviews.append(flat);changed_counts.append(len(updates))
+            print('Cut-in profile ready',mask,flush=True)
+        hashes=[hashlib.sha256() for _ in range(64)];bf.seek(0);offset=0;last=-1
+        def feed(args):
+            h,es,raw,pos=args;out=None
+            for at,b in es:
+                lo,hi=max(at,pos),min(at+len(b),pos+len(raw))
+                if lo<hi:
+                    if out is None:out=bytearray(raw)
+                    out[lo-pos:hi-pos]=b[lo-at:hi-at]
+            h.update(raw if out is None else out)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            while raw:=bf.read(16<<20):
+                list(executor.map(feed,[(h,es,raw,offset) for h,es in zip(hashes,flatviews)]));offset+=len(raw)
+                progress=offset*10//size
+                if progress!=last:print('Verify64 ISO hashes',progress*10,'%',flush=True);last=progress
+        hashes=[h.digest() for h in hashes]
+        assert len(set(hashes))==64
+        assert all(hashes[i]==oldprofiles[i][0] for i in range(32))
+        assert all(hashes[i]!=oldprofiles[i][0] for i in range(32,64))
+    newpool=[];ids={}
+    def ident(b):
+        digest=hashlib.sha256(b).digest()
+        if digest not in ids:ids[digest]=len(newpool);newpool.append(b)
+        assert newpool[ids[digest]]==b;return ids[digest]
+    entries=[[(at,len(a),ident(a),ident(b)) for at,a,b in rr] for rr in plans]
+    aliasrows=[(mask,source,anchor,[(at,len(b),ident(b)) for at,b in rr]) for mask,source,anchor,rr in aliases]
+    dest=HERE/'OGS_beowulf_options.bin';tmp=dest.with_suffix('.tmp')
+    with tmp.open('wb') as out:
+        out.write(b'OGSBEO02'+struct.pack('<QII',size,64,len(newpool)))
+        for data in newpool:out.write(struct.pack('<I',len(data))+data)
+        for mask,rr in enumerate(entries):
+            out.write(struct.pack('<I',mask)+anchors[mask&31]+hashes[mask]+struct.pack('<I',len(rr)))
+            for row in rr:out.write(struct.pack('<QIII',*row))
+        out.write(struct.pack('<I',len(aliasrows)))
+        for mask,source,anchor,rr in aliasrows:
+            out.write(struct.pack('<I',mask)+source+anchor+struct.pack('<I',len(rr)))
+            for row in rr:out.write(struct.pack('<QII',*row))
+    tmp.replace(dest)
+    report=dict(version=version,bits=dict(hidden=1,bundle=2,rewards=4,enemy=8,spirits=16,beowulf=32),defaults=0,
+                hashes=[h.hex().upper() for h in hashes],anchors=[h.hex().upper() for h in anchors],profile_count=64,
+                pack_sha256=file_hash(dest),pack_size=dest.stat().st_size,previous_profiles_supported=len(aliases),
+                source_release='v20261107',only_native_texture_pages_changed=True,beowulf_off_32_profiles_identical=True,
+                personal_changes_excluded=True,gameplay_ISO_read_only=True,production_sha256=production,
+                changed_clone_resources=changed_counts,runtime_animation_tested=False)
+    assert file_hash(TARGET)==production
+    (ROOT/'runtime/beowulf_options_profiles.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('Cut-in release module ready',file_hash(dest),flush=True)
+
+
 if __name__ == "__main__":
     import sys
-    if "--working-alias" in sys.argv:add_working_iso_alias()
+    if "--cutin-release" in sys.argv:build_cutin_release()
+    elif "--working-alias" in sys.argv:add_working_iso_alias()
     elif "--november-maintenance" in sys.argv:build_november_maintenance()
     elif "--package-beowulf" in sys.argv:package_beowulf_options()
     elif "--beowulf-options" in sys.argv:build_beowulf_extension()

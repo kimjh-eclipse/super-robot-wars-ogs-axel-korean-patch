@@ -108,9 +108,10 @@ def palette_recolour(hd,original,target):
 def aligned_cutin(data,key):
     """Only face/mouth image regions change; programs, UVs and alpha stay native."""
     out=bytearray(data);high={};changed=[]
-    atlas=Image.open(ART/'beowulf_cutin_hd_generated.png').convert('RGBA').resize((2048,1024),Image.Resampling.LANCZOS)
-    head=crop_scaled(atlas,(257,3,367,123))
-    mouths=[crop_scaled(atlas,z) for z in ((401,1,455,29),(456,1,512,30))]
+    # The two native pages have distinct poses and UV layouts. Never squeeze
+    # the upper-left head into the lower-left pose as the old pack did.
+    pose_atlases={kind:Image.open(ART/f'beowulf_cutin_atlas_{kind}_20261116.png').convert('RGBA').resize((1024,1024),Image.Resampling.LANCZOS)
+                  for kind in ('a','b')}
     eyes=Image.open(ART/'beowulf_cutin_eyes_hd_generated.png').convert('RGBA').resize((2048,1024),Image.Resampling.LANCZOS)
     for slot,at,original in b.pages(data):
         im=Image.fromarray(original).resize((1024,original.shape[0]*4),Image.Resampling.LANCZOS)
@@ -118,10 +119,12 @@ def aligned_cutin(data,key):
         def paste(piece,box):
             x,y,r,t=box;piece=piece.resize(((r-x)*4,(t-y)*4),Image.Resampling.LANCZOS)
             im.paste(piece,(x*4,y*4));area[y:t,x:r]=original[y:t,x:r,3]>0
+        def pose(kind,boxes):
+            for box in boxes:paste(crop_scaled(pose_atlases[kind],box),box)
         if key in (592,593,600,602) and slot==1:
-            paste(head,(1,3,110,123));paste(mouths[0],(145,1,199,29));paste(mouths[1],(200,1,256,30))
+            pose('b',((1,3,110,123),(145,1,199,29),(200,1,256,30)))
         elif key in (588,589,590,591,594,596,597,598,599) and slot==1:
-            paste(head,(1,129,95,255));paste(mouths[0],(4,97,61,126));paste(mouths[1],(195,1,252,31))
+            pose('a',((1,129,95,255),(4,97,61,126),(195,1,252,31)))
         elif key==601 and slot in (0,1):
             im=eyes.crop((slot*1024,0,(slot+1)*1024,original.shape[0]*4));area=original[:,:,3]>0
         if not area.any():continue
@@ -546,7 +549,156 @@ https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases
     (ART/'HD_INSTALL.txt').write_text(guide,encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
 
+def prepare_cutin_revision():
+    """Build separate PNG add-on and guarded native deltas, without publishing."""
+    import zipfile
+    revision=ART/'cutin_revision_20261116';revision.mkdir(exist_ok=True)
+    source=b.SOURCE
+    oldzip=b.ROOT/'dist/SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip'
+    with zipfile.ZipFile(oldzip) as z:
+        payload={n:z.read(n) for n in z.namelist() if n.endswith('.png')}
+    assert len(payload)==27
+    prefix='textures/SLPS-25733/replacements/beowulf_mk3/'
+    assert all(n.startswith(prefix) for n in payload),list(payload)[:2]
+    rows=[];pictures={}
+    with source.open('rb') as f:
+        archive=b.Archive(f,0x758d1000)
+        for key in range(588,603):
+            original=archive.get(f,key);new,high,slots=aligned_cutin(original,key)
+            clone=634+key-588
+            prior=(ART/f'cutin_source_review/public_{clone}.bin').read_bytes()
+            assert len(original)==len(prior)==len(new)
+            spans=sorted((at,at+1024+im.shape[0]*256) for _,at,im in b.pages(original))
+            pos=0
+            for lo,hi in spans:
+                assert original[pos:lo]==prior[pos:lo]==new[pos:lo]
+                pos=hi
+            assert original[pos:]==prior[pos:]==new[pos:]
+            assert all(np.array_equal(a[2][:,:,3],c[2][:,:,3]) for a,c in zip(b.pages(original),b.pages(new)))
+            (revision/f'{clone}.bin').write_bytes(new)
+            textures=[]
+            for slot,at,im in b.pages(new):
+                if slot not in high:continue
+                pal,idx=indexed(new,at,im.shape[0]);oldpal,oldidx=indexed(prior,at,im.shape[0])
+                pixels=np.array(high[slot]);pixels[:,:,3]=((pixels[:,:,3].astype(np.uint16)+1)//2).astype(np.uint8)
+                buf=__import__('io').BytesIO();Image.fromarray(pixels).save(buf,format='PNG');raw=buf.getvalue()
+                for psm in (19,27):
+                    oldname=texname(oldpal,oldidx,psm=psm);newname=texname(pal,idx,psm=psm)
+                    assert prefix+oldname in payload,oldname
+                    for name in (oldname,newname):
+                        if name in pictures:assert pictures[name]==raw
+                        pictures[name]=raw;payload[prefix+name]=raw
+                    textures.append(dict(slot=slot,psm=psm,previous=oldname,revised=newname))
+            rows.append(dict(source=key,clone=clone,native_sha256=b.sha(new),prior_sha256=b.sha(prior),textures=textures))
+    # Keep machine/portrait images byte-identical, including their outline fix.
+    info=dict(version='v20261116-cutin-preview',published=False,resources=rows,
+              texture_count=len(payload),original_kyosuke_unchanged=True,
+              programs_UVs_descriptors_unchanged=True,native_alpha_identical=True,
+              supports_previous_and_revised_ISO_texture_hashes=True,
+              runtime_animation_tested=False)
+    guide='''베오울프·Mk-III HD 추가팩 — 컷인 수정 시험본
+이 ZIP은 텍스처 이미지 세트입니다. ISO 패치 프로그램이 아닙니다.
+기존 v20261107 ISO용 파일명과 새 컷인 ISO용 파일명을 함께 포함합니다.
+PCSX2를 종료하고 ZIP의 textures 폴더를 에뮬레이터 폴더에 병합하세요.
+텍스처 검색 폴더를 따로 지정했다면 SLPS-25733 폴더를 그 안에 넣으세요.
+최종 위치: textures/SLPS-25733/replacements/beowulf_mk3/*.png
+기존 beowulf_mk3 폴더는 검색 폴더 밖으로 백업한 후 교체하세요.
+다른 기체의 기존 HD팩은 그대로 유지하세요.
+Graphics > Texture Replacement > Load Textures를 켜고 게임을 새로 부팅하세요.
+기체 16개·초상화 3개 및 컷인 이미지를 포함합니다.
+ISO 내 컷인도 바꿀 때는 별도 수정 ISO가 필요합니다.
+프로그램·UV·원본 알파·파일 해시 검증 완료. 실전 연출 확인은 별도입니다.
+'''
+    payload['설치방법.txt']=guide.encode('utf-8-sig')
+    payload['텍스처_목록.json']=json.dumps(info,ensure_ascii=False,indent=2).encode('utf-8')
+    payload['SHA256SUMS.txt']=''.join(f'{b.sha(v)}  {k}\n' for k,v in sorted(payload.items())).encode('utf-8-sig')
+    out=b.ROOT/'dist/SRWOGS_Beowulf_MkIII_HD_Addon_v20261116_cutin_preview.zip'
+    with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for name,raw in sorted(payload.items()):z.writestr(name,raw)
+    with zipfile.ZipFile(out) as z:
+        assert z.testzip() is None
+        for name,raw in payload.items():assert z.read(name)==raw
+    info.update(zip=str(out),zip_sha256=b.sha(out.read_bytes()))
+    (revision/'manifest.json').write_text(json.dumps(info,ensure_ascii=False,indent=2),encoding='utf-8')
+    # A registered face preview, not a fabricated gameplay screenshot.
+    sheet=Image.new('RGBA',(896,540),(40,40,40,255));draw=ImageDraw.Draw(sheet)
+    with source.open('rb') as f:
+        data=b.Archive(f,0x758d1000).get(f,600);_,high,_=aligned_cutin(data,600)
+        sheet.alpha_composite(Image.fromarray(b.pages(data)[1][2]).crop((0,0,112,128)).resize((448,512)),(0,28))
+        sheet.alpha_composite(high[1].crop((0,0,448,512)),(448,28))
+    draw.text((8,6),'Original Kyosuke',fill='white');draw.text((456,6),'Beowulf: same UV and alpha',fill='white')
+    sheet.save(revision/'comparison.png')
+    print(json.dumps({k:v for k,v in info.items() if k!='resources'},ensure_ascii=False,indent=2))
+
+
+def build_cutin_revision_test():
+    """Reconstruct shipped Beowulf ON profile; retain the private patch separately."""
+    import io,psutil
+    assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+    revision=ART/'cutin_revision_20261116'
+    report=json.loads((revision/'manifest.json').read_text(encoding='utf-8'))
+    personal=json.loads((b.ROOT/'runtime/chapter22_personal_support.json').read_text(encoding='utf-8'))
+    def source_hash():
+        with b.SOURCE.open('rb') as g:return hashlib.file_digest(g,'sha256').hexdigest()
+    source_digest=source_hash()
+    assert source_digest==personal['target_sha256']
+    f=io.BytesIO((b.ROOT/'iso_quickpatch/OGS_beowulf_options.bin').read_bytes())
+    assert f.read(8)==b'OGSBEO02';size,count,nb=struct.unpack('<QII',f.read(16));pool=[]
+    for _ in range(nb):n=struct.unpack('<I',f.read(4))[0];pool.append(f.read(n))
+    profiles=[]
+    for mask in range(count):
+        assert struct.unpack('<I',f.read(4))[0]==mask
+        anchor=f.read(32);digest=f.read(32)
+        rr=[struct.unpack('<QIII',f.read(20)) for _ in range(struct.unpack('<I',f.read(4))[0])]
+        profiles.append((anchor,digest,rr))
+    aliases=[]
+    for _ in range(struct.unpack('<I',f.read(4))[0]):
+        mask=struct.unpack('<I',f.read(4))[0];digest=f.read(32);anchor=f.read(32)
+        rr=[struct.unpack('<QII',f.read(16)) for _ in range(struct.unpack('<I',f.read(4))[0])]
+        if digest.hex()==personal['source_sha256']:aliases.append((mask,anchor,rr))
+    assert len(aliases)==1 and aliases[0][0]==31 and count==64
+    out=b.ROOT/'build/SRWOGS_BEOWULF_CUTIN_TEST.iso'
+    shutil.copyfile(b.SOURCE,out)
+    def digest():
+        with out.open('rb') as g:return hashlib.file_digest(g,'sha256').digest()
+    with out.open('r+b') as g:
+        for e in reversed(personal['edits']):
+            at=e['offset'];before=bytes.fromhex(e['before']);after=bytes.fromhex(e['after'])
+            g.seek(at);assert g.read(len(after))==after;g.seek(at);g.write(before)
+    assert digest().hex()==personal['source_sha256']
+    with out.open('r+b') as g:
+        for at,n,idx in aliases[0][2]:g.seek(at);assert len(pool[idx])==n;g.write(pool[idx])
+    assert digest()==aliases[0][1]==profiles[63][0]
+    with out.open('r+b') as g:
+        for at,n,old,new in profiles[63][2]:
+            g.seek(at);assert g.read(n)==pool[old];g.seek(at);g.write(pool[new])
+    assert digest()==profiles[63][1]
+    with out.open('r+b') as g:
+        for e in personal['edits']:
+            at=e['offset'];before=bytes.fromhex(e['before']);after=bytes.fromhex(e['after'])
+            g.seek(at);assert g.read(len(before))==before;g.seek(at);g.write(after)
+        archive=b.Archive(g,0x758d1000)
+        originals={k:b.sha(archive.get(g,k)) for k in range(634)}
+        for r in report['resources']:
+            old=archive.get(g,r['clone']);assert b.sha(old)==r['prior_sha256']
+            new=(revision/f"{r['clone']}.bin").read_bytes();assert len(old)==len(new)
+            g.seek(archive.entries[r['clone']][0]);g.write(new)
+        assert all(b.sha(archive.get(g,k))==v for k,v in originals.items())
+        for e in personal['edits']:
+            g.seek(e['offset']);assert g.read(len(bytes.fromhex(e['after'])))==bytes.fromhex(e['after'])
+    assert source_hash()==source_digest
+    report.update(test_iso=str(out),test_iso_sha256=digest().hex(),
+                  original_634_resources_unchanged=True,personal_changes_preserved=True,
+                  source_iso_unchanged=True,profile=63,private_test_only=True)
+    (revision/'manifest.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({k:v for k,v in report.items() if k!='resources'},ensure_ascii=False,indent=2))
+
+
 if __name__=='__main__':
+    if '--build-cutin-revision-test' in __import__('sys').argv:
+        build_cutin_revision_test();raise SystemExit(0)
+    if '--prepare-cutin-revision' in __import__('sys').argv:
+        prepare_cutin_revision();raise SystemExit(0)
     ap=argparse.ArgumentParser();ap.add_argument('--prepare-cutin',action='store_true');ap.add_argument('--apply-cutin',action='store_true');ap.add_argument('--prepare-pack',action='store_true');ap.add_argument('--install-pack',action='store_true');ap.add_argument('--verify-installed',action='store_true');ap.add_argument('--story-display-fix',action='store_true');ap.add_argument('--apply',action='store_true');ap.add_argument('--package-hd',action='store_true');args=ap.parse_args()
     if args.package_hd:package_hd();raise SystemExit(0)
     if args.story_display_fix:story_display_fix(args.apply)

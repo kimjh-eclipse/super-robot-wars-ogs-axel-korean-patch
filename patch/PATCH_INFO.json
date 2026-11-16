@@ -1,109 +1,71 @@
 {
-  "version": "v20261102.1",
+  "version": "v20261116",
   "status": "PREPARED",
-  "previous": "v20261102",
-  "built": "2026-11-02",
-  "base_iso": {
-    "size": 4518150144,
-    "sha256": "9D39F5EA9E560E864A9FC4B0ABC234FD42619D846FC1A9C2A98CBA19CF5D5A0C"
-  },
-  "result_iso": {
-    "size": 4518150144,
-    "sha256": "63F96E03CF2BAB3649DF9F70FA1BC4B6E80FF039ABB188A17EF8917E2D63658F"
+  "previous": "v20261107",
+  "notes": "D:\\패치유틸.xdeltaUI\\work_ogs\\runtime\\beowulf_release_notes_20261116.md",
+  "release_zip": {
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261116.zip",
+    "size": 164506384,
+    "sha256": "8B07C46566A2EA55B5594B2937AB28581E22843F8A59646397CBA0370B7B6E9C"
   },
   "patch": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261102.1.xdelta",
-    "size": 6538928,
-    "sha256": "E62806F6117344EEA8E7EA32EFBEA0E8F6EF88E441AC6718773E57C40A04D7FA",
-    "verified": "xdelta decode SHA256 matches default profile"
+    "file": "SRWOGS_AxelRoleSwap_kr_v20261116.xdelta",
+    "size": 6378297,
+    "sha256": "D37A346BD72F69A39B470A36E337AC680F5C04E9E661CE2C659D842091BE7132",
+    "unchanged_default_ISO": true
   },
-  "release_zip": {
-    "file": "SRWOGS_AxelRoleSwap_kr_v20261102.1.zip",
-    "size": 132656955,
-    "sha256": "07835B71F605D082B921E31618EBBC2BC781E092975D90CEB73B8A5CB83517EE"
+  "hd": {
+    "file": "SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip",
+    "size": 22594476,
+    "sha256": "8E469B518804C8E74FCD91963DF004F2EFF6D3708E967A5F5540876F5B20FCF3",
+    "textures": 31
   },
-  "options": {
-    "hidden": 1,
-    "bundle": 2,
-    "rewards": 4,
-    "enemy": 8,
-    "spirits": 16,
-    "beowulf": 32
-  },
-  "defaults": 0,
-  "profile_count": 64,
-  "episode6_test_excluded": true,
   "validation": {
     "passed": true,
+    "version": "v20261116",
+    "profile_count": 64,
     "actual_iso_cases": [
       {
-        "name": "base_to_off",
-        "mask": 0,
-        "sha256": "63f96e03cf2bab3649df9f70fa1bc4b6e80ff039abb188a17ef8917e2d63658f",
-        "seconds": 10.02
+        "name": "base_to_beowulf",
+        "mask": 32,
+        "sha256": "F3BBB41B90F6CF0B22761B293C99A9C1614B237C2F9768ED905FD14875F6263C",
+        "seconds": 19.64
       },
       {
-        "name": "off_to_all_on",
+        "name": "all_on",
         "mask": 63,
-        "sha256": "e80e9d807c644091e7b3392719b7e205c7445f9e9bd37ecf54eaf4d4d411d70b",
-        "seconds": 10.41
+        "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF",
+        "seconds": 22.14
       },
       {
-        "name": "all_on_to_off",
+        "name": "all_off",
         "mask": 0,
-        "sha256": "63f96e03cf2bab3649df9f70fa1bc4b6e80ff039abb188a17ef8917e2d63658f",
-        "seconds": 11.11
+        "sha256": "5DAFC92932D32776A66B350C64E04A00E41A3F6656844ABF588E8394D592350B",
+        "seconds": 23.02
       },
       {
         "name": "restore",
         "mask": 63,
-        "sha256": "e80e9d807c644091e7b3392719b7e205c7445f9e9bd37ecf54eaf4d4d411d70b",
-        "seconds": 6.39
+        "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF",
+        "seconds": 10.26
       },
       {
-        "name": "v20261101.1_upgrade",
-        "sha256": "e80e9d807c644091e7b3392719b7e205c7445f9e9bd37ecf54eaf4d4d411d70b",
-        "seconds": 11.46
+        "name": "v20261107_to_new63",
+        "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF"
       },
       {
-        "name": "restore_previous_release",
-        "sha256": "77b745a8082cede805fe39d38c02cecd859ed69d4765ca9ef76f51065411f7af",
-        "seconds": 6.39
-      },
-      {
-        "name": "v20261101_upgrade",
-        "mask": 63,
-        "sha256": "e80e9d807c644091e7b3392719b7e205c7445f9e9bd37ecf54eaf4d4d411d70b",
-        "seconds": 11.03
-      },
-      {
-        "name": "v20261102_upgrade",
-        "sha256": "e80e9d807c644091e7b3392719b7e205c7445f9e9bd37ecf54eaf4d4d411d70b"
-      },
-      {
-        "name": "v20261102_restore",
-        "sha256": "e6ec0400446b6d08a72e28b4571808860449c135c17fc77539cfe84a7cda9387"
+        "name": "restore_v20261107",
+        "sha256": "F180D4CEA8FDF1C6C16146536D98EF91B65456D459EFF2A158EA9D7948B3BE8B"
       }
     ],
-    "legacy_option_byte_transitions": 5120,
-    "beowulf_profile_hash_chains": 16384,
-    "profile_count": 64,
-    "baseline_and_legacy_anchors_verified": true,
-    "episode6_test_excluded": true,
-    "gameplay_ISO_modified": false
+    "private_changes_excluded": true,
+    "source_public_release": "v20261107",
+    "all_OFF_unchanged": true,
+    "live_gameplay_verified": false
   },
-  "source_files": [
-    "iso_quickpatch/OgsAxelQuickPatch.cs",
-    "iso_quickpatch/build_range_pack.py",
-    "build_beowulf_prototype.py",
-    "validate_beowulf_prototype.py",
-    "build_hidden_rewards.py",
-    "validate_hidden_rewards.py",
-    "release_build_v20261024.py",
-    "audit_shadowmirror_dialogue.py",
-    "build_ingram_rivale.py",
-    "ogs_korean_codec.py",
-    "r5900_scalar_check.py",
-    "build_og2new_tone_pass26.py"
-  ]
+  "result_iso": {
+    "size": 4518150144,
+    "sha256": "5DAFC92932D32776A66B350C64E04A00E41A3F6656844ABF588E8394D592350B"
+  },
+  "personal_ISO_untouched": true
 }

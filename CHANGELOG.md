@@ -1,3 +1,39 @@
+# 변경 내역
+
+## v20261116 (2026-11-16)
+
+# OGs 액셀 역할 교체 패치 v20261116 — 베오울프 컷인·HD 추가팩 갱신
+
+## 이번 업데이트
+
+- 베오울프 파일럿 컷인을 이미지 생성으로 새로 제작했습니다. 두 종류의 원본 배치에 맞춰 등록하고, 외곽·투명 영역·부품 배치·UV 및 연출 명령은 유지했습니다.
+- 일반 쿄스케 원본 컷인은 보존합니다. 베오울프 등장 옵션을 켠 경우에만 새 ISO 컷인이 적용됩니다.
+- HD 추가팩도 같은 그림으로 갱신했습니다. 기체 16개·초상화 3개·컷인 및 호환 파일 12개, 총 PNG 31개입니다. 기존 ISO/새 ISO의 텍스처 파일명을 함께 지원합니다.
+- 기존 여섯 옵션·바이사가 지급·입수 및 개수 이벤트·게임 밸런스를 유지합니다. 베오울프 OFF의 32개 ISO 결과는 v20261107과 동일합니다.
+
+## 다운로드
+
+- [ISO 패처 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_AxelRoleSwap_kr_v20261116.zip)
+- [HD 텍스처 이미지 세트 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip)
+
+두 파일은 별도입니다. ISO나 전체 OGs HD팩은 포함하지 않습니다.
+
+## 적용 방법
+
+1. PCSX2를 종료합니다. 일본판 원본 → [한글패치 v1.4.3s1](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z) → 이 액셀 패치 순서로 적용합니다. 기존 공개 액셀 패치 적용본도 새 패처로 갱신할 수 있습니다.
+2. ISO 패처 ZIP을 풀고 patcher/OGS_AxelSwap_QuickPatch.exe에서 ISO를 선택합니다. 원하는 옵션을 체크해 적용하세요. 베오울프를 사용하려면 ‘베오울프 등장’을 켭니다. 여섯 옵션 기본값은 모두 꺼짐입니다.
+3. HD를 사용하는 분은 HD ZIP도 받으세요. 기존 beowulf_mk3 폴더는 텍스처 검색 폴더 밖에 백업한 뒤 새 파일로 교체합니다. 다른 replacements 폴더나 전체 HD팩은 유지하세요.
+4. 기본 경로라면 HD ZIP의 textures 폴더를 에뮬레이터 폴더에 병합합니다. 최종 위치는 <검색 폴더>/SLPS-25733/replacements/beowulf_mk3/*.png입니다. PNG 파일명은 바꾸지 마세요.
+5. Graphics → Texture Replacement → Load Textures를 켭니다. PCSX2 1.7.4005를 그대로 사용할 수 있으며 하드웨어 렌더러를 사용하세요. Dump Textures는 필요하지 않습니다.
+6. 새로 부팅해 게임 내 메모리카드 세이브로 불러옵니다. ISO 갱신 후 예전 세이브 스테이트는 사용하지 마세요.
+
+HD 제거 시 beowulf_mk3 폴더만 검색 폴더 밖으로 옮기면 됩니다. 자세한 안내는 HD ZIP의 설치방법.txt에 있습니다.
+
+## 검증 범위
+
+64개 옵션 결과 전체 SHA256, 컷인 외곽·알파·원본 리소스 보존, PNG 파일명·RGBA/GS 알파와 ZIP 무결성을 검사했습니다. 실제 모든 무장의 전투 연출을 새로 실플레이한 검증은 아닙니다.
+
+
 ## v20261107 — 바이사가 자동 입수 수정 (2026-11-07)
 
 - 숨겨진 요소 자동 습득 옵션을 켜면 OG2 35화 종료 후 바이사가를 조건 없이 아군 기체로 지급합니다.

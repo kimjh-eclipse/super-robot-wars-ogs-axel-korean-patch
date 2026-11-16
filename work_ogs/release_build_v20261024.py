@@ -836,8 +836,225 @@ def prepare_november_maintenance():
     print('LOCAL PACKAGE READY',json.dumps(metadata['release_zip'],ensure_ascii=False),flush=True)
 
 
+def prepare_cutin_release():
+    """Package the reviewed cut-in and HD texture set over the public release."""
+    import zipfile,io,time
+    version='v20261116';previous='v20261107';repo=ROOT/'ogs-repo'
+    profiles=json.loads((W/'runtime/beowulf_options_profiles.json').read_text(encoding='utf-8'))
+    assert profiles['version']==version and profiles['personal_changes_excluded']
+    current=sha(ISO);revision=W/'runtime/beowulf/cutin_revision_20261116'
+    # A public label for the exact same PNGs the user reviewed.
+    preview=DIST/'SRWOGS_Beowulf_MkIII_HD_Addon_v20261116_cutin_preview.zip'
+    hd=DIST/'SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip'
+    with zipfile.ZipFile(preview) as z:hp={n:z.read(n) for n in z.namelist() if n!='SHA256SUMS.txt'}
+    inventory=json.loads(hp['텍스처_목록.json']);inventory.update(version=version,published=True)
+    hp['텍스처_목록.json']=json.dumps(inventory,ensure_ascii=False,indent=2).encode('utf-8')
+    guide=hp['설치방법.txt'].decode('utf-8-sig').replace('컷인 수정 시험본','컷인 수정 '+version)
+    guide+='\n배포 페이지: https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/'+version+'\n'
+    hp['설치방법.txt']=guide.encode('utf-8-sig')
+    hp['SHA256SUMS.txt']=''.join(hashlib.sha256(v).hexdigest().upper()+'  '+k+'\n' for k,v in sorted(hp.items())).encode('utf-8-sig')
+    with zipfile.ZipFile(hd,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for n,v in sorted(hp.items()):z.writestr(n,v)
+    with zipfile.ZipFile(hd) as z:
+        assert z.testzip() is None and len([n for n in z.namelist() if n.endswith('.png')])==31
+        for n,v in hp.items():assert z.read(n)==v
+    for n in ('source','clone','prior_sha256','native_sha256'):
+        assert n in inventory['resources'][0]
+    url='https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/'+version+'/'
+    intro=f'''# OGs 액셀 역할 교체 패치 {version} — 베오울프 컷인·HD 추가팩 갱신
+
+## 이번 업데이트
+
+- 베오울프 파일럿 컷인을 이미지 생성으로 새로 제작했습니다. 두 종류의 원본 배치에 맞춰 등록하고, 외곽·투명 영역·부품 배치·UV 및 연출 명령은 유지했습니다.
+- 일반 쿄스케 원본 컷인은 보존합니다. 베오울프 등장 옵션을 켠 경우에만 새 ISO 컷인이 적용됩니다.
+- HD 추가팩도 같은 그림으로 갱신했습니다. 기체 16개·초상화 3개·컷인 및 호환 파일 12개, 총 PNG 31개입니다. 기존 ISO/새 ISO의 텍스처 파일명을 함께 지원합니다.
+- 기존 여섯 옵션·바이사가 지급·입수 및 개수 이벤트·게임 밸런스를 유지합니다. 베오울프 OFF의 32개 ISO 결과는 v20261107과 동일합니다.
+
+## 다운로드
+
+- [ISO 패처 ZIP]({url}SRWOGS_AxelRoleSwap_kr_{version}.zip)
+- [HD 텍스처 이미지 세트 ZIP]({url}{hd.name})
+
+두 파일은 별도입니다. ISO나 전체 OGs HD팩은 포함하지 않습니다.
+
+## 적용 방법
+
+1. PCSX2를 종료합니다. 일본판 원본 → [한글패치 v1.4.3s1](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z) → 이 액셀 패치 순서로 적용합니다. 기존 공개 액셀 패치 적용본도 새 패처로 갱신할 수 있습니다.
+2. ISO 패처 ZIP을 풀고 patcher/OGS_AxelSwap_QuickPatch.exe에서 ISO를 선택합니다. 원하는 옵션을 체크해 적용하세요. 베오울프를 사용하려면 ‘베오울프 등장’을 켭니다. 여섯 옵션 기본값은 모두 꺼짐입니다.
+3. HD를 사용하는 분은 HD ZIP도 받으세요. 기존 beowulf_mk3 폴더는 텍스처 검색 폴더 밖에 백업한 뒤 새 파일로 교체합니다. 다른 replacements 폴더나 전체 HD팩은 유지하세요.
+4. 기본 경로라면 HD ZIP의 textures 폴더를 에뮬레이터 폴더에 병합합니다. 최종 위치는 <검색 폴더>/SLPS-25733/replacements/beowulf_mk3/*.png입니다. PNG 파일명은 바꾸지 마세요.
+5. Graphics → Texture Replacement → Load Textures를 켭니다. PCSX2 1.7.4005를 그대로 사용할 수 있으며 하드웨어 렌더러를 사용하세요. Dump Textures는 필요하지 않습니다.
+6. 새로 부팅해 게임 내 메모리카드 세이브로 불러옵니다. ISO 갱신 후 예전 세이브 스테이트는 사용하지 마세요.
+
+HD 제거 시 beowulf_mk3 폴더만 검색 폴더 밖으로 옮기면 됩니다. 자세한 안내는 HD ZIP의 설치방법.txt에 있습니다.
+
+## 검증 범위
+
+64개 옵션 결과 전체 SHA256, 컷인 외곽·알파·원본 리소스 보존, PNG 파일명·RGBA/GS 알파와 ZIP 무결성을 검사했습니다. 실제 모든 무장의 전투 연출을 새로 실플레이한 검증은 아닙니다.
+
+---
+
+## 이전 누적 변경사항과 입수 시점
+
+'''
+    oldnotes=(W/'runtime/beowulf_release_notes.md').read_text(encoding='utf-8')
+    notes=intro+oldnotes
+    notespath=W/'runtime/beowulf_release_notes_20261116.md';notespath.write_text(notes,encoding='utf-8')
+    cs=QP/'OgsAxelQuickPatch.cs';text=cs.read_text(encoding='utf-8')
+    text=re.sub(r'private const string VersionText = "[^"]+";',f'private const string VersionText = "{version}";',text);cs.write_text(text,encoding='utf-8')
+    exe=QP/'OGS_AxelSwap_QuickPatch.exe'
+    run(Path('C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe'),'/nologo','/target:winexe','/platform:anycpu','/optimize+',
+        '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/out:'+str(exe),cs)
+    tests=[]
+    # The installer source is byte-identical to the previously tested public
+    # logic except its version label. Validate the new data through real ISO
+    # application, option removal, legacy update and backup restoration below.
+    previous_cs=subprocess.check_output(['git','show','HEAD:work_ogs/iso_quickpatch/OgsAxelQuickPatch.cs'],cwd=repo).decode('utf-8-sig')
+    canonical=lambda s:re.sub(r'private const string VersionText = "[^"]+";','VERSION',s).replace('\r\n','\n').lstrip('\ufeff')
+    assert canonical(text)==canonical(previous_cs)
+    for arg in ('self-test-options','self-test-beowulf'):
+        prior=W/'runtime'/('maintenance_'+arg+'.log')
+        assert 'PASS:' in prior.read_text(encoding='utf-8')
+        (revision/(arg+'_previous_unchanged_logic.log')).write_bytes(prior.read_bytes())
+    scratch=W/'runtime/CUTIN_PUBLIC_VERIFY.iso';assert not scratch.exists()
+    def invoke(flags):
+        start=time.time();r=subprocess.run([str(exe),str(scratch),'--cli']+flags,cwd=QP,capture_output=True,text=True,encoding='utf-8',errors='replace')
+        assert r.returncode==0,(r.stdout[-3000:],r.stderr)
+        return sha(scratch),round(time.time()-start,2)
+    shutil.copyfile(BASE,scratch)
+    flags63=['--hidden','--bundle','--rewards','--enemy','--spirits','--beowulf']
+    for name,flags,mask in [('base_to_beowulf',['--beowulf'],32),('all_on',flags63,63),('all_off',[],0),('restore',['--restore'],63)]:
+        digest,seconds=invoke(flags);assert digest==profiles['hashes'][mask]
+        tests.append(dict(name=name,mask=mask,sha256=digest,seconds=seconds));print('Public installer PASS',name,flush=True)
+    # Upgrade an actual previous all-ON public ISO, then restore its backup.
+    olddir=revision/'previous_patcher';olddir.mkdir(exist_ok=True)
+    with zipfile.ZipFile(DIST/f'SRWOGS_AxelRoleSwap_kr_{previous}.zip') as z:
+        oldhash=json.loads(z.read('옵션별_ISO_SHA256.json'))['profiles'][63]['sha256']
+        for n in z.namelist():
+            if n.startswith('patcher/'):(olddir/Path(n).name).write_bytes(z.read(n))
+    shutil.copyfile(BASE,scratch)
+    r=subprocess.run([str(olddir/exe.name),str(scratch),'--cli']+flags63,cwd=olddir,capture_output=True,text=True,encoding='utf-8',errors='replace')
+    assert r.returncode==0 and sha(scratch)==oldhash
+    digest,_=invoke(flags63);assert digest==profiles['hashes'][63];tests.append(dict(name='v20261107_to_new63',sha256=digest))
+    digest,_=invoke(['--restore']);assert digest==oldhash;tests.append(dict(name='restore_v20261107',sha256=digest))
+    # Public default ISO is unchanged: reuse the already round-trip verified xdelta.
+    delta=DIST/f'SRWOGS_AxelRoleSwap_kr_{version}.xdelta'
+    shutil.copyfile(DIST/f'SRWOGS_AxelRoleSwap_kr_{previous}.xdelta',delta)
+    validation=dict(passed=True,version=version,profile_count=64,actual_iso_cases=tests,
+        private_changes_excluded=True,source_public_release=previous,all_OFF_unchanged=True,live_gameplay_verified=False)
+    (revision/'release_validation.json').write_text(json.dumps(validation,ensure_ascii=False,indent=2),encoding='utf-8')
+    with zipfile.ZipFile(DIST/f'SRWOGS_AxelRoleSwap_kr_{previous}.zip') as z:
+        payload={n:z.read(n) for n in z.namelist() if n not in ('SHA256SUMS.txt',f'SRWOGS_AxelRoleSwap_kr_{previous}.xdelta')}
+    payload['patcher/OGS_beowulf_options.bin']=(QP/'OGS_beowulf_options.bin').read_bytes()
+    payload['patcher/'+exe.name]=exe.read_bytes()
+    payload[delta.name]=delta.read_bytes()
+    payload['읽어주세요.txt']=notes.encode('utf-8-sig');payload['변경사항.md']=notes.encode('utf-8-sig');payload['patcher/읽어주세요.txt']=notes.encode('utf-8-sig')
+    payload['옵션별_ISO_SHA256.json']=json.dumps(dict(version=version,iso_size=4518150144,options=profiles['bits'],defaults=0,
+        profiles=[dict(mask=i,sha256=h) for i,h in enumerate(profiles['hashes'])]),ensure_ascii=False,indent=2).encode('utf-8')
+    payload['patcher/SHA256SUMS.txt']=''.join(hashlib.sha256(v).hexdigest().upper()+'  '+Path(k).name+'\n' for k,v in sorted(payload.items()) if k.startswith('patcher/') and k!='patcher/SHA256SUMS.txt').encode('utf-8-sig')
+    payload['SHA256SUMS.txt']=''.join(hashlib.sha256(v).hexdigest().upper()+'  '+k+'\n' for k,v in sorted(payload.items())).encode('utf-8-sig')
+    out=DIST/f'SRWOGS_AxelRoleSwap_kr_{version}.zip';assert not out.exists()
+    with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+        for n,v in payload.items():z.writestr(n,v)
+    with zipfile.ZipFile(out) as z:
+        assert z.testzip() is None
+        for n,v in payload.items():assert z.read(n)==v
+    assert sha(ISO)==current
+    metadata=dict(version=version,status='PREPARED',previous=previous,notes=str(notespath),
+        release_zip=dict(file=out.name,size=out.stat().st_size,sha256=sha(out)),
+        patch=dict(file=delta.name,size=delta.stat().st_size,sha256=sha(delta),unchanged_default_ISO=True),
+        hd=dict(file=hd.name,size=hd.stat().st_size,sha256=sha(hd),textures=31),validation=validation,
+        result_iso=dict(size=4518150144,sha256=profiles['hashes'][0]),personal_ISO_untouched=True)
+    (revision/'release_metadata.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('CUTIN RELEASE PREPARED',json.dumps(metadata,ensure_ascii=False),flush=True)
+
+
+def stage_cutin_repo():
+    import zipfile
+    version='v20261116';repo=ROOT/'ogs-repo';revision=W/'runtime/beowulf/cutin_revision_20261116'
+    m=json.loads((revision/'release_metadata.json').read_text(encoding='utf-8'));assert m['version']==version and m['validation']['passed']
+    notes=Path(m['notes']).read_text(encoding='utf-8');intro=notes.split('\n---\n',1)[0]
+    download='https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/'+version+'/'
+    for name in ('README.md','docs/home.md'):
+        p=repo/name;t=p.read_text(encoding='utf-8-sig')
+        t=t.replace('v20261107',version).replace('SRWOGS_Beowulf_MkIII_HD_Addon_v20261106.zip',m['hd']['file'])
+        t=t.replace('PNG 27개','PNG 31개').replace('총 27개 PNG','총 31개 PNG')
+        t=t.replace('18,808,437',f"{m['hd']['size']:,}").replace('F054228509BA7D9FBE2C9BCD339CEAC55C71871EE3EC823086C317E3987FE206',m['hd']['sha256'])
+        t=t.replace('HD 추가팩은 기존 v20261106과 같은 파일입니다. 재설치하지 않아도 됩니다.','HD 추가팩도 갱신했습니다. 기존 설치자도 새 HD ZIP으로 beowulf_mk3를 교체해 주세요.')
+        t=t.replace('이미 같은 HD 추가팩을 설치했다면 다시 설치할 필요가 없습니다.','기존 HD 추가팩 설치자도 새 ZIP으로 beowulf_mk3 폴더를 갱신하세요.')
+        if name=='README.md':
+            start=t.index('## 이번 업데이트');end=t.index('## 기본 적용 사항',start)
+            t=t[:start]+intro[intro.index('## 이번 업데이트'):].replace('## 다운로드','## 이번 버전 다운로드')+'\n\n'+t[end:]
+        else:
+            t=t.replace('— 바이사가 자동 입수 수정','— 베오울프 컷인·HD 추가팩 갱신',1)
+            at=t.index('## 바이사가');t=t[:at]+intro[intro.index('## 이번 업데이트'):]+'\n\n## 이전 업데이트\n\n'+t[at:]
+        p.write_text(t,encoding='utf-8')
+    change=repo/'CHANGELOG.md';t=change.read_text(encoding='utf-8-sig');assert '## '+version not in t
+    change.write_text('# 변경 내역\n\n## '+version+' (2026-11-16)\n\n'+intro+'\n\n'+t.removeprefix('# 변경 내역\n'),encoding='utf-8')
+    p=repo/'docs/patch-notes.md';t=p.read_text(encoding='utf-8-sig');p.write_text(intro+'\n\n---\n\n'+t,encoding='utf-8')
+    with zipfile.ZipFile(DIST/m['hd']['file']) as z:guide=z.read('설치방법.txt').decode('utf-8-sig')
+    (repo/'work_ogs/HD_INSTALL.txt').write_text(guide,encoding='utf-8')
+    (repo/'work_ogs/iso_quickpatch/읽어주세요.txt').write_text(notes,encoding='utf-8-sig')
+    for name in ('build_beowulf_hd.py','iso_quickpatch/build_range_pack.py','iso_quickpatch/OgsAxelQuickPatch.cs','release_build_v20261024.py'):
+        dest=repo/'work_ogs'/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(W/name,dest)
+    for name in ('beowulf_cutin_atlas_a_20261116.png','beowulf_cutin_atlas_b_20261116.png','beowulf_cutin_eyes_hd_generated.png','gs_psmt8_columns.json'):
+        dest=repo/'work_ogs/runtime/beowulf'/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(W/'runtime/beowulf'/name,dest)
+    for src,name in ((revision/'release_validation.json','beowulf_cutin_release_validation.json'),(W/'runtime/beowulf_options_profiles.json','beowulf_options_profiles.json')):
+        shutil.copyfile(src,repo/'work_ogs/validation'/name)
+    shutil.copyfile(DIST/m['patch']['file'],repo/'patch'/m['patch']['file'])
+    (repo/'patch/PATCH_INFO.json').write_text(json.dumps(m,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('Cut-in repository files staged for review',flush=True)
+
+
+def publish_cutin_release():
+    import urllib.error
+    version='v20261116';repo=ROOT/'ogs-repo';revision=W/'runtime/beowulf/cutin_revision_20261116'
+    m=json.loads((revision/'release_metadata.json').read_text(encoding='utf-8'));assert m['validation']['passed']
+    assert not subprocess.check_output(['git','status','--porcelain'],cwd=repo).strip(),'Commit release files first'
+    head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
+    c=subprocess.run(['git','credential','fill'],input='protocol=https\nhost=github.com\n\n',text=True,capture_output=True,cwd=repo)
+    credentials=dict(x.split('=',1) for x in c.stdout.splitlines() if '=' in x);token=credentials.get('password');assert token
+    def api(method,url,data=None,kind='application/json'):
+        req=urllib.request.Request(url,data=data,method=method,headers={'Authorization':'Bearer '+token,
+            'Accept':'application/vnd.github+json','Content-Type':kind,'User-Agent':'OGS-release'})
+        with urllib.request.urlopen(req,timeout=600) as f:return json.load(f)
+    base='https://api.github.com/repos/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch'
+    body=Path(m['notes']).read_text(encoding='utf-8')+'\n\n## 배포 파일 SHA256\n\n'
+    for k in ('release_zip','patch','hd'):body+='- '+m[k]['file']+': `'+m[k]['sha256']+'`\n'
+    try:
+        rel=api('GET',base+'/releases/tags/'+version);assert rel['draft'],'Version already public'
+    except urllib.error.HTTPError as e:
+        if e.code!=404:raise
+        rel=api('POST',base+'/releases',json.dumps(dict(tag_name=version,target_commitish=head,
+            name='OGs 액셀 패치 '+version+' — 베오울프 컷인·HD 추가팩',body=body,draft=True,prerelease=False),ensure_ascii=False).encode())
+    for k in ('release_zip','patch','hd'):
+        file=DIST/m[k]['file'];expected=sha(file).lower();assert expected==m[k]['sha256'].lower()
+        match=next((a for a in rel.get('assets',[]) if a['name']==file.name),None)
+        if match:assert match.get('digest','').lower()=='sha256:'+expected
+        else:
+            asset=api('POST',rel['upload_url'].split('{')[0]+'?name='+urllib.parse.quote(file.name),file.read_bytes(),'application/octet-stream')
+            assert asset['size']==file.stat().st_size and asset.get('digest','').lower()=='sha256:'+expected
+        print('Uploaded:',file.name,flush=True)
+    rel=api('PATCH',rel['url'],json.dumps(dict(draft=False,make_latest='true',body=body),ensure_ascii=False).encode())
+    checks=[]
+    for k in ('release_zip','patch','hd'):
+        a=next(a for a in rel['assets'] if a['name']==m[k]['file'])
+        with urllib.request.urlopen(a['browser_download_url'],timeout=600) as f:
+            h=hashlib.sha256()
+            while chunk:=f.read(4<<20):h.update(chunk)
+        assert h.hexdigest().upper()==m[k]['sha256'].upper();checks.append(a['browser_download_url'])
+        print('Public download verified:',a['name'],flush=True)
+    assert api('GET',base+'/releases/latest')['tag_name']==version
+    result=dict(release=rel['html_url'],tag=version,commit=head,assets=checks,download_verified=True)
+    (revision/'publish.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(result,ensure_ascii=False),flush=True)
+
+
 if __name__ == "__main__":
-    if "--november-maintenance" in sys.argv:prepare_november_maintenance()
+    if "--publish-cutin-release" in sys.argv:publish_cutin_release()
+    elif "--stage-cutin-repo" in sys.argv:stage_cutin_repo()
+    elif "--cutin-release" in sys.argv:prepare_cutin_release()
+    elif "--november-maintenance" in sys.argv:prepare_november_maintenance()
     elif "--release-six" in sys.argv:prepare_six_option_release()
     elif "--publish-six" in sys.argv:publish_six_option_release()
     elif "--common-xdelta" in sys.argv:build_common_xdelta()
