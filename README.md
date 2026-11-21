@@ -71,10 +71,10 @@ SHA256: `8E469B518804C8E74FCD91963DF004F2EFF6D3708E967A5F5540876F5B20FCF3`
 
 ## xdelta
 
-`SRWOGS_AxelRoleSwap_kr_v20261116.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
+`SRWOGS_AxelRoleSwap_kr_v20261121.xdelta`는 기준 한글판 전용이며 여섯 옵션이 모두 꺼진 결과를 만듭니다. 워단 생존·삼식 추가 지급·무명 6화 지급은 모든 옵션 조합에 기본 적용됩니다.
 
 ```text
-xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261116.xdelta" "출력.iso"
+xdelta.exe -d -s "srwogs-v1.4.3s1.iso" "SRWOGS_AxelRoleSwap_kr_v20261121.xdelta" "출력.iso"
 ```
 
 ## 검증
