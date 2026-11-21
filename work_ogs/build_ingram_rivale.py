@@ -1917,7 +1917,281 @@ def vysaga_auto(apply=False):
     print(json.dumps({k:v for k,v in report.items() if k!='files'},ensure_ascii=False,indent=2),flush=True)
 
 
+def normal_rgun_attack_chunk(raw):
+    """Give only the added pilot explicit Rivale cues using neutral normal lines."""
+    h=list(struct.unpack_from('<16H',raw));a=0x288;b=a+h[0]*8;c=b+h[1]*8;end=c+h[2]*4
+    first=[struct.unpack_from('<IHH',raw,a+i*8) for i in range(h[0])]
+    second=[struct.unpack_from('<HHBBH',raw,b+i*8) for i in range(h[1])]
+    third=[struct.unpack_from('<BBH',raw,c+i*4) for i in range(h[2])]
+    keys=(21000,21010,21020)
+    assert not set(keys)&{r[0] for r in first},'Rivale cues already present'
+    source=next(r for r in first if r[0]==999110);chosen=[];texts=[]
+    def text(i):
+        p=h[15]+u16(raw,h[13]+i*2);return raw[p:raw.index(0,p)+1]
+    for cond in second[source[2]:source[2]+source[1]]:
+        assert cond[:4]==(65535,65535,1,0)
+        variant=third[cond[4]];assert variant[:2]==(1,1)
+        label=decode(text(variant[2])[:-1])
+        if label in ('공격한다！','떨어져라！','잡았다！','부서져！'):chosen.append(variant);texts.append(label)
+    assert len(chosen)==4
+    start=len(second)
+    for variant in chosen:
+        second.append((65535,65535,1,0,len(third)));third.append(variant)
+    for key in keys:first.append((key,len(chosen),start))
+    tables=b''.join(struct.pack('<IHH',*r) for r in first)+b''.join(struct.pack('<HHBBH',*r) for r in second)+b''.join(struct.pack('<BBH',*r) for r in third)
+    delta=0x288+len(tables)-end
+    # Deduplicate identical strings without changing any physical row, tag or
+    # voice ID. This leaves enough room for the new cues in the existing asset.
+    pool=bytearray();positions={};offsets=bytearray();count=(h[13]-h[12])//2
+    for row in range(count):
+        value=text(row)
+        if value not in positions:positions[value]=len(pool);pool.extend(value)
+        offsets.extend(struct.pack('<H',positions[value]))
+    nh=h[:];nh[:3]=[len(first),len(second),len(third)]
+    for i in range(3,12):
+        if h[i]!=65535:assert end<=h[i]<h[12];nh[i]+=delta
+    tags=raw[h[12]:h[13]];voices=raw[h[14]:h[15]]
+    nh[12]=h[12]+delta;nh[13]=nh[12]+len(tags);nh[14]=nh[13]+len(offsets);nh[15]=nh[14]+len(voices)
+    out=bytearray(raw[:0x288])+tables+raw[end:h[12]]+tags+offsets+voices+pool
+    assert len(out)<=len(raw) and max(nh)<=65535
+    out.extend(bytes(len(raw)-len(out)));struct.pack_into('<16H',out,0,*nh)
+    assert out[nh[12]:nh[13]]==tags and out[nh[14]:nh[15]]==voices
+    for row in range(count):
+        p=nh[15]+u16(out,nh[13]+row*2);assert out[p:out.index(0,p)+1]==text(row)
+    return bytes(out),dict(cues=list(keys),normal_attack_lines=texts,existing_rows_preserved=count,
+        voice_IDs_preserved=True,boss_voice_not_used=True,table_growth=delta)
+
+
+def normal_rgun_attack_fix(apply=False):
+    import psutil
+    from r5900_scalar_check import CPU
+    class SelectorCPU(CPU):
+        # Exercise every alternative deterministically; only the random-number
+        # source is replaced in this offline test, never the game ISO.
+        rng_seed=0
+        def step(self):
+            if self.pc==0x12fc58:
+                self.put(2,self.rng_seed<<4);self.pc=self.r[31]&0xffffffff;self.pending=None;self.count+=1
+            else:super().step()
+    paths=[ROOT/'build'/name for name in ('SRWOGS_K.iso','SRWOGS_BEOWULF_CUTIN_TEST.iso')]
+    report=dict(applied=False,scope='OG2 added Ingram only, normal R-GUN attack lines',files=[],live_playback_verified=False)
+    fixture=(ROOT/'runtime/beowulf/current_user_ram.bin').read_bytes()
+    for path in paths:
+        if not path.exists():continue
+        with path.open('rb') as f:
+            before_hash=hashlib.file_digest(f,'sha256').hexdigest();archive=Archive(f,0x8574e800)
+            old=archive.get(f,PILOT);general=archive.get(f,0x3e);h=struct.unpack_from('<16H',general);expected=bytearray(general)
+            for at in range(h[12],h[13],2):
+                tag=u16(expected,at)
+                if tag&0x7ff==0x3e:struct.pack_into('<H',expected,at,(tag&0xf800)|PILOT)
+            assert old==expected,'Unexpected added-pilot chunk; do not overwrite a different fix'
+            new,details=normal_rgun_attack_chunk(old)
+            native=[]
+            code=read(f,0x94880,0x482980)
+            for label,data in (('before',old),('after',new)):
+                cpu=SelectorCPU(fixture);cpu.mem[0x100000:0x582980]=code;obj,raw,choice=0x1600000,0x1700000,0x1800000
+                cpu.mem[obj:obj+0x100]=bytes(0x100);cpu.mem[raw:raw+len(data)]=data
+                cpu.write(obj,1,4);cpu.write(obj+4,raw,4);cpu.run(0x3593c0,[obj])
+                hh=struct.unpack_from('<16H',data);sec=0x288+hh[0]*8;third=sec+hh[1]*8
+                for motion in (0,1,2):
+                    for seed,target in ((seed,target) for seed in range(4) for target in (0x416,0x52a,0x55c)):
+                        cpu.rng_seed=seed
+                        cpu.write(choice,0,4);idx=cpu.run(0x359060,[obj,0,21,motion,0,target,0,choice])
+                        if label=='before':assert idx==-1
+                        else:
+                            assert idx>=0;ca,cb,n,flags,ti=struct.unpack_from('<HHBBH',data,sec+idx*8);assert n==1
+                            vflag,length,row=struct.unpack_from('<BBH',data,third+ti*4);assert length==1
+                            p=hh[15]+u16(data,hh[13]+row*2);text=decode(data[p:data.index(0,p)])
+                            assert text in details['normal_attack_lines'] and u32(data,hh[14]+row*4)>0
+                            assert u16(data,hh[12]+row*2)&0x7ff==PILOT
+                            native.append(dict(motion=motion,target=hex(target),rng_seed=seed,row=row,text=text,voice=u32(data,hh[14]+row*4)))
+            at=archive.entries[archive.mapping[PILOT]][0]
+            originals={k:hashlib.sha256(archive.get(f,k)).hexdigest() for k in (0x3e,0x3f)}
+        report['files'].append(dict(path=str(path),before_sha256=before_hash,offset=at,before=old.hex(),after=new.hex(),details=details,native_cue_selection=native,original_OG1_chunks=originals))
+    journal=ROOT/'runtime/ingram_normal_attack_fix_20261116.json'
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+        for item in report['files']:
+            path=Path(item['path']);at=item['offset'];old=bytes.fromhex(item['before']);new=bytes.fromhex(item['after'])
+            with path.open('r+b') as f:
+                assert hashlib.file_digest(f,'sha256').hexdigest()==item['before_sha256']
+                assert read(f,at,len(old))==old
+                try:
+                    f.seek(at);f.write(new);f.flush();os.fsync(f.fileno())
+                    target=hashlib.sha256();inverse=hashlib.sha256();f.seek(0);pos=0
+                    while chunk:=f.read(4<<20):
+                        target.update(chunk);data=bytearray(chunk);lo,hi=max(pos,at),min(pos+len(chunk),at+len(old))
+                        if lo<hi:data[lo-pos:hi-pos]=old[lo-at:hi-at]
+                        inverse.update(data);pos+=len(chunk)
+                    assert inverse.hexdigest()==item['before_sha256']
+                    archive=Archive(f,0x8574e800)
+                    for key,digest in item['original_OG1_chunks'].items():assert hashlib.sha256(archive.get(f,int(key))).hexdigest()==digest
+                    item['after_sha256']=target.hexdigest()
+                except Exception:
+                    f.seek(at);f.write(old);f.flush();os.fsync(f.fileno());raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(dict(applied=report['applied'],files=[dict(path=i['path'],details=i['details'],native_cases=len(i['native_cue_selection'])) for i in report['files']]),ensure_ascii=False,indent=2))
+
+
+def trombe_coexist_code(menu_target):
+    """Add the second Mk-III with copied grades; never copy parts or pilots."""
+    from build_beowulf_prototype import Asm
+    helper,event,menu,trampoline=0x49c800,0x49ca60,0x49cb00,0x49cbc0
+    a=Asm(helper);a.i(9,29,29,-0x90)
+    for i,r in enumerate(range(16,23)):a.i(0x1f,29,r,i*16)
+    a.i(0x3f,29,31,0x70);a.move(16,4);a.move(17,5)
+    a.i(15,0,2,0x5a);a.i(0x23,2,3,-0x2c94);a.branch(4,3,0,'done');a.emit(0)
+    a.i(0x23,3,3,0xf5c);a.i(9,0,2,1);a.branch(5,3,2,'done');a.emit(0)
+    a.i(15,0,2,0x5a);a.i(0x23,2,18,-0x2c9c)
+    a.move(4,18);a.move(5,16);a.move(6,0);a.jump(0x1abc50,True);a.move(7,0)
+    a.branch(1,2,0,'done');a.move(19,2)
+    a.move(4,18);a.move(5,19);a.jump(0x1a9b70,True);a.i(9,0,6,1)
+    a.branch(4,2,0,'done');a.emit(0)
+    a.move(4,18);a.move(5,17);a.move(6,0);a.jump(0x1abc50,True);a.move(7,0)
+    a.branch(1,2,1,'done');a.emit(0)
+    a.move(4,18);a.move(5,17);a.jump(0x1b2070,True);a.move(6,0)
+    a.branch(1,2,0,'done');a.move(20,2)
+    a.move(4,18);a.i(9,0,5,2);a.move(6,20);a.i(9,0,7,1);a.jump(0x1af000,True);a.move(8,0)
+    a.i(9,0,21,0xd);a.label('body')
+    a.move(4,18);a.move(5,21);a.move(6,19);a.jump(0x1af860,True);a.move(7,0)
+    a.move(4,18);a.move(5,21);a.move(6,20);a.move(7,2);a.jump(0x1af000,True);a.move(8,0)
+    a.i(9,21,21,1);a.i(10,21,2,0x11);a.branch(5,2,0,'body');a.emit(0)
+    a.move(21,0);a.label('weapon');a.i(0x2b,29,21,0x80)
+    a.move(4,18);a.i(9,0,5,0xc);a.move(6,19);a.jump(0x1af860,True);a.i(9,29,7,0x80)
+    a.move(4,18);a.i(9,0,5,0xc);a.move(6,20);a.move(7,2);a.jump(0x1af000,True);a.i(9,29,8,0x80)
+    a.i(9,21,21,1);a.i(10,21,2,16);a.branch(5,2,0,'weapon');a.emit(0)
+    a.label('done')
+    for i,r in enumerate(range(16,23)):a.i(0x1e,29,r,i*16)
+    a.i(0x37,29,31,0x70);a.emit(0x03e00008);a.i(9,29,29,0x90)
+    assert helper+len(a.data())<=event
+    e=Asm(event)
+    e.i(0x23,5,2,8);e.i(9,0,3,0x4ba);e.branch(5,2,3,'original');e.emit(0)
+    e.i(0x23,5,2,12);e.i(9,0,3,0x4b9);e.branch(5,2,3,'original');e.emit(0)
+    e.i(15,0,2,0x5a);e.i(0x23,2,2,-0x2c94);e.i(0x23,2,2,0xf5c);e.i(9,0,3,1)
+    e.branch(5,2,3,'original');e.emit(0)
+    e.i(9,29,29,-0x30);e.i(0x3f,29,31,0x20)
+    e.jump(0x2bb3d0,True);e.i(9,0,6,3)
+    e.i(9,0,4,0x4ba);e.jump(helper,True);e.i(9,0,5,0x4b9)
+    e.i(9,0,2,10);e.i(0x37,29,31,0x20);e.emit(0x03e00008);e.i(9,29,29,0x30)
+    e.label('original');e.jump(trampoline);e.emit(0)
+    assert event+len(e.data())<=menu
+    m=Asm(menu);m.i(9,29,29,-0x60)
+    for i,r in enumerate(range(4,8)):m.i(0x1f,29,r,i*16)
+    m.i(0x3f,29,31,0x40);m.i(15,0,2,0x5a);m.i(0x23,2,2,-0x2c94)
+    m.i(0x23,2,2,0xf74);m.i(10,2,2,41);m.branch(5,2,0,'done');m.emit(0)
+    m.i(9,0,4,0x4b9);m.jump(helper,True);m.i(9,0,5,0x4ba)
+    m.label('done')
+    for i,r in enumerate(range(4,8)):m.i(0x1e,29,r,i*16)
+    m.i(0x37,29,31,0x40);m.i(9,29,29,0x60);m.jump(menu_target);m.emit(0)
+    assert menu+len(m.data())<=trampoline
+    return [(helper,a.data()),(event,e.data()),(menu,m.data()),
+        (trampoline,struct.pack('<4I',0x27bdff60,0x24060003,(2<<26)|(0x2da488>>2),0))]
+
+
+def trombe_coexist_fix(apply=False):
+    import psutil
+    from validate_hidden_rewards import VM,ram as fixture,CTX,REC
+    from r5900_scalar_check import CPU
+    journal=ROOT/'runtime/trombe_coexist_20261119.json'
+    report=dict(applied=False,chapter=42,units=[0x4ba,0x4b9],parts_and_pilots_not_duplicated=True,files=[])
+    for name in ('SRWOGS_K.iso','SRWOGS_BEOWULF_CUTIN_TEST.iso'):
+        path=ROOT/'build'/name
+        if not path.exists():continue
+        with path.open('rb') as f:
+            digest=hashlib.file_digest(f,'sha256').hexdigest();elf=read(f,0x94880,0x482980);blob=read(f,0x5da000,0x1a5800)
+            original=read(f,0x94880+0x2da480-0x100000,8);assert original==struct.pack('<II',0x27bdff60,0x24060003)
+            menu_old=read(f,0x94880+0x431778-0x100000,8);target=(u32(menu_old,0)&0x3ffffff)<<2
+            assert target in (0x49b400,0x49b800) and menu_old[4:]==struct.pack('<I',0x0000902d)
+            code=trombe_coexist_code(target);edits=[]
+            for pc,data in code:
+                at=0x94880+pc-0x100000;before=read(f,at,len(data));assert not any(before),('cave occupied',hex(pc))
+                edits.append(dict(offset=at,before=before.hex(),after=data.hex()))
+            for pc,dest,before in ((0x2da480,0x49ca60,original),(0x431778,0x49cb00,menu_old)):
+                edits.append(dict(offset=0x94880+pc-0x100000,before=before.hex(),after=struct.pack('<II',(2<<26)|(dest>>2),0 if pc==0x2da480 else 0x0000902d).hex()))
+        master=u32(fixture,0x59d360);save=u32(fixture,0x59d364);glob=u32(fixture,0x59d36c)
+        def setup(patched=True,part=1,cleared=41):
+            vm=VM();c=CPU(fixture);vm.cpu=c;c.mem[0x100000:0x582980]=elf
+            if patched:
+                for e in edits:
+                    at=e['offset']-0x94880+0x100000;data=bytes.fromhex(e['after']);c.mem[at:at+len(data)]=data
+            h=0x11e800;dest=0x1100000;c.mem[dest:dest+len(blob[h:])]=blob[h:]
+            for i,k in enumerate(range(0x18,0x8c,4)):
+                q=dest+u32(blob,h+k)
+                for off,v in ((0,q),(4,c.read(q,4)),(8,c.read(q+4,4)),(12,c.read(q+8,4)),(16,q),(20,q+12)):c.write(master+0x28+i*24+off,v,4)
+            c.write(glob+0xf5c,part,4);c.write(glob+0xf74,cleared,4)
+            root=0x68c1d0;c.write(CTX+0x310c,root,4)
+            for i in range(255):c.write(root+0x40e00+0x1a608+i*0x1a0,-1,4)
+            return vm
+        def grant(vm,key):
+            c=vm.cpu;vm.op(command(0x5a,key));slot=c.run(0x1abc50,[save,key,0,0]);assert slot>=0;c.run(0x1af000,[save,2,slot,1,0]);return slot
+        def upgrades(c,slot,write=False):
+            if write:
+                for i,p in enumerate(range(0xd,0x11)):c.run(0x1af000,[save,p,slot,i+3,0])
+                for i in range(16):c.write(REC,i,4);c.run(0x1af000,[save,0xc,slot,(i+2)%11,REC])
+            body=[c.run(0x1af860,[save,p,slot,0]) for p in range(0xd,0x11)];weapon=[]
+            for i in range(16):c.write(REC,i,4);weapon.append(c.run(0x1af860,[save,0xc,slot,REC]))
+            return body,weapon
+        def record(c,slot):return bytes(c.mem[save+0x6efc+slot*216:save+0x6efc+(slot+1)*216])
+        cases=[]
+        vm=setup();c=vm.cpu;source=grant(vm,0x4ba);grades=upgrades(c,source,True);before=record(c,source)
+        pilots=bytes(c.mem[save+0x25cfc:save+0x314fc]);vm.op(command(0x6f,0x4ba,0x4b9,0))
+        extra=c.run(0x1abc50,[save,0x4b9,0,0]);assert extra>=0 and extra!=source
+        assert c.run(0x1abc50,[save,0x4ba,0,0])==source and record(c,source)==before
+        assert upgrades(c,extra)==grades and c.run(0x1a9b70,[save,extra,1])==1
+        assert bytes(c.mem[save+0x25cfc:save+0x314fc])==pilots and c.run(0x1b1300,[save,extra,0])==-1
+        stable=bytes(c.mem[save:save+0x3b400]);vm.op(command(0x6f,0x4ba,0x4b9,0));assert c.mem[save:save+0x3b400]==stable
+        cases.append('future_42_event_keeps_Trombe_and_adds_R_with_identical_grades')
+        # Unrelated native conversions must take the untouched handler path.
+        native=setup(patched=False);modified=setup()
+        for v in (native,modified):
+            grant(v,0x4b8);v.op(command(0x6f,0x4b8,0x4b9,0))
+        assert native.cpu.mem[save:save+0x3b400]==modified.cpu.mem[save:save+0x3b400]
+        cases.append('unrelated_conversion_matches_original_handler')
+        for cleared in (40,41,42,50):
+            vm=setup(cleared=cleared);c=vm.cpu;source=grant(vm,0x4b9);grades=upgrades(c,source,True);before=record(c,source)
+            c.r[17]=save;args=[0x5c8610+0x2c260,0x1122,0x3344,0x5566]
+            c.run(0x49cb00,args,stop=target)
+            extra=c.run(0x1abc50,[save,0x4ba,0,0]);assert (extra>=0)==(cleared>=41)
+            assert record(c,source)==before
+            if extra>=0:assert extra!=source and upgrades(c,extra)==grades and c.run(0x1b1300,[save,extra,0])==-1
+            stable=bytes(c.mem[save:save+0x3b400]);c.run(0x49cb00,args,stop=target);assert c.mem[save:save+0x3b400]==stable
+            cases.append('backfill_clear_'+str(cleared))
+        for part in (0,2):
+            vm=setup(part=part);c=vm.cpu;source=grant(vm,0x4b9);upgrades(c,source,True);before=bytes(c.mem[save:save+0x3b400])
+            c.run(0x49c800,[0x4b9,0x4ba]);assert c.mem[save:save+0x3b400]==before
+        vm=setup();c=vm.cpu;grant(vm,0x4b9)
+        for i in range(4):c.write(save+0x3b2fc+i*4,0xffffffff,4)
+        before=bytes(c.mem[save:save+0x3b400]);c.run(0x49c800,[0x4b9,0x4ba]);assert c.mem[save:save+0x3b400]==before
+        report['files'].append(dict(path=str(path),before_sha256=digest,edits=sorted(edits,key=lambda e:e['offset']),native_cases=cases,OG1_and_OG25_unchanged=True,roster_full_preserved=True))
+        print(name,'Trombe coexistence native checks passed',flush=True)
+    journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    if apply:
+        assert not any('pcsx2' in p.name().lower() for p in psutil.process_iter()),'Close PCSX2'
+        for item in report['files']:
+            path=Path(item['path']);es=item['edits']
+            with path.open('r+b') as f:
+                assert hashlib.file_digest(f,'sha256').hexdigest()==item['before_sha256']
+                try:
+                    for e in es:
+                        old,new=bytes.fromhex(e['before']),bytes.fromhex(e['after']);assert read(f,e['offset'],len(old))==old;f.seek(e['offset']);f.write(new)
+                    f.flush();os.fsync(f.fileno());f.seek(0);pos=0;target_hash=hashlib.sha256();inverse=hashlib.sha256()
+                    for e in es:
+                        while pos<e['offset']:
+                            raw=f.read(min(4<<20,e['offset']-pos));target_hash.update(raw);inverse.update(raw);pos+=len(raw)
+                        raw=f.read(len(bytes.fromhex(e['after'])));assert raw==bytes.fromhex(e['after']);target_hash.update(raw);inverse.update(bytes.fromhex(e['before']));pos+=len(raw)
+                    while raw:=f.read(4<<20):target_hash.update(raw);inverse.update(raw)
+                    assert inverse.hexdigest()==item['before_sha256'];item['after_sha256']=target_hash.hexdigest()
+                except Exception:
+                    for e in es:f.seek(e['offset']);f.write(bytes.fromhex(e['before']))
+                    f.flush();os.fsync(f.fileno());raise
+        report['applied']=True;journal.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(dict(applied=report['applied'],files=[dict(path=x['path'],native_cases=x['native_cases']) for x in report['files']]),ensure_ascii=False,indent=2))
+
+
 def main():
+    if '--trombe-coexist' in __import__('sys').argv:return trombe_coexist_fix('--apply' in __import__('sys').argv)
+    if '--normal-rgun-attack' in __import__('sys').argv:return normal_rgun_attack_fix('--apply' in __import__('sys').argv)
     if '--vysaga-auto' in __import__('sys').argv:return vysaga_auto('--apply' in __import__('sys').argv)
     ap=argparse.ArgumentParser();ap.add_argument('--apply',action='store_true');ap.add_argument('--repair-loading',action='store_true');ap.add_argument('--balance',action='store_true');ap.add_argument('--finisher-cost',action='store_true');ap.add_argument('--clear-bonus',action='store_true');ap.add_argument('--valcion-custom',action='store_true');ap.add_argument('--legacy-recruitment',action='store_true');ap.add_argument('--weapon-cost-rebalance',action='store_true');ap.add_argument('--enemy-upgrade-plus2',action='store_true');ap.add_argument('--upgrade-report',action='store_true');ap.add_argument('--restoration',action='store_true');ap.add_argument('--enemy-deployment-fix',action='store_true');ap.add_argument('--refurbishment',action='store_true');ap.add_argument('--granzon-join',action='store_true');ap.add_argument('--granzon-dialogue',action='store_true');ap.add_argument('--refurbishment-backfill',action='store_true');args=ap.parse_args()
     if '--refurbishment-backfill' in __import__('sys').argv:return refurbishment_backfill(args.apply)
