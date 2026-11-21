@@ -1,0 +1,455 @@
+{
+  "version": "v20261121",
+  "bits": {
+    "hidden": 1,
+    "bundle": 2,
+    "rewards": 4,
+    "enemy": 8,
+    "spirits": 16,
+    "beowulf": 32
+  },
+  "defaults": 0,
+  "hashes": [
+    "43D263720E553EAE895331C1FBF4C62B4DB505CE98B3D6F8730B7743A1A946D2",
+    "0D92253F737F6FDB0B0D92B55E9B026A9C051557252DF47C98AD4B4134479810",
+    "74F406B03D0C1AEF91B54DCAA761091AD92758AB1147D69823D27F1D2C3ADE6F",
+    "CEC39ECDD5299C148722C83D90728575E96087BC910B3A00E998FF93211BF48F",
+    "B126D93E549C65158FFA8E650899F7F82505B147A690244689B5A00AC5860048",
+    "DE837A874127F3AEE2839F5FB59A7BFE534553C39510C37AF47EB2561E376C0C",
+    "7C92CBAD908BAD8377BC9AED6F7CC3D7C0D2450627DCDCF8AB9C05FBC2D00D69",
+    "5C2F36A2C8D82D96F2C2CAC767ECFAD205C90B7B2BC96C2144075689EFD0CAB0",
+    "3BDC10D31E938F7273075E4B6485C0C44D3D51CA1226CC1809617525524E91D0",
+    "64B2053711364B46D27F82851801927E58B5F4F3E05D09AFDC097B71281B3A9B",
+    "3FE9DBED6E3E4AAD42DE392D763CBCAEDB5573BE70320B1E3ED02EDD63885DD5",
+    "5EA369D229BA7A64559D1E8F7F3A9C983C07560545CB60A5FBA76840509B24C5",
+    "E7C75734660401AC420AC3217E84E783493B48FA97A284636B5105F5C44A5F18",
+    "EF04D0951596BBB3C98E91B66A3E06F9506D5B32A8E5F1B744A7E2EF80F2B97A",
+    "4035AEFAC24E5C03EF4BFB782396E76FA6E996DB3196E6C7E4B13FEA8CBE21DD",
+    "89490F9C1E5B4019BFFE4E0F29ED146FF7039E3F81658C1FC795C872D5C28019",
+    "02EFCCE7CE5D0F70D8C3AFCF5ED2E4285132BA61812F7E03B1BEF76F9411B819",
+    "BB07D825E5924B56B05B1C300B67500FAF5C4B65EF96563114F6EFB08BB4B6F5",
+    "4DB1614BB20002238D693EF99221264C4513930D61FBB3F254CB95B0027662C5",
+    "633D2716D6A1A4C31F9156C4BA016471716C500FE9C2D7592EF50FDA3EF04E9C",
+    "5BD8B5F3BB483D37A7368FBCD71218F9E88444A2B5CB392B46DAA2CD10A8E656",
+    "BFE9BBC3265F4FD6D9AFB50CA70A429F4BFD447BD77E62D4AE08F8BFF68D1009",
+    "4EB13F3ADBA69CA4CD0A1078AEC5EA08948027E6E78D98A21BB0A6500CCFDAD6",
+    "72A1B23D6040D673D10A7CA874C2968C3210DAC76B15B68B143972C7A637357B",
+    "0D1C80A1A6DDE68804FCC9FB113C6CEC9D80C92167C19F364769A2EAC4FD2355",
+    "0D02F59182B0AC10A400BDFE98EB85300E0B395995CEAE8D0341DDFF102835FC",
+    "907D412BA8C3F34FF960A7B396707590588BA900DDA94C058F078224B36AE554",
+    "ACBDB848AC21023C9A2C04994BD152B49453F6BC7F4E80AB5853722BCA304513",
+    "5D374FDB398DE793D05E547FDD7FE3287A412D942A49CFE586346616C2B7A1AF",
+    "148CAB78498C4A599A069B4EA43B7EDC0C01CF9758558A974574CD92B77BDA25",
+    "E63D420E00CA074ECAD8E36FCAF8D1157845E608FBDF772F63D9DD73F60CB66D",
+    "3EBEB626CE2EBC5DC51F872816EBD1F50B6851D634FFA0CD9F10047C79B9F3CD",
+    "596FAF1AC2A84C9B55BBC9FA7D7FC04BEE06006B2F7BCCE7AA6A7EE14C601424",
+    "DF1C29E1B18D5FD14391C0EFCDCE858C177A18BA7ACC2C9A43649639DD68FFBF",
+    "F2566E862666EE0D451745A1F3687D3F33FCEA04C5788D26AA42D8D14E477AE1",
+    "188AAAA7D5A8D8ED981938AC3325B2C34E873FDE43589D53B0EA79A43CDF5627",
+    "8963FA3BC6F0D70ECA9E445578F188F0A16A662BE5D00B461D2888045D551140",
+    "57ED814CD7CFA2548C069874217A600E4F770A987BCE0C2D68E86D4F6610CB10",
+    "EDB73123B6E3C361A2C33DB8667DC2FB4B947CB26AB7F352AC05B8CB2772CD64",
+    "F7320C4B9E041DEBBED68634915A4B8945571B7333DD00149EB5F9757A67F04D",
+    "11DD922A5D651E558376BEB83A791F931893A6F7375F620A14A2E18A9BA2AEB5",
+    "82CA100AADA7F441FBFB9FEEE94AC9DBF02C94F6A38717D959357FB7BBE4E6D4",
+    "714644489EC8CF25F44F6483B3A11ADE12148C2C16425EF94267D4DE4EF99BF6",
+    "3BA61A5543079CFE33CD4E8E8928861174863C653FD754250A56F38A798A2BEF",
+    "CD437B2BD00526B6BB8252F1F807884BE52BE8585D494D7CA96F9735E254F927",
+    "02E35FA2B734C7824228F7F71BD8B410AE2FFE3C1B2AA81E66EAF8E59CDDC5E3",
+    "B7E6B15574BD701DC5810A53A062CB3963ABF0F70343DA81F55C1CE1EAE4BA27",
+    "74B448BD94F769DFB536C6A063BA59CBF3AB465F45D0C11EF0FCC2E4A02B161F",
+    "09688B412F330034A748E42299336F5C7FADE58E1A46AAE96242CBEAFC02B9D6",
+    "D4D8A87F2778543BAC15D4E702786AD9E986CBEB43F83364EA5412AB0A948BF5",
+    "D105487645DF52DBB8B03DD8D16596BC34916C076DE7A742C9370F6E78649BA0",
+    "17DCC3BDC6F9D69247573DCA43729A2DFE4E43B1871A76CDB09B2C9001A35866",
+    "06B9BA51BEDE9B4B036F66B00D2AF90D35768AD0470B3F7C7C87190198AC99CD",
+    "F138BA616B3B1C5595EF91CDC093836998E5D7E9DA65FE175E789599D350B313",
+    "72F479893A85287F5CCF60E249E1B4242AAF4B142D168CB95A632287F96F5214",
+    "B24C764A63D0C0F1C9009CD9B6ED72072FF42E4929A763F54073D0929E799C32",
+    "4C23595F3BDE94C53909E81DDD7E1C741367E63EE6A4F552D25324D8B7817B33",
+    "AD8784C4881E93B59E7C3667650D72C7B4B14D6E3D9FD3AC4AD422E8C94C900C",
+    "AAB3295042E13CD2F5A56D94774F383D3530B5FE340A1FBFD753663F57D3B709",
+    "3ADCDDE7262DE3590714E7CCA8603D2D04568C9DE417E349C11E651160CD0198",
+    "E24F313EDC31A88180182A160D30A478B14039A2F90E80B4AC5AA65A0E707E0F",
+    "899B91B32A48E7D5435AB922B764D6139F42B66345EE7213D6CA70E36AC025FF",
+    "41B58AE1E938A0EBC1288C8F73749574AED8CFAEDB19033A19AD67053574676A",
+    "DA706AAFD5A76EBF8079B6EB15194D14D87F34E92D2DA601DF89F036D3C27F4B"
+  ],
+  "anchors": [
+    "25622009576119DD3A4EB3603B2753D1E632F62351B06BE8A83C39D59D149067",
+    "ADE5ABE49FD2D3835F892983AD83E70473EAB01FF85987E581A9FBED4897A54B",
+    "4E3B006A56E0ABB789F1BC5F09B596C05337E55ABB0A8064AE54FA04CC968607",
+    "BF3311E44E2BEC0451AC39ED63E6FFE721DE93B0F333C8CD21CFC033A3E8B77A",
+    "C6D2D84FE4C61E0CD522FF3D05249D2472124681677ACD25DB33866A12675954",
+    "B46E2002E6F159708488439511E17B3A0502131ADB9D23EDC3F88BEEBF3C3A0E",
+    "61849CFF82C258EB95ADD37C737A00AA840275B9BFAF61754EE38C4732E3EEA6",
+    "FEEADE8549DE8FA69B93CC1B343C803DBFB7806A9934FFAFBC0734928526D00F",
+    "383A3C8A16A4845E472C1D8281AABC9429615F5F44122A4C481FE871ED9622BC",
+    "384DB6519AE22BCB7F12D61F797B6DF06DC5E60A796D40BDF7107F5F3EE7B054",
+    "C8305D8F33E6D3F40152824F769A70FD28FF92CC2D9DA129428F5450266040D0",
+    "9AD8DDDF46020E4BCDB9022BA11A171961A4FFF083F861F2887628D810E5163F",
+    "F966D5152AB93537F4F0E22A6C876A92AD6FDC288C1AAC5FF3CBBDE1983A8CBD",
+    "2AEC9C47A1267D1C653B3FFFA0D2E386031C95C00CC6A53A8FD589F8EF6DAC58",
+    "5CBC620581933D9B4AFD7512DF6F55873AB51AB1316CD7EF113DA46353345B0E",
+    "DB079C1EED00A37DACB87AB5C67A073510A8C8AC4D7330A36413F3EBA3589C26",
+    "F1CB6952A524F57B31601B04EEFE90F15116A230A0068EA7C071EBA74CE23531",
+    "0A691105D8EA354C777E9032DDC32E8693EC2EEB6116460E739C23AAE2EEBACE",
+    "FDD59AD21CBF5D0133E9E646C75789A2E5823A840659179A46046D9FC5F385C1",
+    "5D96A0D83CF803EF96D50845E71E3C5540C33E82B58798A1889C55C5891F31C9",
+    "BE10BD934BA50170C45483DF4C492085AEEDC3FA0C05864BB804DA89078F48EA",
+    "7C7EE1A7ADDF19E812A1D2C96E3EBD38B5ADD82DC8E7E2F46EAFAA0EFC9D3412",
+    "AC14857C0848F5338F62680A8E1A3942FD4AC74E296F9BAFEB6F3EBEBB234584",
+    "C98D6C5E75BF844B0E6B341A0E73247C62E2CB0955F39F74CB9A248A61803C0A",
+    "9E319930A4FA9E122E671BA40A6E35E588ADFB92BAC17A922009E0FC59B6213B",
+    "F8409891714817723AEB6A787E93F6E4B1EB86B19D65072E02614350F6417CC5",
+    "B6812A52369E46C3D2733ACFDAF633EA18359F669A075683284982275EA62C02",
+    "7888BD25621FEB8B3B7EA757CAA92A9FEEDF450BCDDEAE22E935DC2382F5A74C",
+    "B8260A397D0A5A046A14221C4CB6B5213634C27B3DB9EDFBFB094FB499DA7B12",
+    "B2E2B7FC06DD7CBF8769A89B1239F06B8315687EBCF6DF7AAD35016901938653",
+    "3F8055D73316853DAA948799C6857C65C8825E4BFCD8C644C07715D0FD9A1870",
+    "98ECEB49E5928194A88F7621C91CDDBFA4AC8D48267BA82A43C07081EB23C510"
+  ],
+  "profile_count": 64,
+  "pack_sha256": "B8145E5063EE27330C5632CD8B84CB24DA221BE176F89A4CB122C375D13E2745",
+  "pack_size": 254343368,
+  "previous_profiles_supported": 704,
+  "source_release": "v20261116",
+  "personal_changes_excluded": true,
+  "gameplay_ISO_read_only": true,
+  "production_sha256": "3EF57FD4C7738A850693C72EDB1D6CC183A192C7B19D27CC1032560443915243",
+  "fixes": [
+    "ingram_rgun",
+    "trombe_coexist",
+    "ouka_wodan_trampoline"
+  ],
+  "per_profile": [
+    {
+      "mask": 0,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 1,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 2,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 3,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 4,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 5,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 6,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 7,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 8,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 9,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 10,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 11,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 12,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 13,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 14,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 15,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 16,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 17,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 18,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 19,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 20,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 21,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 22,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 23,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 24,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 25,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 26,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 27,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 28,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 29,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 30,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 31,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 32,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 33,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 34,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 35,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 36,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 37,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 38,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 39,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 40,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 41,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 42,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 43,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 44,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 45,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 46,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 47,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 48,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 49,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 50,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 51,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 52,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 53,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 54,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 55,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 56,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 57,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 58,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 59,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 60,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 61,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 62,
+      "target": "0x49b400",
+      "wodan_retagged_rows": 120
+    },
+    {
+      "mask": 63,
+      "target": "0x49b800",
+      "wodan_retagged_rows": 120
+    }
+  ],
+  "generator_equals_recorded_fix_on_masks": [
+    1,
+    3,
+    31
+  ],
+  "branch_scan_all_profiles": true,
+  "live_playthrough_verified_by_user": "mask of working ISO (hidden ON, Beowulf OFF) on phone, 2026-11-21",
+  "scratch_default_iso": "D:\\패치유틸.xdeltaUI\\work_ogs\\runtime\\FIX20261121_VERIFY.iso"
+}

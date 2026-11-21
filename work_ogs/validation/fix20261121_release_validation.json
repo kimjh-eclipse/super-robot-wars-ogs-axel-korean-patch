@@ -1,0 +1,72 @@
+{
+  "passed": true,
+  "version": "v20261121",
+  "profile_count": 64,
+  "actual_iso_cases": [
+    {
+      "name": "base_to_default",
+      "mask": 0,
+      "sha256": "43D263720E553EAE895331C1FBF4C62B4DB505CE98B3D6F8730B7743A1A946D2",
+      "seconds": 24.38
+    },
+    {
+      "name": "default_to_beowulf",
+      "mask": 32,
+      "sha256": "596FAF1AC2A84C9B55BBC9FA7D7FC04BEE06006B2F7BCCE7AA6A7EE14C601424",
+      "seconds": 23.02
+    },
+    {
+      "name": "all_on",
+      "mask": 63,
+      "sha256": "DA706AAFD5A76EBF8079B6EB15194D14D87F34E92D2DA601DF89F036D3C27F4B",
+      "seconds": 24.96
+    },
+    {
+      "name": "hidden_only",
+      "mask": 1,
+      "sha256": "0D92253F737F6FDB0B0D92B55E9B026A9C051557252DF47C98AD4B4134479810",
+      "seconds": 21.71
+    },
+    {
+      "name": "all_off",
+      "mask": 0,
+      "sha256": "43D263720E553EAE895331C1FBF4C62B4DB505CE98B3D6F8730B7743A1A946D2",
+      "seconds": 21.55
+    },
+    {
+      "name": "restore",
+      "mask": 1,
+      "sha256": "0D92253F737F6FDB0B0D92B55E9B026A9C051557252DF47C98AD4B4134479810",
+      "seconds": 11.94
+    },
+    {
+      "name": "v20261116_0_to_new",
+      "mask": 0,
+      "sha256": "43D263720E553EAE895331C1FBF4C62B4DB505CE98B3D6F8730B7743A1A946D2"
+    },
+    {
+      "name": "restore_v20261116_0",
+      "sha256": "5DAFC92932D32776A66B350C64E04A00E41A3F6656844ABF588E8394D592350B"
+    },
+    {
+      "name": "v20261116_31_to_new",
+      "mask": 31,
+      "sha256": "3EBEB626CE2EBC5DC51F872816EBD1F50B6851D634FFA0CD9F10047C79B9F3CD"
+    },
+    {
+      "name": "restore_v20261116_31",
+      "sha256": "029E8B1D02F27869FB4CB8A1DBDE50AB77AEED778B68428B45ABFB5A9DB7D7B5"
+    },
+    {
+      "name": "v20261116_63_to_new",
+      "mask": 63,
+      "sha256": "DA706AAFD5A76EBF8079B6EB15194D14D87F34E92D2DA601DF89F036D3C27F4B"
+    },
+    {
+      "name": "restore_v20261116_63",
+      "sha256": "85613D92F235E83A8F68B116C3081AC0EF6C199B4CBFEF29E5A1A0DBAC9DE4FF"
+    }
+  ],
+  "source_public_release": "v20261116",
+  "personal_changes_excluded": true
+}

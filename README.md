@@ -2,9 +2,9 @@
 
 PS2 『슈퍼로봇대전 OG ORIGINAL GENERATIONS』의 라미아 아군 루트를 액셀로 플레이하는 패치입니다. **OGs 한글패치 v1.4.3s1 적용본**을 대상으로 합니다.
 
-현재 버전: **v20261116**
+현재 버전: **v20261121**
 
-[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_AxelRoleSwap_kr_v20261116.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261116) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
+[패처 ZIP 다운로드](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261121/SRWOGS_AxelRoleSwap_kr_v20261121.zip) · [릴리즈](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/tag/v20261121) · [전체 변경내역](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/blob/main/CHANGELOG.md)
 
 
 ## 베오울프·Mk-Ⅲ HD 추가팩 (선택 설치)
@@ -42,37 +42,15 @@ SHA256: `8E469B518804C8E74FCD91963DF004F2EFF6D3708E967A5F5540876F5B20FCF3`
 
 같은 ISO에서 체크를 바꾸고 재적용할 수 있습니다. 해제한 옵션의 패치 데이터는 원래대로 복원합니다. 이미 세이브에 쌓인 자금·PP·보유품·합류 기록은 회수하지 않습니다. 패처 옆 `.bin` 파일은 모두 함께 두세요. `.ogsbak`으로 마지막 작업 직전 상태를 복원할 수 있습니다.
 
-기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102·v20261102.1·v20261105·v20261106 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
+기준 한글판 및 v20260831·v20260904·v20261002·v20261024·v20261025·v20261025.1·v20261026·v20261027·v20261027.1·v20261028·v20261029·v20261029.1·v20261101·v20261101.1·v20261102·v20261102.1·v20261105·v20261106·v20261107·v20261116 공개 적용본을 지원합니다. v20261026의 네 조합과 새 64개 조합 사이에서도 전환할 수 있습니다.
 
 ## 이번 업데이트
 
-- 베오울프 파일럿 컷인을 이미지 생성으로 새로 제작했습니다. 두 종류의 원본 배치에 맞춰 등록하고, 외곽·투명 영역·부품 배치·UV 및 연출 명령은 유지했습니다.
-- 일반 쿄스케 원본 컷인은 보존합니다. 베오울프 등장 옵션을 켠 경우에만 새 ISO 컷인이 적용됩니다.
-- HD 추가팩도 같은 그림으로 갱신했습니다. 기체 16개·초상화 3개·컷인 및 호환 파일 12개, 총 PNG 31개입니다. 기존 ISO/새 ISO의 텍스처 파일명을 함께 지원합니다.
-- 기존 여섯 옵션·바이사가 지급·입수 및 개수 이벤트·게임 밸런스를 유지합니다. 베오울프 OFF의 32개 ISO 결과는 v20261107과 동일합니다.
-
-## 이번 버전 다운로드
-
-- [ISO 패처 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_AxelRoleSwap_kr_v20261116.zip)
-- [HD 텍스처 이미지 세트 ZIP](https://github.com/kimjh-eclipse/super-robot-wars-ogs-axel-korean-patch/releases/download/v20261116/SRWOGS_Beowulf_MkIII_HD_Addon_v20261116.zip)
-
-두 파일은 별도입니다. ISO나 전체 OGs HD팩은 포함하지 않습니다.
-
-## 적용 방법
-
-1. PCSX2를 종료합니다. 일본판 원본 → [한글패치 v1.4.3s1](https://github.com/z3oo3z/PS2-SRWOGS-KPatch/releases/download/SRWOGS/OGs-v1.4.3s1.7z) → 이 액셀 패치 순서로 적용합니다. 기존 공개 액셀 패치 적용본도 새 패처로 갱신할 수 있습니다.
-2. ISO 패처 ZIP을 풀고 patcher/OGS_AxelSwap_QuickPatch.exe에서 ISO를 선택합니다. 원하는 옵션을 체크해 적용하세요. 베오울프를 사용하려면 ‘베오울프 등장’을 켭니다. 여섯 옵션 기본값은 모두 꺼짐입니다.
-3. HD를 사용하는 분은 HD ZIP도 받으세요. 기존 beowulf_mk3 폴더는 텍스처 검색 폴더 밖에 백업한 뒤 새 파일로 교체합니다. 다른 replacements 폴더나 전체 HD팩은 유지하세요.
-4. 기본 경로라면 HD ZIP의 textures 폴더를 에뮬레이터 폴더에 병합합니다. 최종 위치는 <검색 폴더>/SLPS-25733/replacements/beowulf_mk3/*.png입니다. PNG 파일명은 바꾸지 마세요.
-5. Graphics → Texture Replacement → Load Textures를 켭니다. PCSX2 1.7.4005를 그대로 사용할 수 있으며 하드웨어 렌더러를 사용하세요. Dump Textures는 필요하지 않습니다.
-6. 새로 부팅해 게임 내 메모리카드 세이브로 불러옵니다. ISO 갱신 후 예전 세이브 스테이트는 사용하지 마세요.
-
-HD 제거 시 beowulf_mk3 폴더만 검색 폴더 밖으로 옮기면 됩니다. 자세한 안내는 HD ZIP의 설치방법.txt에 있습니다.
-
-## 검증 범위
-
-64개 옵션 결과 전체 SHA256, 컷인 외곽·알파·원본 리소스 보존, PNG 파일명·RGBA/GS 알파와 ZIP 무결성을 검사했습니다. 실제 모든 무장의 전투 연출을 새로 실플레이한 검증은 아닙니다.
-
+- 42화에서 휴케바인 Mk-Ⅲ 트롬베가 타입R로 바뀔 때 트롬베도 그대로 남습니다. 기체·무장 개조 단계는 타입R에 복사되고, 장착 파츠와 파일럿은 원래 기체에 남습니다. 41화 이후 세이브는 타입R을 가진 상태에서 「갈아타기」 메뉴에 들어가면 빠진 트롬베를 돌려받습니다.
+- 오우카·워단이 합류할 때 기체와 파일럿이 두 번 생기던 문제를 고쳤습니다. 이미 중복된 세이브는 인터미션에서 쓰지 않은 쪽만 정리합니다. 개조나 파츠가 다른 기체, 육성한 파일럿은 지우지 않습니다.
+- 아군으로 합류한 워단의 전투 대사·음성이 원래 대사로 나오도록 연결했습니다.
+- 잉그램의 R-GUN 일반 공격 대사(「공격한다！」「떨어져라！」「잡았다！」「부서져！」)가 원래 음성과 함께 나오도록 고쳤습니다.
+- 여섯 옵션과 기본값(모두 꺼짐)은 그대로입니다. 위 수정은 옵션과 관계없이 들어갑니다.
 
 ## 기본 적용 사항
 
